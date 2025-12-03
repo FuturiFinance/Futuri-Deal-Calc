@@ -339,70 +339,34 @@ window.UserData = (function () {
   return { init, getMerged, addEntry, export: exportUser, import: importUser };
 })();
 </script>
-
-<script>
-(async function boot() {
-  await UserData.init('radio_data.json');
-
-  const status = document.getElementById('userDataStatus');
-  const showStatus = msg => { status.textContent = msg; if (msg) setTimeout(()=>status.textContent='', 2200); };
-
-  document.getElementById('btnAddCompany').onclick = () => {
-    document.getElementById('addCompanyModal').style.display = 'flex';
-    document.getElementById('ac_parent').focus();
-  };
-  document.getElementById('ac_cancel').onclick = () => {
-    document.getElementById('addCompanyModal').style.display = 'none';
-  };
-  document.getElementById('btnExportUserData').onclick = () => {
-    UserData.export(); showStatus('Exported user_radio_data.json');
-  };
-  document.getElementById('inputImportUserData').onchange = async e => {
-    const f = e.target.files?.[0]; if (!f) return;
-    await UserData.import(f);
-    showStatus('Imported user data');
-    e.target.value = '';
-  };
-
-  document.getElementById('ac_save').onclick = () => {
-    const P = ac_parent.value.trim(), C = ac_country.value.trim(),
-          M = ac_market.value.trim(), S = ac_station.value.trim();
-    const err = ac_error;
-    if (!P || !M || !S){ err.textContent='Parent, Market, and Station are required.'; err.style.display='block'; return; }
-    err.style.display='none';
-    UserData.addEntry({ parent:P, country:C, market:M, station:S });
-    addCompanyModal.style.display='none';
-    showStatus('Saved custom company');
-  };
-
-  addCompanyModal.addEventListener('click', e => {
-    if (e.target.id === 'addCompanyModal') addCompanyModal.style.display='none';
-  });
-})();
-</script>  
   
 <script>
-// Bridge: convert UserData schema → your DS shape
 let BASE_DS = { parents: [], markets: [], stations: [] };
 
 function mergeUserIntoDataset(baseDS, userMerged){
   const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
-  const pSet = new Set(out.parents || []);
-  const mSet = new Set(out.markets || []);
-  const stKeys = new Set((out.stations || []).map(s => `${s.parent}|${s.market}|${s.station}`));
 
-  (userMerged.parents || []).forEach(p => {
-    const parentName = (p.name || '').trim(); if (!parentName) return;
-    if (!pSet.has(parentName)) { out.parents.push(parentName); pSet.add(parentName); }
+  const norm = s => (s||'').trim().toLowerCase();
+
+  const parentSet = new Set((out.parents||[]).map(norm));
+  const marketSet = new Set((out.markets||[]).map(norm));
+  const stationKeySet = new Set((out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`));
+
+  (userMerged?.parents || []).forEach(p => {
+    const parentName = (p.name || '').trim();
+    if (!parentName) return;
+    if (!parentSet.has(norm(parentName))) { out.parents.push(parentName); parentSet.add(norm(parentName)); }
 
     (p.markets || []).forEach(m => {
-      const marketName = (m.name || '').trim(); if (!marketName) return;
-      if (!mSet.has(marketName)) { out.markets.push(marketName); mSet.add(marketName); }
+      const marketName = (m.name || '').trim();
+      if (!marketName) return;
+      if (!marketSet.has(norm(marketName))) { out.markets.push(marketName); marketSet.add(norm(marketName)); }
 
       (m.stations || []).forEach(st => {
-        const stationName = (st || '').trim(); if (!stationName) return;
-        const key = `${parentName}|${marketName}|${stationName}`;
-        if (!stKeys.has(key)) {
+        const stationName = (st || '').trim();
+        if (!stationName) return;
+        const key = `${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
+        if (!stationKeySet.has(key)) {
           out.stations.push({
             parent: parentName,
             market: marketName,
@@ -411,16 +375,20 @@ function mergeUserIntoDataset(baseDS, userMerged){
             rosAQH: 0,
             format: ''
           });
-          stKeys.add(key);
+          stationKeySet.add(key);
         }
       });
     });
   });
 
+  // Optional: keep lists tidy
+  out.parents.sort((a,b)=>a.localeCompare(b));
+  out.markets.sort((a,b)=>a.localeCompare(b));
+  out.stations.sort((a,b)=> a.station.localeCompare(b.station) || a.market.localeCompare(b.market));
+
   return out;
 }
 </script>
-
 
 <script>
 // ============================================
