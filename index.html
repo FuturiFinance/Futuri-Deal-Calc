@@ -78,16 +78,60 @@
   <!-- RADIO VIEW -->
 
   <div id="radioView" class="grid hidden" style="grid-template-columns: 1fr;">
-    <div class="row" style="justify-content:flex-start; margin-bottom:12px;">
-      <button class="back-btn" id="btnBack">← Back to Landing</button>
+  <div class="row" style="justify-content:flex-start; margin-bottom:12px;">
+    <button class="back-btn" id="btnBack">← Back to Landing</button>
+  </div>
+
+  <section class="card">
+    <div class="title">Step 1: Select Parent Company</div>
+    <input id="parentSearch" type="text" placeholder="Search parent companies..." />
+
+    <!-- Toolbar lives INSIDE Step 1 -->
+    <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
+      <button class="btn" id="btnAddCompany">Add Company</button>
+      <button class="btn" id="btnExportUserData" title="Download your custom companies">Export</button>
+      <label class="btn" style="cursor:pointer;">
+        Import
+        <input id="inputImportUserData" type="file" accept="application/json" style="display:none;" />
+      </label>
+      <span id="userDataStatus" style="font-size:12px; color:#666;"></span>
     </div>
 
-```
-<section class="card">
-  <div class="title">Step 1: Select Parent Company</div>
-  <input id="parentSearch" type="text" placeholder="Search parent companies..."/>
-  <div id="parentResults" class="list"></div>
-</section>
+    <div id="parentResults" class="list"></div>
+  </section>
+
+  <!-- Step 2, Step 3, etc. go here -->
+</div>
+
+<!-- Modal: place near end of <body> (outside Step 1) -->
+<div id="addCompanyModal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999;">
+  <div style="background:#fff; width:min(560px, 95vw); border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
+    <div class="title" style="margin-bottom:8px;">Add Company (Custom)</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+      <div>
+        <label>Parent <span style="color:#b00020">*</span></label>
+        <input id="ac_parent" type="text" placeholder="e.g., SonicTrek"/>
+      </div>
+      <div>
+        <label>Country</label>
+        <input id="ac_country" type="text" placeholder="e.g., Canada"/>
+      </div>
+      <div>
+        <label>Market <span style="color:#b00020">*</span></label>
+        <input id="ac_market" type="text" placeholder="e.g., Toronto"/>
+      </div>
+      <div>
+        <label>Station <span style="color:#b00020">*</span></label>
+        <input id="ac_station" type="text" placeholder="e.g., CKFM-FM"/>
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px;">
+      <button class="btn" id="ac_cancel" type="button">Cancel</button>
+      <button class="btn" id="ac_save" type="button">Save</button>
+    </div>
+    <p id="ac_error" style="margin-top:8px; color:#b00020; display:none;"></p>
+  </div>
+</div>
 
 <section class="card">
   <div class="title">Step 2: Select Markets (Optional)</div>
@@ -1609,6 +1653,7 @@ function attachProductEventListeners() {
 }
 
 </script>
+<script src="scripts/userData.js"></script>
 
 </body>
 </html>
