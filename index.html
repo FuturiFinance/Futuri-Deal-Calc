@@ -199,7 +199,6 @@
     <div class="pill">Total ROS: <span id="totalROSMinutes">0</span></div>
   </div>
 </section>
-</div>
 
 <!-- Proposal Generator -->
 <section class="card hidden" id="proposalSection">
@@ -217,10 +216,52 @@
     <div id="proposalTable" style="overflow-x: auto;"></div>
   </div>
 </section>
-```
 
-  </div>
+</div>
 </main>
+
+<script src="scripts/userData.js"></script>
+
+<script>
+// Bridge: convert UserData schema → your DS shape
+let BASE_DS = { parents: [], markets: [], stations: [] };
+
+function mergeUserIntoDataset(baseDS, userMerged){
+  const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
+  const pSet = new Set(out.parents || []);
+  const mSet = new Set(out.markets || []);
+  const stKeys = new Set((out.stations || []).map(s => `${s.parent}|${s.market}|${s.station}`));
+
+  (userMerged.parents || []).forEach(p => {
+    const parentName = (p.name || '').trim(); if (!parentName) return;
+    if (!pSet.has(parentName)) { out.parents.push(parentName); pSet.add(parentName); }
+
+    (p.markets || []).forEach(m => {
+      const marketName = (m.name || '').trim(); if (!marketName) return;
+      if (!mSet.has(marketName)) { out.markets.push(marketName); mSet.add(marketName); }
+
+      (m.stations || []).forEach(st => {
+        const stationName = (st || '').trim(); if (!stationName) return;
+        const key = `${parentName}|${marketName}|${stationName}`;
+        if (!stKeys.has(key)) {
+          out.stations.push({
+            parent: parentName,
+            market: marketName,
+            station: stationName,
+            primeAQH: 0,
+            rosAQH: 0,
+            format: ''
+          });
+          stKeys.add(key);
+        }
+      });
+    });
+  });
+
+  return out;
+}
+</script>
+
 
 <script>
 // ============================================
@@ -319,18 +360,22 @@ function setStationsEnabled(enabled) {
 
 // Initialize app after data loads
 async function initApp() {
+  // Prepare the user store first (creates/loads user_radio_data.json)
+  await UserData.init(DATA_URL);
+
   const main = document.querySelector('main');
   const loading = document.createElement('div');
   loading.id = 'loadingIndicator';
   loading.style.cssText = 'text-align:center; padding:40px; font-size:18px; color:var(--text);';
   loading.innerHTML = '⏳ Loading radio station data...<br><span style="font-size:14px; color:var(--muted);">Fetching from GitHub</span>';
   main.insertBefore(loading, main.firstChild);
-  
-  DS = await loadDataset();
+
+  // Load base and merge user-added companies
+  BASE_DS = await loadDataset();
+  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
   rebuildIndex();
-  
+
   loading.remove();
-  
   setupEventListeners();
 }
 
@@ -340,6 +385,56 @@ function setupEventListeners() {
 
   $('btnOpenRadio').onclick = () => { landing.classList.add('hidden'); radio.classList.remove('hidden'); window.scrollTo(0,0); };
   $('btnBack').onclick = () => { radio.classList.add('hidden'); landing.classList.remove('hidden'); window.scrollTo(0,0); };
+  // ---- UserData toolbar wiring ----
+$('btnAddCompany').onclick = () => {
+  $('addCompanyModal').style.display = 'flex';
+ // reset fields
+  $('ac_parent').value = '';
+  $('ac_country').value = '';
+  $('ac_market').value = '';
+  $('ac_station').value = '';
+  $('ac_error').style.display = 'none';
+  $('ac_parent').focus();
+};
+
+$('ac_cancel').onclick = () => {
+  $('addCompanyModal').style.display = 'none';
+  $('ac_error').style.display = 'none';
+};
+
+$('btnExportUserData').onclick = () => {
+  UserData.export();
+  const s = $('userDataStatus'); if (s) { s.textContent = 'Exported user_radio_data.json'; setTimeout(()=>s.textContent='', 2000); }
+};
+$('inputImportUserData').onchange = async (e) => {
+  const file = e.target.files?.[0]; if (!file) return;
+  await UserData.import(file);
+  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+  rebuildIndex();
+  renderParents($('parentSearch').value || '');
+  const s = $('userDataStatus'); if (s) { s.textContent = 'Imported user data'; setTimeout(()=>s.textContent='', 2000); }
+  e.target.value = '';
+};
+$('ac_save').onclick = () => {
+  const P = ($('ac_parent').value || '').trim();
+  const C = ($('ac_country').value || '').trim();
+  const M = ($('ac_market').value || '').trim();
+  const S = ($('ac_station').value || '').trim();
+  const err = $('ac_error');
+  if (!P || !M || !S) { err.textContent = 'Parent, Market, and Station are required.'; err.style.display = 'block'; return; }
+  err.style.display = 'none';
+
+  UserData.addEntry({ parent: P, country: C, market: M, station: S });
+  $('addCompanyModal').style.display = 'none';
+
+  // Re-merge + refresh UI
+  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+  rebuildIndex();
+  $('parentSearch').value = P;
+  renderParents(P);
+  setParent(P);
+};
+
 
   setMarketsEnabled(false);
   setStationsEnabled(false);
@@ -1613,15 +1708,25 @@ function attachProductEventListeners() {
   
   $('btnResetPricing').onclick = resetPricingToRateCard;
   $('btnResetMinutes').onclick = resetMinutesToAuto;
-  $('btnGenerateProposal').onclick = generateProposal;
+  const genBtn = $('btnGenerateProposal');
+  genBtn.onclick = generateProposal;
   $('btnCopyProposal').onclick = copyProposalToClipboard;
   
   renderProducts();
   updateProductSummary();
+  // keep the button state in sync with selection
+  const syncGenBtn = () => {
+  const ok = (productState.selectedProducts.size > 0) && (state.stations.size > 0);
+  genBtn.disabled = !ok;
+  };
+ // call whenever things change
+  ['input','change','click'].forEach(evt => {
+   document.addEventListener(evt, syncGenBtn, true);
+ });
+ syncGenBtn();
 }
 
 </script>
-<script src="scripts/userData.js"></script>
 
   <!-- Modal for adding a company -->
 <div id="addCompanyModal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999;">
