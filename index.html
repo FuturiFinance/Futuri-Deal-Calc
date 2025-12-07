@@ -336,7 +336,28 @@ window.UserData = (function () {
     writeUser(merged);
   }
 
-  return { init, getMerged, addEntry, export: exportUser, import: importUser };
+    // --- NEW: Remove a saved parent company ---
+  function removeParent(parentName) {
+    const u = readUser();
+    const key = norm(parentName);
+    const before = u.parents.length;
+
+    // filter out that parent
+    u.parents = u.parents.filter(p => norm(p.name) !== key);
+
+    writeUser(u);
+    return u.parents.length !== before; // returns true if something was removed
+  }
+
+    return {
+    init,
+    getMerged,
+    addEntry,
+    export: exportUser,
+    import: importUser,
+    removeParent   // ✅ added here
+  };
+
 })();
 </script>
   
@@ -602,27 +623,84 @@ if (document.readyState === 'loading') {
 }
 
 function renderParents(q='') {
-  const list = $('parentResults'); list.innerHTML = '';
+  const list = $('parentResults');
+  list.innerHTML = '';
   const qn = q.trim().toLowerCase();
-  const parents = Array.from(IDX.parentSet).filter(p => p.toLowerCase().includes(qn)).sort();
-  
+
+  // Make a list of official base parents (from radio_data.json)
+  const baseNames = (BASE_DS.parents || []).map(p => (p || '').toLowerCase());
+  const parents = Array.from(IDX.parentSet)
+    .filter(p => p.toLowerCase().includes(qn))
+    .sort();
+
   parents.slice(0, 300).forEach(p => {
-    const row = document.createElement('label'); 
+    const row = document.createElement('div');
     row.className = 'el';
-    row.style.cursor = 'pointer';
-    
-    const radio = document.createElement('input'); 
-    radio.type = 'radio'; 
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.gap = '8px';
+
+    const left = document.createElement('label');
+    left.className = 'el';
+    left.style.flex = '1';
+    left.style.border = 'none';
+    left.style.padding = '0';
+    left.style.cursor = 'pointer';
+    left.style.gap = '8px';
+
+    const radio = document.createElement('input');
+    radio.type = 'radio';
     radio.name = 'parentSelect';
     radio.value = p;
     radio.checked = (state.parent === p);
     radio.onchange = () => setParent(p);
-    
-    const name = document.createElement('span'); 
+
+    const name = document.createElement('span');
     name.textContent = p;
-    
-    row.appendChild(radio); 
-    row.appendChild(name); 
+
+    left.appendChild(radio);
+    left.appendChild(name);
+    row.appendChild(left);
+
+    // If it's a user-added company (not from radio_data.json)
+    const isBase = baseNames.includes(p.toLowerCase());
+    if (!isBase) {
+      const tag = document.createElement('span');
+      tag.className = 'badge';
+      tag.textContent = 'Custom';
+      row.appendChild(tag);
+
+      // Add the Remove button
+      const del = document.createElement('button');
+      del.className = 'btn';
+      del.textContent = 'Remove';
+      del.style.background = '#3a0d0d';
+      del.style.borderColor = '#5a1e1e';
+      del.onclick = () => {
+        if (!confirm(`Remove "${p}" from your custom companies?`)) return;
+        const removed = UserData.removeParent(p);
+        if (removed) {
+          // Rebuild the data and refresh UI
+          DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+          rebuildIndex();
+          if (state.parent === p) {
+            state.parent = '';
+            setMarketsEnabled(false);
+            setStationsEnabled(false);
+          }
+          renderParents($('parentSearch').value || '');
+          updatePreview();
+          const s = $('userDataStatus');
+          if (s) {
+            s.textContent = 'Removed custom parent';
+            setTimeout(() => s.textContent = '', 1800);
+          }
+        }
+      };
+      row.appendChild(del);
+    }
+
     list.appendChild(row);
   });
 }
