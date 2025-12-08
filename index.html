@@ -378,6 +378,23 @@
 const el = (id) => document.getElementById(id);
 const $ = el; // ✅ alias so $() works everywhere below
 
+  function showGoogleLogin(){
+  el("googleLoginScreen").style.display = "flex";
+  document.querySelector("main").style.filter = "blur(3px)";
+  document.body.style.overflow = "hidden";
+}
+
+function hideGoogleLogin(){
+  el("googleLoginScreen").style.display = "none";
+  document.querySelector("main").style.filter = "";
+  document.body.style.overflow = "";
+}
+
+// optional but extra-safe
+window.showGoogleLogin = showGoogleLogin;
+window.hideGoogleLogin = hideGoogleLogin;
+
+
 const ADMIN_EMAILS = new Set([
   "sabrinacarlo@futurimedia.com"
 ]);
