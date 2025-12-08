@@ -36,41 +36,6 @@
     input[type="number"] { background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:6px; padding:4px 8px; }
     .back-btn { background: #0f1823; border: 1px solid #223244; color: var(--text); padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
     .back-btn:hover { background: #152533; border-color: #2a4158; }
-
-    /* Login overlay */
-    #loginScreen {
-      position: fixed; inset: 0;
-      display: none;
-      align-items: center; justify-content: center;
-      background: rgba(0,0,0,.55); z-index: 99999;
-    }
-    .login-card {
-      width: min(440px, 92vw);
-      background: #0f1823; color: var(--text);
-      border: 1px solid var(--edge); border-radius: 14px;
-      padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
-    }
-    .login-card h2 { margin: 0 0 10px 0; font-size: 18px; }
-    .login-card .muted { font-size: 12px; margin-bottom: 10px; display:block; }
-    .login-card .row { justify-content: flex-end; }
-    .role-badge { background:#132437; border:1px solid #223244; border-radius: 999px; padding:4px 10px; font-size:12px; }
-
-    /* Admin panel */
-    #adminPanel .user-card {
-      border:1px solid var(--edge);
-      background: var(--card);
-      border-radius: 12px;
-      padding: 10px;
-      display:flex; flex-direction:column; gap:8px;
-    }
-    #adminUsersList .rowline { display:flex; justify-content:space-between; gap:10px; align-items:center; }
-    select {
-      height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7;
-      border-radius:10px; padding:6px 10px; width: 100%;
-    }
-    a { color: #7fc1ff; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-  </style>
 </head>
 <body>
 
@@ -322,12 +287,12 @@
      FIREBASE (Modules, GOOGLE-ONLY)
      =========================== -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import {
-    getAuth, onAuthStateChanged,
-    GoogleAuthProvider, signInWithPopup,
-    signOut, updateProfile
-  } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+  getAuth, onAuthStateChanged,
+  signInWithPopup, GoogleAuthProvider,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+
   import {
     getFirestore, doc, getDoc, setDoc, updateDoc,
     collection, addDoc, getDocs,
@@ -347,15 +312,16 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  window.fb = {
-    auth, db,
-    onAuthStateChanged,
-    GoogleAuthProvider, signInWithPopup,
-    signOut, updateProfile,
-    doc, getDoc, setDoc, updateDoc,
-    collection, addDoc, getDocs,
-    query, orderBy, serverTimestamp
-  };
+ window.fb = {
+  auth, db,
+  onAuthStateChanged,
+  signInWithPopup, GoogleAuthProvider,
+  signOut,
+  doc, getDoc, setDoc, updateDoc,
+  collection, addDoc, getDocs,
+  query, orderBy, serverTimestamp
+};
+
 </script>
 
 <script>
@@ -647,18 +613,21 @@ async function renderAdminUsers(){
 document.addEventListener("DOMContentLoaded", () => {
   const {
     auth, onAuthStateChanged,
-    GoogleAuthProvider, signInWithPopup,
+    signInWithPopup, GoogleAuthProvider,
     signOut
   } = window.fb;
 
-  $("btnGoogle").onclick = async () => {
+  // Google-only login
+  $("btnGoogleLogin").onclick = async () => {
     const err = $("auth_error");
     try {
       const provider = new GoogleAuthProvider();
       const cred = await signInWithPopup(auth, provider);
+
+      // create user profile doc if missing
       await ensureUserDoc(cred.user, cred.user.displayName || "");
       err.style.display = "none";
-    } catch (e){
+    } catch (e) {
       err.textContent = e.message;
       err.style.display = "block";
     }
@@ -679,6 +648,7 @@ document.addEventListener("DOMContentLoaded", () => {
       showLogin();
       return;
     }
+
     hideLogin();
 
     CURRENT_USER = await ensureUserDoc(user, user.displayName || "");
@@ -690,8 +660,16 @@ document.addEventListener("DOMContentLoaded", () => {
     renderAdminUsers();
   });
 
-  $("btnOpenRadio").onclick = () => { $("landing").classList.add("hidden"); $("radioView").classList.remove("hidden"); window.scrollTo(0,0); };
-  $("btnBack").onclick = () => { $("radioView").classList.add("hidden"); $("landing").classList.remove("hidden"); window.scrollTo(0,0); };
+  $("btnOpenRadio").onclick = () => {
+    $("landing").classList.add("hidden");
+    $("radioView").classList.remove("hidden");
+    window.scrollTo(0,0);
+  };
+  $("btnBack").onclick = () => {
+    $("radioView").classList.add("hidden");
+    $("landing").classList.remove("hidden");
+    window.scrollTo(0,0);
+  };
 });
 </script>
 
