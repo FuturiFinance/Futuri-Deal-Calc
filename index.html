@@ -304,7 +304,7 @@
       </div>
     </section>
 
-    <!-- Upload section (Firestore snapshots — no Storage) -->
+    <!-- Upload section -->
     <section class="card" id="uploadsPanel">
       <div class="title">My Uploads (Firestore Snapshots)</div>
       <div class="row">
@@ -356,7 +356,6 @@
   const auth = getAuth(app);
   const db = getFirestore(app);
 
-  // expose only what we need
   window.fb = {
     app, auth, db,
     onAuthStateChanged,
@@ -374,7 +373,7 @@
    Google-only
    ========================= */
 const el = (id) => document.getElementById(id);
-const $ = el;
+const $ = el; // alias
 
 const ADMIN_EMAILS = new Set([
   "sabrinacarlo@futurimedia.com"
@@ -386,169 +385,88 @@ const PERMS = {
   view:  { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
 };
 
-let CURRENT_USER = null;
-let CURRENT_ROLE = "staff"; // UX default; real role from Firestore
+let CURRENT_USER = null;   // Firestore user doc data
+let CURRENT_UID  = null;   // Auth uid (always reliable)
+let CURRENT_ROLE = "staff";
 
 function currentRole(){ return CURRENT_ROLE; }
 function can(action){ return !!PERMS[currentRole()]?.[action]; }
 
-/* Google overlay helpers — FIXES your error */
-function showGoogleLogin(){
-  const scr = el("googleLoginScreen");
-  if (scr) scr.style.display = "flex";
-}
-function hideGoogleLogin(){
-  const scr = el("googleLoginScreen");
-  if (scr) scr.style.display = "none";
-}
+// Login overlay helpers (previously missing)
+function showGoogleLogin(){ el("googleLoginScreen").style.display = "flex"; }
+function hideGoogleLogin(){ el("googleLoginScreen").style.display = "none"; }
 
-/* Create/read user doc, assign role on first login */
-async function ensureUserDoc(user){
-  const { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } = window.fb;
-
-  const ref = doc(db, "users", user.uid);
+// Ensure Firestore user doc exists / read it
+async function ensureUserDoc(authUser){
+  const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
+  const ref = doc(db, "users", authUser.uid);
   const snap = await getDoc(ref);
 
-  let role = "staff";
-  const email = (user.email || "").toLowerCase();
-  if (ADMIN_EMAILS.has(email)) role = "admin";
-
   if (!snap.exists()){
+    const email = (authUser.email || "").toLowerCase();
+    const role = ADMIN_EMAILS.has(email) ? "admin" : "staff";
     const payload = {
-      uid: user.uid,
-      email: user.email || "",
-      name: user.displayName || "",
+      uid: authUser.uid,
+      email: authUser.email || "",
+      name: authUser.displayName || "",
       role,
-      createdAt: serverTimestamp(),
-      lastLogin: serverTimestamp()
+      createdAt: serverTimestamp()
     };
     await setDoc(ref, payload);
     return payload;
-  } else {
-    const data = snap.data() || {};
-    // update last login + backfill email/name if missing
-    await updateDoc(ref, {
-      lastLogin: serverTimestamp(),
-      email: data.email || (user.email || ""),
-      name: data.name || (user.displayName || "")
-    });
-    return data;
   }
+
+  const data = snap.data() || {};
+  if (!data.uid){
+    // backfill uid if missing from older docs
+    await setDoc(ref, { uid: authUser.uid }, { merge:true });
+    data.uid = authUser.uid;
+  }
+  return data;
 }
 
-/* Apply permissions to UI */
+// Role-based UI toggles
 function applyRoleUI(){
   el("whois").textContent = `Role: ${CURRENT_ROLE}`;
-  // Uploads hint + enable
-  const btnUpload = el("btnUpload");
-  const hint = el("uploadHint");
-  if (btnUpload){
-    btnUpload.disabled = !can("upload_files");
-  }
-  if (hint){
-    hint.textContent = can("upload_files") ? "Staff/Admin only" : "View-only accounts cannot save";
-  }
+  el("uploadHint").textContent =
+    can("upload_files") ? "Staff/Admin only" : "View-only";
+
+  el("btnUpload").disabled = !can("upload_files");
+
   // Admin panel visibility
-  const adminPanel = el("adminPanel");
-  if (adminPanel){
-    if (can("view_all_uploads")) adminPanel.classList.remove("hidden");
-    else adminPanel.classList.add("hidden");
-  }
+  if (CURRENT_ROLE === "admin") el("adminPanel").classList.remove("hidden");
+  else el("adminPanel").classList.add("hidden");
+
+  // Pricing override visibility handled in renderProducts()
 }
 
-/* -------------------------
-   SNAPSHOT SAVE + RENDER
-   Option A (Firestore only)
-   ------------------------- */
+// Snapshot serializer (missing previously)
 function serializeSnapshotPayload(){
-  // main selection state
-  const parent = state.parent || "";
-  const markets = Array.from(state.markets || []);
-  const stations = Array.from(state.stations || []);
-
-  // products/pricing state
-  const pricingType = productState.pricingType || "cash";
-  const products = Array.from(productState.selectedProducts || []);
-  const customPrices = Object.fromEntries(productState.customPrices || []);
-  const manualMinutes = Object.fromEntries(productState.manualMinutes || []);
-  const stationCashValues = Object.fromEntries(productState.stationCashValues || []);
-  const cpm = productState.cpm ?? 2.0;
-
-  // proposal HTML if present
-  const proposalHTML = el("proposalTable")?.innerHTML || "";
+  const pick = (s) => Array.from(s || []);
+  const mapToObj = (m) => {
+    const out = {};
+    (m || new Map()).forEach((v,k)=> out[k]=v);
+    return out;
+  };
 
   return {
-    parent, markets, stations,
-    pricingType, products,
-    customPrices, manualMinutes,
-    stationCashValues, cpm,
-    proposalHTML
+    parent: state.parent || "",
+    markets: pick(state.markets),
+    stations: pick(state.stations),
+
+    pricingType: productState.pricingType,
+    products: pick(productState.selectedProducts),
+
+    customPrices: mapToObj(productState.customPrices),
+    manualMinutes: mapToObj(productState.manualMinutes),
+    stationCashValues: mapToObj(productState.stationCashValues),
+    cpm: productState.cpm,
+
+    proposalHTML: el("proposalTable")?.innerHTML || ""
   };
 }
 
-async function saveSnapshot(){
-  if (!CURRENT_USER) return;
-  if (!can("upload_files")) return;
-
-  const { db, collection, addDoc, serverTimestamp } = window.fb;
-
-  const payload = serializeSnapshotPayload();
-
-  const name = `Snapshot ${new Date().toLocaleString()}`;
-
-  await addDoc(collection(db, "users", CURRENT_USER.uid, "uploads"), {
-    type: "snapshot",
-    name,
-    createdAt: serverTimestamp(),
-    payload
-  });
-
-  el("uploadStatus").textContent = "Saved ✓";
-  setTimeout(()=>el("uploadStatus").textContent="", 1600);
-
-  await renderMyUploads();       // refresh list
-  if (CURRENT_ROLE === "admin") renderAdminUsers(); // refresh admin view
-}
-
-async function renderMyUploads(){
-  if (!CURRENT_USER) return;
-
-  const { db, collection, getDocs, query, orderBy } = window.fb;
-
-  const root = el("uploadsList");
-  root.innerHTML = "";
-
-  const qy = query(
-    collection(db, "users", CURRENT_USER.uid, "uploads"),
-    orderBy("createdAt","desc")
-  );
-  const snaps = await getDocs(qy);
-
-  if (snaps.empty){
-    root.innerHTML = `<div class="placeholder">No snapshots yet.</div>`;
-    return;
-  }
-
-  snaps.forEach(docSnap => {
-    const d = docSnap.data();
-    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
-    const label = when ? when.toLocaleString() : "(pending)";
-
-    const row = document.createElement("div");
-    row.className = "el";
-    row.innerHTML = `
-      <div>
-        <strong>${d.name || "Snapshot"}</strong>
-        <div class="muted" style="font-size:11px">${label}</div>
-      </div>
-      <button class="btn">Load</button>
-    `;
-    row.querySelector("button").onclick = () => loadSnapshot(d.payload);
-    root.appendChild(row);
-  });
-}
-
-/* Existing loadSnapshot — now guaranteed defined */
+// Load a snapshot into app
 function loadSnapshot(payload){
   if (!payload) return;
 
@@ -583,6 +501,74 @@ function loadSnapshot(payload){
   }
 
   alert("Snapshot loaded.");
+}
+
+// Save snapshot (FIXED to use CURRENT_UID)
+async function saveSnapshot(){
+  if (!CURRENT_UID) {
+    console.warn("saveSnapshot: no CURRENT_UID yet");
+    return;
+  }
+  if (!can("upload_files")) return;
+
+  const { db, collection, addDoc, serverTimestamp } = window.fb;
+
+  const payload = serializeSnapshotPayload();
+  const name = `Snapshot ${new Date().toLocaleString()}`;
+
+  await addDoc(
+    collection(db, "users", CURRENT_UID, "uploads"),
+    {
+      type: "snapshot",
+      name,
+      createdAt: serverTimestamp(),
+      payload
+    }
+  );
+
+  el("uploadStatus").textContent = "Saved ✓";
+  setTimeout(()=>el("uploadStatus").textContent="", 1600);
+
+  await renderMyUploads();
+  if (CURRENT_ROLE === "admin") renderAdminUsers();
+}
+
+// Render MY uploads (FIXED to use CURRENT_UID)
+async function renderMyUploads(){
+  if (!CURRENT_UID) return;
+  const { db, collection, getDocs, query, orderBy } = window.fb;
+
+  const root = el("uploadsList");
+  root.innerHTML = "";
+
+  const uq = query(
+    collection(db, "users", CURRENT_UID, "uploads"),
+    orderBy("createdAt","desc")
+  );
+  const snaps = await getDocs(uq);
+
+  if (snaps.empty){
+    root.innerHTML = `<div class="placeholder">No snapshots yet.</div>`;
+    return;
+  }
+
+  snaps.forEach(snap => {
+    const d = snap.data();
+    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+    const label = when ? when.toLocaleString() : "(pending)";
+
+    const row = document.createElement("div");
+    row.className = "el";
+    row.innerHTML = `
+      <div>
+        <strong>${d.name || d.type || "Snapshot"}</strong>
+        <div class="muted" style="font-size:11px">${label}</div>
+      </div>
+      <button class="btn">Load</button>
+    `;
+    row.querySelector("button").onclick = () => loadSnapshot(d.payload);
+    root.appendChild(row);
+  });
 }
 
 /* -------------------------
@@ -636,9 +622,11 @@ async function renderAdminUsers(){
       if (!can("manage_roles")) return alert("You cannot change roles.");
       const newRole = e.target.value;
       await updateDoc(doc(db, "users", uid), { role: newRole });
-      if (uid === window.fb.auth.currentUser.uid){
+      if (uid === CURRENT_UID){
         CURRENT_ROLE = newRole;
         applyRoleUI();
+        renderProducts();
+        updateProductSummary();
       }
     };
 
@@ -711,7 +699,6 @@ document.addEventListener("DOMContentLoaded", () => {
   };
 
   el("btnUpload").onclick = async () => {
-    if (!can("upload_files")) return;
     await saveSnapshot();
   };
 
@@ -725,6 +712,7 @@ document.addEventListener("DOMContentLoaded", () => {
     hideGoogleLogin();
     el("btnLogout").style.display = "";
 
+    CURRENT_UID = user.uid; // ✅ auth uid first
     CURRENT_USER = await ensureUserDoc(user);
 
     const email = (user.email||"").toLowerCase();
@@ -732,14 +720,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     applyRoleUI();
 
-    // init app after role set
-    initApp();
+    initApp();              // app after role set
     renderMyUploads();
     if (CURRENT_ROLE === "admin") renderAdminUsers();
   });
 
-  el("btnOpenRadio").onclick = () => { el("landing").classList.add("hidden"); el("radioView").classList.remove("hidden"); window.scrollTo(0,0); };
-  el("btnBack").onclick = () => { el("radioView").classList.add("hidden"); el("landing").classList.remove("hidden"); window.scrollTo(0,0); };
+  el("btnOpenRadio").onclick = () => {
+    el("landing").classList.add("hidden");
+    el("radioView").classList.remove("hidden");
+    window.scrollTo(0,0);
+  };
+  el("btnBack").onclick = () => {
+    el("radioView").classList.add("hidden");
+    el("landing").classList.remove("hidden");
+    window.scrollTo(0,0);
+  };
 });
 </script>
 
@@ -868,7 +863,9 @@ window.UserData = (function () {
   }
 
   return {
-    init, getMerged, addEntry,
+    init,
+    getMerged,
+    addEntry,
     export: exportUser,
     import: importUser,
     removeParent
@@ -1001,7 +998,7 @@ function rebuildIndex(){
   });
 }
 
-// UI enable/disable
+// UI enable/disable helpers
 function setMarketsEnabled(enabled) {
   const sel = el('btnSelAllMarkets'); const clr = el('btnClrAllMarkets');
   if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
@@ -1524,6 +1521,7 @@ function calculateBarterMinutes(totalBarterValue, monthlyBarterValue) {
     });
   } else {
     let totalPrimeEfficiency = 0, totalROSEfficiency=0;
+
     selectedStations.forEach(station => {
       const primeAQH = station.primeAQH || 0;
       const rosAQH   = station.rosAQH || 0;
@@ -1834,8 +1832,8 @@ function generateProposal() {
   proposalSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/* Proposal tables — identical to your original logic */
-function generateCashProposalTable(stations, products) { /* ... unchanged ... */ 
+/* Proposal table builders */
+function generateCashProposalTable(stations, products) {
   const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
   const totalMonthly = perStationMonthly * stations.length;
   const totalAnnual = totalMonthly * 12;
@@ -1898,7 +1896,7 @@ function generateCashProposalTable(stations, products) { /* ... unchanged ... */
   return html;
 }
 
-function generateBarterProposalTable(stations, products) { /* ... unchanged ... */ 
+function generateBarterProposalTable(stations, products) {
   const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
   const totalMonthly = perStationMonthly * stations.length;
   const totalAnnual = totalMonthly * 12;
@@ -1971,7 +1969,7 @@ function generateBarterProposalTable(stations, products) { /* ... unchanged ... 
   return html;
 }
 
-function generateMixedProposalTable(stations, products) { /* ... unchanged ... */ 
+function generateMixedProposalTable(stations, products) {
   const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
   let totalCash=0;
 
