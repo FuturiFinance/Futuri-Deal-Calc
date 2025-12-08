@@ -451,7 +451,6 @@ function applyRoleUI(){
 /* -------------------------
    Firestore Upload Snapshots
    ------------------------- */
-
 function buildSnapshotPayload(){
   const stations = Array.from(state.stations);
   const markets  = Array.from(state.markets);
@@ -467,7 +466,7 @@ function buildSnapshotPayload(){
     manualMinutes: Object.fromEntries(productState.manualMinutes),
     stationCashValues: Object.fromEntries(productState.stationCashValues),
     cpm: productState.cpm,
-    proposalHTML: el("proposalTable")?.innerHTML || ""
+    proposalHTML: $("proposalTable")?.innerHTML || ""
   };
 }
 
@@ -481,7 +480,7 @@ async function saveSnapshot(){
     return;
   }
 
-  // ✅ ask for a name
+  // Ask user for snapshot name
   let snapName = prompt("Name this snapshot (optional):", "");
   if (snapName) snapName = snapName.trim();
   if (!snapName) snapName = null;
@@ -490,7 +489,7 @@ async function saveSnapshot(){
 
   await addDoc(collection(db, "users", user.uid, "uploads"), {
     type: "snapshot",
-    name: snapName,                 // ✅ new field
+    name: snapName,                 // 🔥 save snapshot name
     createdAt: serverTimestamp(),
     payload: buildSnapshotPayload()
   });
@@ -502,7 +501,6 @@ async function saveSnapshot(){
   if (can("view_all_uploads")) await renderAdminUsers();
 }
 
-
 async function renderMyUploads(){
   const { db, auth, collection, getDocs, query, orderBy } = window.fb;
   const uid = auth.currentUser.uid;
@@ -513,7 +511,7 @@ async function renderMyUploads(){
   );
   const snaps = await getDocs(qRef);
 
-  const list = el("uploadsList");
+  const list = $("uploadsList");
   list.innerHTML = "";
 
   if (snaps.empty){
@@ -525,27 +523,17 @@ async function renderMyUploads(){
     const d = docSnap.data();
     const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
     const label = when ? when.toLocaleString() : "(pending timestamp)";
+    const displayName = d.name || "Snapshot";
 
     const row = document.createElement("div");
     row.className = "el";
-    snaps.forEach(docSnap => {
-  const d = docSnap.data();
-  const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
-  const label = when ? when.toLocaleString() : "(pending timestamp)";
-  const displayName = d.name || "Snapshot";
-
-  const row = document.createElement("div");
-  row.className = "el";
-  row.innerHTML = `
-    <div>
-      <strong>${displayName}</strong>
-      <div class="muted" style="font-size:11px">${label}</div>
-    </div>
-    <button class="btn" data-id="${docSnap.id}">Load</button>
-  `;
-  row.querySelector("button").onclick = () => loadSnapshot(d.payload);
-  list.appendChild(row);
-});
+    row.innerHTML = `
+      <div>
+        <strong>${displayName}</strong>
+        <div class="muted" style="font-size:11px">${label}</div>
+      </div>
+      <button class="btn" data-id="${docSnap.id}">Load</button>
+    `;
     row.querySelector("button").onclick = () => loadSnapshot(d.payload);
     list.appendChild(row);
   });
@@ -571,7 +559,7 @@ function loadSnapshot(payload){
 
   setMarketsEnabled(!!state.parent);
   setStationsEnabled(!!state.parent);
-  renderParents(el("parentSearch").value || "");
+  renderParents($("parentSearch").value || "");
   renderMarkets();
   renderStations();
   renderProducts();
@@ -579,12 +567,14 @@ function loadSnapshot(payload){
   updateProductSummary();
 
   if (payload.proposalHTML){
-    el("proposalSection").classList.remove("hidden");
-    el("proposalOutput").classList.remove("hidden");
-    el("proposalTable").innerHTML = payload.proposalHTML;
+    $("proposalSection").classList.remove("hidden");
+    $("proposalOutput").classList.remove("hidden");
+    $("proposalTable").innerHTML = payload.proposalHTML;
   }
 
   alert("Snapshot loaded.");
+}
+
 }
 
 /* -------------------------
