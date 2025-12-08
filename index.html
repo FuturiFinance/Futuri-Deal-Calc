@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Confidential - Futuri Media Deal Calc (Firebase Auth)</title>
+  <title>Confidential - Futuri Media Deal Calc (Google-only Firebase Auth)</title>
   <style>
     :root {
       --bg: #0b1117; --card:#0f1823; --edge:#223244; --text:#e7eef7; --muted:#9bb3c7; --accent:#1f9aff; --pill:#132437;
@@ -74,29 +74,18 @@
 </head>
 <body>
 
-<!-- LOGIN SCREEN -->
+<!-- GOOGLE-ONLY LOGIN SCREEN -->
 <div id="loginScreen">
   <div class="login-card">
     <h2>Sign in</h2>
-    <span class="muted">Use your email/password. New users click “Create account”.</span>
+    <span class="muted">Continue with your Google account.</span>
 
-    <div style="display:grid; gap:10px; margin: 8px 0 12px;">
-      <label>Email
-        <input id="auth_email" type="email" placeholder="you@company.com">
-      </label>
-      <label>Password
-        <input id="auth_pass" type="password" placeholder="Password">
-      </label>
-      <label>Your name (optional)
-        <input id="auth_name" type="text" placeholder="e.g., Sabrina">
-      </label>
-
-      <p id="auth_error" class="muted" style="color:#ff8a8a; display:none;"></p>
-    </div>
+    <p id="auth_error" class="muted" style="color:#ff8a8a; display:none;"></p>
 
     <div class="row">
-      <button class="btn" id="btnLogin">Sign in</button>
-      <button class="btn" id="btnSignup">Create account</button>
+      <button class="btn" id="btnGoogle" style="background:#0b3a5a;">
+        Continue with Google
+      </button>
     </div>
   </div>
 </div>
@@ -330,14 +319,13 @@
 </main>
 
 <!-- ===========================
-     FIREBASE (Modules, CLEAN)
+     FIREBASE (Modules, GOOGLE-ONLY)
      =========================== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import {
     getAuth, onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
+    GoogleAuthProvider, signInWithPopup,
     signOut, updateProfile
   } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
   import {
@@ -362,8 +350,7 @@
   window.fb = {
     auth, db,
     onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
+    GoogleAuthProvider, signInWithPopup,
     signOut, updateProfile,
     doc, getDoc, setDoc, updateDoc,
     collection, addDoc, getDocs,
@@ -375,6 +362,7 @@
 /* =========================
    AUTH + ROLES + "UPLOADS"
    (Option A: Firestore only)
+   Google-only auth UI
    ========================= */
 const $ = (id) => document.getElementById(id);
 
@@ -654,40 +642,21 @@ async function renderAdminUsers(){
 }
 
 /* -------------------------
-   Login wiring
+   Google-only login wiring
    ------------------------- */
 document.addEventListener("DOMContentLoaded", () => {
   const {
     auth, onAuthStateChanged,
-    createUserWithEmailAndPassword,
-    signInWithEmailAndPassword,
-    signOut, updateProfile
+    GoogleAuthProvider, signInWithPopup,
+    signOut
   } = window.fb;
 
-  $("btnLogin").onclick = async () => {
-    const email = ($("auth_email").value||"").trim();
-    const pass  = ($("auth_pass").value||"").trim();
-    const name  = ($("auth_name").value||"").trim();
+  $("btnGoogle").onclick = async () => {
     const err = $("auth_error");
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, pass);
-      if (name) await updateProfile(cred.user, { displayName: name });
-      err.style.display = "none";
-    } catch (e){
-      err.textContent = e.message;
-      err.style.display = "block";
-    }
-  };
-
-  $("btnSignup").onclick = async () => {
-    const email = ($("auth_email").value||"").trim();
-    const pass  = ($("auth_pass").value||"").trim();
-    const name  = ($("auth_name").value||"").trim();
-    const err = $("auth_error");
-    try {
-      const cred = await createUserWithEmailAndPassword(auth, email, pass);
-      if (name) await updateProfile(cred.user, { displayName: name });
-      await ensureUserDoc(cred.user, name);
+      const provider = new GoogleAuthProvider();
+      const cred = await signInWithPopup(auth, provider);
+      await ensureUserDoc(cred.user, cred.user.displayName || "");
       err.style.display = "none";
     } catch (e){
       err.textContent = e.message;
@@ -711,6 +680,7 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
     hideLogin();
+
     CURRENT_USER = await ensureUserDoc(user, user.displayName || "");
     CURRENT_ROLE = CURRENT_USER.role || "view";
     applyRoleUI();
@@ -1399,7 +1369,6 @@ function updateProductSummary() {
 }
 
 /* ---- Cash summary + barter calc + proposal generation ---- */
-/* NOTE: These match your logic. Kept intact aside from tiny guards. */
 
 function showCashSummary(totalMonthlyValue) {
   const barterSection = $('barterMinutesSection');
@@ -1823,7 +1792,6 @@ function generateProposal() {
   proposalSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-/* Your 3 proposal table builders retained exactly. */
 function generateCashProposalTable(stations, products) {
   const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
   const totalMonthly = perStationMonthly * stations.length;
