@@ -3,8 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Confidential - Futuri Media Deal Calc (vR2.9)</title>
-
+  <title>Confidential - Futuri Media Deal Calc (Firebase Auth)</title>
   <style>
     :root {
       --bg: #0b1117; --card:#0f1823; --edge:#223244; --text:#e7eef7; --muted:#9bb3c7; --accent:#1f9aff; --pill:#132437;
@@ -21,8 +20,10 @@
     .btn { background: #0b2034; color: var(--text); border:1px solid #223244; padding:7px 12px; border-radius: 10px; cursor:pointer; font-size: 13px; transition: all 0.2s; }
     .btn:hover:not(:disabled) { background: #0d2a42; border-color: #2a4158; }
     .btn:disabled { opacity: .5; cursor: default; }
-    input[type="text"], input[type="password"] { width: 100%; height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:10px; padding:8px 10px; font-size: 14px; }
-    input[type="text"]:focus, input[type="password"]:focus { outline: none; border-color: #2a4a66; }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%; height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:10px; padding:8px 10px; font-size: 14px;
+    }
+    input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus { outline: none; border-color: #2a4a66; }
     .list { display:flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
     .el { display:flex; align-items:center; gap:8px; justify-content: space-between; padding:6px 10px; border-radius:10px; border:1px solid transparent; transition: all 0.15s; }
     .el:hover { background:#0d1621; border-color:#223244; }
@@ -30,13 +31,13 @@
     .muted { color:#9bb3c7; }
     .badge { background:#0b233a; border:1px solid #223244; border-radius: 6px; padding:2px 6px; font-size:12px; }
     .placeholder { border: 1px dashed #2a3b4f; border-radius:10px; padding: 10px 12px; color:#8fa5b9; background:#0b121a; text-align: center; }
-    .hidden { display:none; }
+    .hidden { display:none !important; }
     input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
     input[type="number"] { background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:6px; padding:4px 8px; }
     .back-btn { background: #0f1823; border: 1px solid #223244; color: var(--text); padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
     .back-btn:hover { background: #152533; border-color: #2a4158; }
 
-    /* --- Login screen --- */
+    /* Login overlay */
     #loginScreen {
       position: fixed; inset: 0;
       display: none;
@@ -44,7 +45,7 @@
       background: rgba(0,0,0,.55); z-index: 99999;
     }
     .login-card {
-      width: min(420px, 92vw);
+      width: min(440px, 92vw);
       background: #0f1823; color: var(--text);
       border: 1px solid var(--edge); border-radius: 14px;
       padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
@@ -53,836 +54,1109 @@
     .login-card .muted { font-size: 12px; margin-bottom: 10px; display:block; }
     .login-card .row { justify-content: flex-end; }
     .role-badge { background:#132437; border:1px solid #223244; border-radius: 999px; padding:4px 10px; font-size:12px; }
+
+    /* Admin panel */
+    #adminPanel .user-card {
+      border:1px solid var(--edge);
+      background: var(--card);
+      border-radius: 12px;
+      padding: 10px;
+      display:flex; flex-direction:column; gap:8px;
+    }
+    #adminUsersList .rowline { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    select {
+      height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7;
+      border-radius:10px; padding:6px 10px; width: 100%;
+    }
+    a { color: #7fc1ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
   </style>
 </head>
-
 <body>
-  <!-- LOGIN SCREEN -->
-  <div id="loginScreen">
-    <div class="login-card">
-      <h2>Sign in</h2>
-      <span class="muted">Choose your role and enter the passcode.</span>
 
-      <div style="display:grid; gap:10px; margin: 8px 0 12px;">
-        <label>Role
-          <select id="auth_role" style="height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:10px; padding:6px 10px;">
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
-            <option value="view">View Only</option>
-          </select>
-        </label>
+<!-- LOGIN SCREEN -->
+<div id="loginScreen">
+  <div class="login-card">
+    <h2>Sign in</h2>
+    <span class="muted">Use your email/password. New users click “Create account”.</span>
 
-        <label>Passcode
-          <input id="auth_code" type="password" placeholder="Enter passcode">
-        </label>
+    <div style="display:grid; gap:10px; margin: 8px 0 12px;">
+      <label>Email
+        <input id="auth_email" type="email" placeholder="you@company.com">
+      </label>
+      <label>Password
+        <input id="auth_pass" type="password" placeholder="Password">
+      </label>
+      <label>Your name (optional)
+        <input id="auth_name" type="text" placeholder="e.g., Sabrina">
+      </label>
 
-        <label>Your name (optional)
-          <input id="auth_name" type="text" placeholder="e.g., Sabrina">
-        </label>
+      <p id="auth_error" class="muted" style="color:#ff8a8a; display:none;"></p>
+    </div>
 
-        <p id="auth_error" class="muted" style="color:#ff8a8a; display:none;"></p>
-      </div>
-
-      <div class="row">
-        <button class="btn" id="auth_login">Sign in</button>
-      </div>
+    <div class="row">
+      <button class="btn" id="btnLogin">Sign in</button>
+      <button class="btn" id="btnSignup">Create account</button>
     </div>
   </div>
+</div>
 
-  <header>
-    <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
-      <span id="whois" class="role-badge" title="Current role">Role: —</span>
-      <button class="btn" id="btnLogout" title="Sign out">Logout</button>
+<header>
+  <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
+    <span id="whois" class="role-badge" title="Current role">Role: —</span>
+    <button class="btn" id="btnLogout" title="Sign out">Logout</button>
+  </div>
+  <div class="wrap" style="padding: 12px 16px;">
+    <h1 style="margin-bottom: 4px;">Confidential - Futuri Media Deal Calc</h1>
+    <div class="muted" style="font-size: 11px;">
+      <span style="opacity: 0.7;">v3.0 (Firebase)</span>
+      <span style="margin: 0 8px;">•</span>
+      <span style="opacity: 0.7;">20,981 stations • 5,186 parent companies</span>
     </div>
+  </div>
+</header>
 
-    <div class="wrap" style="padding: 12px 16px;">
-      <h1 style="margin-bottom: 4px;">Confidential - Futuri Media Deal Calc</h1>
-      <div class="muted" style="font-size: 11px;">
-        <span style="opacity: 0.7;">v2.9</span>
-        <span style="margin: 0 8px;">•</span>
-        <span style="opacity: 0.7;">20,981 stations • 5,186 parent companies</span>
+<main class="wrap">
+  <!-- LANDING -->
+  <div id="landing" class="grid">
+    <section class="card">
+      <div class="title">TV Deals</div>
+      <div class="row">
+        <div class="muted">Coming soon</div>
+        <button class="btn" disabled>Not available yet</button>
       </div>
-    </div>
-  </header>
-
-  <main class="wrap">
-    <!-- LANDING -->
-    <div id="landing" class="grid">
-      <section class="card">
-        <div class="title">TV Deals</div>
-        <div class="row">
-          <div class="muted">Coming soon</div>
-          <button class="btn" disabled>Not available yet</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="title">Radio</div>
-        <div class="row">
-          <div class="muted">Open Radio Deal Selector</div>
-          <button class="btn" id="btnOpenRadio">Go to Radio</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="title">Other</div>
-        <div class="row">
-          <div class="muted">Coming soon</div>
-          <button class="btn" disabled>Not available yet</button>
-        </div>
-      </section>
-    </div>
-
-    <!-- RADIO VIEW -->
-    <div id="radioView" class="grid hidden" style="grid-template-columns: 1fr;">
-
-      <div class="row" style="justify-content:flex-start; margin-bottom:12px;">
-        <button class="back-btn" id="btnBack">← Back to Landing</button>
+    </section>
+    <section class="card">
+      <div class="title">Radio</div>
+      <div class="row">
+        <div class="muted">Open Radio Deal Selector</div>
+        <button class="btn" id="btnOpenRadio">Go to Radio</button>
       </div>
+    </section>
+    <section class="card">
+      <div class="title">Other</div>
+      <div class="row">
+        <div class="muted">Coming soon</div>
+        <button class="btn" disabled>Not available yet</button>
+      </div>
+    </section>
+  </div>
 
-      <!-- Step 1 -->
-      <section class="card">
-        <div class="title">Step 1: Select Parent Company</div>
-        <input id="parentSearch" type="text" placeholder="Search parent companies..." />
+  <!-- RADIO VIEW -->
+  <div id="radioView" class="grid hidden" style="grid-template-columns: 1fr;">
+    <div class="row" style="justify-content:flex-start; margin-bottom:12px;">
+      <button class="back-btn" id="btnBack">← Back to Landing</button>
+    </div>
 
-        <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
-          <button class="btn" id="btnAddCompany">Add Company</button>
-          <button class="btn" id="btnExportUserData" title="Download your custom companies">Export</button>
-          <label class="btn" style="cursor:pointer;">
-            Import
-            <input id="inputImportUserData" type="file" accept="application/json" style="display:none;" />
-          </label>
-          <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
-        </div>
+    <section class="card">
+      <div class="title">Step 1: Select Parent Company</div>
+      <input id="parentSearch" type="text" placeholder="Search parent companies..." />
 
-        <div id="parentResults" class="list"></div>
-      </section>
-
-      <!-- Add Company Modal (single instance) -->
-      <div id="addCompanyModal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999;">
-        <div style="background:#fff; width:min(560px, 95vw); border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
-          <div class="title" style="margin-bottom:8px;">Add Company (Custom)</div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-            <div>
-              <label>Parent <span style="color:#b00020">*</span></label>
-              <input id="ac_parent" type="text" placeholder="e.g., SonicTrek"/>
-            </div>
-            <div>
-              <label>Country</label>
-              <input id="ac_country" type="text" placeholder="e.g., Canada"/>
-            </div>
-            <div>
-              <label>Market <span style="color:#b00020">*</span></label>
-              <input id="ac_market" type="text" placeholder="e.g., Toronto"/>
-            </div>
-            <div>
-              <label>Station <span style="color:#b00020">*</span></label>
-              <input id="ac_station" type="text" placeholder="e.g., CKFM-FM"/>
-            </div>
-          </div>
-          <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px;">
-            <button class="btn" id="ac_cancel" type="button">Cancel</button>
-            <button class="btn" id="ac_save" type="button">Save</button>
-          </div>
-          <p id="ac_error" style="margin-top:8px; color:#b00020; display:none;"></p>
-        </div>
+      <!-- Toolbar inside Step 1 -->
+      <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
+        <button class="btn" id="btnAddCompany">Add Company</button>
+        <button class="btn" id="btnExportUserData" title="Download your custom companies">Export</button>
+        <label class="btn" style="cursor:pointer;">
+          Import
+          <input id="inputImportUserData" type="file" accept="application/json" style="display:none;" />
+        </label>
+        <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
       </div>
 
-      <!-- Step 2 -->
-      <section class="card">
-        <div class="title">Step 2: Select Markets (Optional)</div>
-        <div class="row">
-          <input id="marketSearch" type="text" placeholder="Filter markets..."/>
-          <button class="btn" id="btnSelAllMarkets">Select All</button>
-          <button class="btn" id="btnClrAllMarkets">Clear All</button>
-        </div>
-        <div id="marketsPlaceholder" class="placeholder">Select a parent company first</div>
-        <div id="marketsList" class="list"></div>
-      </section>
+      <div id="parentResults" class="list"></div>
+    </section>
 
-      <!-- Step 3 -->
-      <section class="card">
-        <div class="title">Step 3: Select Stations</div>
-        <div class="row">
-          <input id="stationSearch" type="text" placeholder="Filter stations..."/>
-          <button class="btn" id="btnSelAllStations">Select All</button>
-          <button class="btn" id="btnClrAllStations">Clear All</button>
-        </div>
-        <div id="stationsPlaceholder" class="placeholder">Select a parent company first</div>
-        <div id="stationsList" class="list"></div>
-      </section>
-
-      <!-- Step 4 -->
-      <section class="card">
-        <div class="title">Step 4: Review Selected Stations</div>
-        <div id="selectedPreview" class="list"></div>
-        <div class="row">
-          <div class="pill">Stations: <span id="selCount">0</span></div>
-          <div class="pill">Total Prime AQH: <span id="primeSum">0</span></div>
-          <div class="pill">Total ROS AQH: <span id="rosSum">0</span></div>
-        </div>
-      </section>
-
-      <!-- Step 5 -->
-      <section class="card">
-        <div class="title">Step 5: Select Products & Pricing</div>
-
-        <div class="row" style="margin-bottom: 12px;">
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="pricingType" value="cash" checked>
-            <span>Cash</span>
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="pricingType" value="barter">
-            <span>Barter</span>
-          </label>
-          <label style="display:flex; align-items:center; gap:8px;">
-            <input type="radio" name="pricingType" value="mixed">
-            <span>Mixed (Cash + Barter)</span>
-          </label>
-        </div>
-
-        <div id="cpmDisplay" class="hidden" style="margin-bottom: 12px;">
-          <div class="row">
-            <span class="muted">CPM:</span>
-            <span class="badge">$2.00 (approval required to change)</span>
+    <!-- Add Company Modal (single instance) -->
+    <div id="addCompanyModal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999;">
+      <div style="background:#fff; width:min(560px, 95vw); border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
+        <div class="title" style="margin-bottom:8px;">Add Company (Custom)</div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+          <div>
+            <label>Parent <span style="color:#b00020">*</span></label>
+            <input id="ac_parent" type="text" placeholder="e.g., SonicTrek"/>
+          </div>
+          <div>
+            <label>Country</label>
+            <input id="ac_country" type="text" placeholder="e.g., Canada"/>
+          </div>
+          <div>
+            <label>Market <span style="color:#b00020">*</span></label>
+            <input id="ac_market" type="text" placeholder="e.g., Toronto"/>
+          </div>
+          <div>
+            <label>Station <span style="color:#b00020">*</span></label>
+            <input id="ac_station" type="text" placeholder="e.g., CKFM-FM"/>
           </div>
         </div>
-
-        <div class="row" style="margin-bottom: 8px;">
-          <input id="productSearch" type="text" placeholder="Search products..."/>
-          <button class="btn" id="btnSelAllProducts">Select All</button>
-          <button class="btn" id="btnClrAllProducts">Clear All</button>
-          <button class="btn" id="btnResetPricing">Reset to Rate Card</button>
+        <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px;">
+          <button class="btn" id="ac_cancel" type="button">Cancel</button>
+          <button class="btn" id="ac_save" type="button">Save</button>
         </div>
-
-        <div id="productsList" class="list"></div>
-
-        <div class="row" style="margin-top: 12px;">
-          <div class="pill">Products Selected: <span id="productCount">0</span></div>
-          <div class="pill">Total Value: $<span id="totalValue">0</span></div>
-        </div>
-      </section>
-
-      <!-- Mixed Cash Inputs -->
-      <section class="card hidden" id="cashValuesSection">
-        <div class="title">Cash Values by Station (All Selected Stations)</div>
-        <div class="muted" style="margin-bottom: 12px;">
-          Enter monthly cash payment for each station below. Barter will automatically cover remaining value.
-        </div>
-        <div id="cashValuesList" class="list"></div>
-
-        <div class="row" style="margin-top: 12px;">
-          <div class="pill">Total Cash (Monthly): $<span id="totalCashInput">0</span></div>
-          <div class="pill">Remaining for Barter (Monthly): $<span id="remainingForBarter">0</span></div>
-        </div>
-      </section>
-
-      <!-- Barter / Summary -->
-      <section class="card hidden" id="barterMinutesSection">
-        <div class="title" id="barterSectionTitle">Barter Spots Required (Distributed)</div>
-        <div class="row" style="margin-bottom: 12px;" id="barterControls">
-          <div class="muted">Spots distributed proportionally across all stations. Edit manually if needed.</div>
-          <button class="btn" id="btnResetMinutes">Reset to Auto</button>
-        </div>
-        <div id="barterBreakdown" class="list"></div>
-
-        <div class="row" style="margin-top: 12px;" id="barterTotals">
-          <div class="pill">Total Prime: <span id="totalPrimeMinutes">0</span></div>
-          <div class="pill">Total ROS: <span id="totalROSMinutes">0</span></div>
-        </div>
-      </section>
-
-      <!-- Proposal -->
-      <section class="card hidden" id="proposalSection">
-        <div class="title">Step 6: Generate Proposal</div>
-        <div class="row" style="margin-bottom: 12px;">
-          <button class="btn" id="btnGenerateProposal" style="background: #0d4a2e; border-color: #1a6b45;">Generate Proposal</button>
-          <button class="btn" id="btnCopyProposal">Copy to Clipboard</button>
-        </div>
-
-        <div id="proposalOutput" class="hidden" style="background: #0c131b; border: 1px solid #223244; border-radius: 10px; padding: 16px; margin-top: 12px;">
-          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
-            <strong style="color: #5fb584;">Proposal Ready</strong>
-            <span class="badge" id="proposalMode">Cash Deal</span>
-          </div>
-          <div id="proposalTable" style="overflow-x: auto;"></div>
-        </div>
-      </section>
-
+        <p id="ac_error" style="margin-top:8px; color:#b00020; display:none;"></p>
+      </div>
     </div>
-  </main>
 
-  <script>
-  /** =======================
-   *  Light/static auth gate
-   * ======================= */
-  const AUTH = {
-    passcodes: {
-      admin: 'admin123',
-      staff: 'staff123',
-      view:  'view123'
-    },
-    storageKey: 'dealcalc_session_v1',
-    getSession() {
-      try { return JSON.parse(localStorage.getItem(this.storageKey) || ''); }
-      catch { return null; }
-    },
-    setSession(sess) { localStorage.setItem(this.storageKey, JSON.stringify(sess)); },
-    clearSession() { localStorage.removeItem(this.storageKey); }
+    <section class="card">
+      <div class="title">Step 2: Select Markets (Optional)</div>
+      <div class="row">
+        <input id="marketSearch" type="text" placeholder="Filter markets..."/>
+        <button class="btn" id="btnSelAllMarkets">Select All</button>
+        <button class="btn" id="btnClrAllMarkets">Clear All</button>
+      </div>
+      <div id="marketsPlaceholder" class="placeholder">Select a parent company first</div>
+      <div id="marketsList" class="list"></div>
+    </section>
+
+    <section class="card">
+      <div class="title">Step 3: Select Stations</div>
+      <div class="row">
+        <input id="stationSearch" type="text" placeholder="Filter stations..."/>
+        <button class="btn" id="btnSelAllStations">Select All</button>
+        <button class="btn" id="btnClrAllStations">Clear All</button>
+      </div>
+      <div id="stationsPlaceholder" class="placeholder">Select a parent company first</div>
+      <div id="stationsList" class="list"></div>
+    </section>
+
+    <section class="card">
+      <div class="title">Step 4: Review Selected Stations</div>
+      <div id="selectedPreview" class="list"></div>
+      <div class="row">
+        <div class="pill">Stations: <span id="selCount">0</span></div>
+        <div class="pill">Total Prime AQH: <span id="primeSum">0</span></div>
+        <div class="pill">Total ROS AQH: <span id="rosSum">0</span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="title">Step 5: Select Products & Pricing</div>
+
+      <div class="row" style="margin-bottom: 12px;">
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="pricingType" value="cash" checked>
+          <span>Cash</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="pricingType" value="barter">
+          <span>Barter</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px;">
+          <input type="radio" name="pricingType" value="mixed">
+          <span>Mixed (Cash + Barter)</span>
+        </label>
+      </div>
+
+      <div id="cpmDisplay" class="hidden" style="margin-bottom: 12px;">
+        <div class="row">
+          <span class="muted">CPM:</span>
+          <span class="badge">$2.00 (approval required to change)</span>
+        </div>
+      </div>
+
+      <div class="row" style="margin-bottom: 8px;">
+        <input id="productSearch" type="text" placeholder="Search products..."/>
+        <button class="btn" id="btnSelAllProducts">Select All</button>
+        <button class="btn" id="btnClrAllProducts">Clear All</button>
+        <button class="btn" id="btnResetPricing">Reset to Rate Card</button>
+      </div>
+      <div id="productsList" class="list"></div>
+
+      <div class="row" style="margin-top: 12px;">
+        <div class="pill">Products Selected: <span id="productCount">0</span></div>
+        <div class="pill">Total Value: $<span id="totalValue">0</span></div>
+      </div>
+    </section>
+
+    <section class="card hidden" id="cashValuesSection">
+      <div class="title">Cash Values by Station (All Selected Stations)</div>
+      <div class="muted" style="margin-bottom: 12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
+      <div id="cashValuesList" class="list"></div>
+      <div class="row" style="margin-top: 12px;">
+        <div class="pill">Total Cash (Monthly): $<span id="totalCashInput">0</span></div>
+        <div class="pill">Remaining for Barter (Monthly): $<span id="remainingForBarter">0</span></div>
+      </div>
+    </section>
+
+    <section class="card hidden" id="barterMinutesSection">
+      <div class="title" id="barterSectionTitle">Barter Spots Required (Distributed)</div>
+      <div class="row" style="margin-bottom: 12px;" id="barterControls">
+        <div class="muted">Spots distributed proportionally across all stations. Edit manually if needed.</div>
+        <button class="btn" id="btnResetMinutes">Reset to Auto</button>
+      </div>
+      <div id="barterBreakdown" class="list"></div>
+      <div class="row" style="margin-top: 12px;" id="barterTotals">
+        <div class="pill">Total Prime: <span id="totalPrimeMinutes">0</span></div>
+        <div class="pill">Total ROS: <span id="totalROSMinutes">0</span></div>
+      </div>
+    </section>
+
+    <section class="card hidden" id="proposalSection">
+      <div class="title">Step 6: Generate Proposal</div>
+      <div class="row" style="margin-bottom: 12px;">
+        <button class="btn" id="btnGenerateProposal" style="background: #0d4a2e; border-color: #1a6b45;">Generate Proposal</button>
+        <button class="btn" id="btnCopyProposal">Copy to Clipboard</button>
+      </div>
+
+      <div id="proposalOutput" class="hidden" style="background: #0c131b; border: 1px solid #223244; border-radius: 10px; padding: 16px; margin-top: 12px;">
+        <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: #5fb584;">Proposal Ready</strong>
+          <span class="badge" id="proposalMode">Cash Deal</span>
+        </div>
+        <div id="proposalTable" style="overflow-x: auto;"></div>
+      </div>
+    </section>
+
+    <!-- Upload section (Firestore snapshots — no Storage) -->
+    <section class="card" id="uploadsPanel">
+      <div class="title">My Uploads (Firestore Snapshots)</div>
+      <div class="row">
+        <button class="btn" id="btnUpload">Save Snapshot</button>
+        <span class="muted" id="uploadHint">Staff/Admin only</span>
+        <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
+      </div>
+      <div id="uploadsList" class="list" style="margin-top:8px;"></div>
+    </section>
+
+    <!-- Admin-only panel -->
+    <section class="card hidden" id="adminPanel">
+      <div class="title">Admin: Users & Uploads</div>
+      <div class="muted" style="font-size:12px; margin-bottom:8px;">
+        Promote roles + browse each user’s upload folder.
+      </div>
+      <div id="adminUsersList" class="list"></div>
+    </section>
+
+  </div><!-- /radioView -->
+</main>
+
+<!-- ===========================
+     FIREBASE (Modules, CLEAN)
+     =========================== -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+  import {
+    getAuth, onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut, updateProfile
+  } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+  import {
+    getFirestore, doc, getDoc, setDoc, updateDoc,
+    collection, addDoc, getDocs,
+    query, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAYZcQGPWjokOiCD-kC9F7QB64Bm-SMmpE",
+    authDomain: "deal-calculator-bf40d.firebaseapp.com",
+    projectId: "deal-calculator-bf40d",
+    storageBucket: "deal-calculator-bf40d.firebasestorage.app",
+    messagingSenderId: "1068500491090",
+    appId: "1:1068500491090:web:6654b26d72ad40b1eb388b"
   };
 
-  const PERMS = {
-    admin: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true },
-    staff: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true },
-    view:  { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false }
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.fb = {
+    auth, db,
+    onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut, updateProfile,
+    doc, getDoc, setDoc, updateDoc,
+    collection, addDoc, getDocs,
+    query, orderBy, serverTimestamp
   };
+</script>
 
-  function currentRole(){ return (AUTH.getSession()?.role) || 'view'; }
-  function can(action){ return !!PERMS[currentRole()]?.[action]; }
+<script>
+/* =========================
+   AUTH + ROLES + "UPLOADS"
+   (Option A: Firestore only)
+   ========================= */
+const $ = (id) => document.getElementById(id);
 
-  function applyRoleUI(){
-    const sess = AUTH.getSession();
-    const badge = document.getElementById('whois');
-    if (badge) {
-      badge.textContent = `Role: ${sess?.role ?? '—'}` + (sess?.name ? ` (${sess.name})` : '');
-    }
+const PERMS = {
+  admin: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:true, manage_roles:true },
+  staff: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:false, manage_roles:false },
+  view:  { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
+};
+let CURRENT_USER = null;
+let CURRENT_ROLE = "view";
 
-    const addBtn = document.getElementById('btnAddCompany');
-    const exportBtn = document.getElementById('btnExportUserData');
-    const importInput = document.getElementById('inputImportUserData');
+function currentRole(){ return CURRENT_ROLE; }
+function can(action){ return !!PERMS[currentRole()]?.[action]; }
 
-    if (addBtn) addBtn.style.display = can('manage_custom_parents') ? '' : 'none';
-    if (exportBtn) exportBtn.style.display = can('import_export') ? '' : 'none';
-    if (importInput) {
-      const label = importInput.closest('label');
-      if (label) label.style.display = can('import_export') ? '' : 'none';
-    }
+function showLogin(){
+  $("loginScreen").style.display = "flex";
+  document.querySelector("main").style.filter = "blur(3px)";
+}
+function hideLogin(){
+  $("loginScreen").style.display = "none";
+  document.querySelector("main").style.filter = "";
+}
 
-    const genBtn = document.getElementById('btnGenerateProposal');
-    if (genBtn) genBtn.disabled = !can('generate_proposal');
-  }
+async function ensureUserDoc(user, nameGuess=""){
+  const { db, doc, getDoc, setDoc, updateDoc, serverTimestamp } = window.fb;
+  const uref = doc(db, "users", user.uid);
+  const snap = await getDoc(uref);
 
-  function showLogin(){
-    document.getElementById('loginScreen').style.display = 'flex';
-    document.querySelector('main').style.filter = 'blur(3px)';
-  }
-  function hideLogin(){
-    document.getElementById('loginScreen').style.display = 'none';
-    document.querySelector('main').style.filter = '';
-  }
-
-  function startAppGated(){
-    const sess = AUTH.getSession();
-    if (!sess) {
-      showLogin();
-    } else {
-      hideLogin();
-      applyRoleUI();
-      if (typeof initApp === 'function') initApp();
-    }
-  }
-
-  document.addEventListener('DOMContentLoaded', () => {
-    const loginBtn = document.getElementById('auth_login');
-    const logoutBtn = document.getElementById('btnLogout');
-
-    if (loginBtn) {
-      loginBtn.onclick = () => {
-        const role = (document.getElementById('auth_role').value || 'view').trim();
-        const code = (document.getElementById('auth_code').value || '').trim();
-        const name = (document.getElementById('auth_name').value || '').trim();
-        const err  = document.getElementById('auth_error');
-
-        if (code !== AUTH.passcodes[role]) {
-          err.textContent = 'Invalid passcode for selected role.';
-          err.style.display = 'block';
-          return;
-        }
-
-        err.style.display = 'none';
-        AUTH.setSession({ role, name });
-        hideLogin();
-        applyRoleUI();
-        if (typeof initApp === 'function') initApp();
-      };
-    }
-
-    if (logoutBtn) {
-      logoutBtn.onclick = () => {
-        AUTH.clearSession();
-        location.reload();
-      };
-    }
-
-    startAppGated();
-  });
-  </script>
-
-  <script>
-  /** =======================
-   *  UserData store
-   *  - keeps base JSON read-only
-   *  - allows custom parents/markets/stations saved to localStorage
-   * ======================= */
-  window.UserData = (function () {
-    const USER_KEY = 'dealcalc_user_data_v1';
-    const norm = s => (s ?? '').toString().trim().replace(/\s+/g,' ').toLowerCase();
-    const clone = o => JSON.parse(JSON.stringify(o));
-
-    function normalizeSchema(any){
-      if (any && Array.isArray(any.parents)) {
-        return {
-          parents: any.parents.map(p => ({
-            name: String(p.name ?? ''),
-            country: p.country ?? null,
-            markets: Array.isArray(p.markets) ? p.markets.map(m => ({
-              name: String(m.name ?? ''),
-              stations: Array.isArray(m.stations) ? m.stations.map(String) : []
-            })) : []
-          }))
-        };
-      }
-      if (any && typeof any === 'object' && !Array.isArray(any)) {
-        const parents = [];
-        for (const [parentName, marketsObj] of Object.entries(any)) {
-          const markets = [];
-          if (marketsObj && typeof marketsObj === 'object') {
-            for (const [marketName, stations] of Object.entries(marketsObj)) {
-              markets.push({ name: String(marketName), stations: Array.isArray(stations) ? stations.map(String) : [] });
-            }
-          }
-          parents.push({ name: String(parentName), country: null, markets });
-        }
-        return { parents };
-      }
-      return { parents: [] };
-    }
-
-    function readUser(){
-      try { return normalizeSchema(JSON.parse(localStorage.getItem(USER_KEY) || '')); }
-      catch { return { parents: [] }; }
-    }
-    function writeUser(data){ localStorage.setItem(USER_KEY, JSON.stringify(data)); }
-
-    function mergeBaseAndUser(base, user){
-      const out = clone(base);
-      for (const up of user.parents){
-        let p = out.parents.find(pp => norm(pp.name) === norm(up.name));
-        if (!p){ out.parents.push(clone(up)); continue; }
-        if (!p.country && up.country) p.country = up.country;
-
-        for (const um of up.markets){
-          let m = p.markets.find(mm => norm(mm.name) === norm(um.name));
-          if (!m){ p.markets.push(clone(um)); continue; }
-          const set = new Set(m.stations.map(norm));
-          for (const st of um.stations){ if (!set.has(norm(st))) m.stations.push(st); }
-        }
-      }
-
-      out.parents.sort((a,b)=>a.name.localeCompare(b.name));
-      out.parents.forEach(p => {
-        p.markets.sort((a,b)=>a.name.localeCompare(b.name));
-        p.markets.forEach(m => m.stations.sort());
-      });
-      return out;
-    }
-
-    let baseData = { parents: [] };
-    async function init(baseUrl){
-      try {
-        const res = await fetch(baseUrl || 'radio_data.json', { cache:'no-store' });
-        baseData = normalizeSchema(await res.json());
-      } catch (e){
-        console.warn('Could not load base radio_data.json; using empty base.', e);
-        baseData = { parents: [] };
-      }
-    }
-
-    function getMerged(){ return mergeBaseAndUser(baseData, readUser()); }
-
-    function addEntry({ parent, country, market, station }){
-      const u = readUser();
-      if (!parent?.trim() || !market?.trim() || !station?.trim()) return false;
-
-      const pKey = norm(parent), mKey = norm(market), sKey = norm(station);
-      let p = u.parents.find(pp => norm(pp.name) === pKey);
-      if (!p){ p = { name: parent.trim(), country: country?.trim() || null, markets: [] }; u.parents.push(p); }
-      else if (!p.country && country?.trim()) p.country = country.trim();
-
-      let m = p.markets.find(mm => norm(mm.name) === mKey);
-      if (!m){ m = { name: market.trim(), stations: [] }; p.markets.push(m); }
-
-      if (!m.stations.map(norm).includes(sKey)) m.stations.push(station.trim());
-      writeUser(u);
-      return true;
-    }
-
-    function exportUser(){
-      const blob = new Blob([localStorage.getItem(USER_KEY) || '{"parents":[]}'], {type:'application/json'});
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'user_radio_data.json';
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
-    }
-
-    async function importUser(file){
-      const text = await file.text();
-      const incoming = normalizeSchema(JSON.parse(text));
-      const current = readUser();
-      const merged = mergeBaseAndUser(current, incoming);
-      writeUser(merged);
-    }
-
-    function removeParent(parentName){
-      const u = readUser();
-      const key = norm(parentName);
-      const before = u.parents.length;
-      u.parents = u.parents.filter(p => norm(p.name) !== key);
-      writeUser(u);
-      return u.parents.length !== before;
-    }
-
-    return { init, getMerged, addEntry, export: exportUser, import: importUser, removeParent };
-  })();
-  </script>
-
-  <script>
-  /** =======================
-   *  Deal Calc App
-   * ======================= */
-
-  // Data config
-  const DATA_URL = './radio_data.json';
-
-  // Globals
-  let BASE_DS = { parents: [], markets: [], stations: [] };
-  let DS = { parents: [], markets: [], stations: [] };
-
-  const IDX = {
-    parentSet: new Set(),
-    marketSet: new Set(),
-    stations: [],
-    stationsByParent: new Map(),
-    stationsByParentMarket: new Map(),
-  };
-
-  const state = { parent: '', markets: new Set(), stations: new Set() };
-  function $(id){ return document.getElementById(id); }
-
-  // Products
-  const PRODUCTS = [
-    { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
-    { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
-    { id: 'topline_podcast', name: 'TopLine - Podcast', cash: 2500, barter: 3400 },
-    { id: 'topline_agency', name: 'TopLine - Agency', cash: 2500, barter: 3400 },
-    { id: 'post', name: 'POST', cash: 1000, barter: 1360 },
-    { id: 'mobile', name: 'Mobile', cash: 750, barter: 1020 },
-    { id: 'streaming', name: 'Streaming', cash: 500, barter: 680 },
-    { id: 'ldr', name: 'LDR', cash: 750, barter: 1020 },
-    { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680 },
-    { id: 'instant_video', name: 'Instant Video add-on', cash: 500, barter: 680 },
-    { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040 },
-    { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800 },
-    { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360 },
-    { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020 },
-    { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null },
-    { id: 'topline', name: 'TopLine', cash: null, barter: null }
-  ];
-
-  const productState = {
-    selectedProducts: new Set(),
-    pricingType: 'cash',
-    customPrices: new Map(),
-    cpm: 2.00,
-    manualMinutes: new Map(),
-    stationCashValues: new Map()
-  };
-
-  function norm(s){ return (s||'').trim().toLowerCase(); }
-
-  function mergeUserIntoDataset(baseDS, userMerged){
-    const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
-    const parentSet = new Set((out.parents||[]).map(norm));
-    const marketSet = new Set((out.markets||[]).map(norm));
-    const stationKeySet = new Set((out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`));
-
-    (userMerged?.parents || []).forEach(p => {
-      const parentName = (p.name || '').trim();
-      if (!parentName) return;
-      if (!parentSet.has(norm(parentName))) {
-        out.parents.push(parentName);
-        parentSet.add(norm(parentName));
-      }
-
-      (p.markets || []).forEach(m => {
-        const marketName = (m.name || '').trim();
-        if (!marketName) return;
-        if (!marketSet.has(norm(marketName))) {
-          out.markets.push(marketName);
-          marketSet.add(norm(marketName));
-        }
-
-        (m.stations || []).forEach(st => {
-          const stationName = (st || '').trim();
-          if (!stationName) return;
-          const key = `${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
-          if (!stationKeySet.has(key)) {
-            out.stations.push({
-              parent: parentName,
-              market: marketName,
-              station: stationName,
-              primeAQH: 0,
-              rosAQH: 0,
-              format: ''
-            });
-            stationKeySet.add(key);
-          }
-        });
-      });
+  if (!snap.exists()){
+    await setDoc(uref, {
+      email: user.email,
+      name: nameGuess || user.displayName || "",
+      role: "view",
+      createdAt: serverTimestamp()
     });
+  } else if (nameGuess && !snap.data().name){
+    await updateDoc(uref, { name: nameGuess });
+  }
+  return (await getDoc(uref)).data();
+}
 
-    out.parents.sort((a,b)=>a.localeCompare(b));
-    out.markets.sort((a,b)=>a.localeCompare(b));
-    out.stations.sort((a,b)=> a.station.localeCompare(b.station) || a.market.localeCompare(b.market));
+function applyRoleUI(){
+  $("whois").textContent =
+    `Role: ${CURRENT_ROLE}` + (CURRENT_USER?.name ? ` (${CURRENT_USER.name})` : "");
+
+  $("btnAddCompany").style.display = can("manage_custom_parents") ? "" : "none";
+  $("btnExportUserData").style.display = can("import_export") ? "" : "none";
+  const importInput = $("inputImportUserData");
+  if (importInput) {
+    const label = importInput.closest("label");
+    if (label) label.style.display = can("import_export") ? "" : "none";
+  }
+
+  $("btnGenerateProposal").disabled = !can("generate_proposal");
+  $("btnUpload").style.display = can("upload_files") ? "" : "none";
+  $("uploadHint").textContent = can("upload_files")
+    ? "Snapshots save your current selections + pricing to Firestore."
+    : "View-only accounts cannot save snapshots.";
+
+  $("adminPanel").classList.toggle("hidden", !can("view_all_uploads"));
+}
+
+/* -------------------------
+   Firestore Upload Snapshots
+   ------------------------- */
+
+function buildSnapshotPayload(){
+  const stations = Array.from(state.stations);
+  const markets  = Array.from(state.markets);
+  const products = Array.from(productState.selectedProducts);
+
+  return {
+    parent: state.parent,
+    markets,
+    stations,
+    products,
+    pricingType: productState.pricingType,
+    customPrices: Object.fromEntries(productState.customPrices),
+    manualMinutes: Object.fromEntries(productState.manualMinutes),
+    stationCashValues: Object.fromEntries(productState.stationCashValues),
+    cpm: productState.cpm,
+    proposalHTML: $("proposalTable")?.innerHTML || ""
+  };
+}
+
+async function saveSnapshot(){
+  const { db, auth, collection, addDoc, serverTimestamp } = window.fb;
+  const user = auth.currentUser;
+  if (!user) return;
+
+  if (!state.parent || state.stations.size === 0 || productState.selectedProducts.size === 0){
+    alert("Pick a parent, stations, and products first — then save a snapshot.");
+    return;
+  }
+
+  $("uploadStatus").textContent = "Saving...";
+  await addDoc(collection(db, "users", user.uid, "uploads"), {
+    type: "snapshot",
+    createdAt: serverTimestamp(),
+    payload: buildSnapshotPayload()
+  });
+  $("uploadStatus").textContent = "Saved ✓";
+  setTimeout(()=> $("uploadStatus").textContent = "", 1800);
+
+  await renderMyUploads();
+  if (can("view_all_uploads")) await renderAdminUsers();
+}
+
+async function renderMyUploads(){
+  const { db, auth, collection, getDocs, query, orderBy } = window.fb;
+  const uid = auth.currentUser.uid;
+
+  const qRef = query(
+    collection(db, "users", uid, "uploads"),
+    orderBy("createdAt", "desc")
+  );
+  const snaps = await getDocs(qRef);
+
+  const list = $("uploadsList");
+  list.innerHTML = "";
+
+  if (snaps.empty){
+    list.innerHTML = `<div class="placeholder">No snapshots yet.</div>`;
+    return;
+  }
+
+  snaps.forEach(docSnap => {
+    const d = docSnap.data();
+    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+    const label = when ? when.toLocaleString() : "(pending timestamp)";
+
+    const row = document.createElement("div");
+    row.className = "el";
+    row.innerHTML = `
+      <div>
+        <strong>${d.type || "snapshot"}</strong>
+        <div class="muted" style="font-size:11px">${label}</div>
+      </div>
+      <button class="btn" data-id="${docSnap.id}">Load</button>
+    `;
+    row.querySelector("button").onclick = () => loadSnapshot(d.payload);
+    list.appendChild(row);
+  });
+}
+
+function loadSnapshot(payload){
+  if (!payload) return;
+
+  state.parent = payload.parent || "";
+  state.markets = new Set(payload.markets || []);
+  state.stations = new Set(payload.stations || []);
+
+  productState.pricingType = payload.pricingType || "cash";
+  productState.selectedProducts = new Set(payload.products || []);
+  productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
+  productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
+  productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
+  productState.cpm = payload.cpm ?? 2.0;
+
+  document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+    r.checked = (r.value === productState.pricingType);
+  });
+
+  setMarketsEnabled(!!state.parent);
+  setStationsEnabled(!!state.parent);
+  renderParents($("parentSearch").value || "");
+  renderMarkets();
+  renderStations();
+  renderProducts();
+  updatePreview();
+  updateProductSummary();
+
+  if (payload.proposalHTML){
+    $("proposalSection").classList.remove("hidden");
+    $("proposalOutput").classList.remove("hidden");
+    $("proposalTable").innerHTML = payload.proposalHTML;
+  }
+
+  alert("Snapshot loaded.");
+}
+
+/* -------------------------
+   Admin: Users + Uploads
+   ------------------------- */
+
+async function renderAdminUsers(){
+  if (!can("view_all_uploads")) return;
+
+  const {
+    db, collection, getDocs, query, orderBy,
+    doc, updateDoc
+  } = window.fb;
+
+  const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
+  const usersSnap = await getDocs(userQ);
+
+  const root = $("adminUsersList");
+  root.innerHTML = "";
+  if (usersSnap.empty){
+    root.innerHTML = `<div class="placeholder">No users yet.</div>`;
+    return;
+  }
+
+  for (const udocSnap of usersSnap.docs){
+    const u = udocSnap.data();
+    const uid = udocSnap.id;
+
+    const card = document.createElement("div");
+    card.className = "user-card";
+
+    const header = document.createElement("div");
+    header.className = "rowline";
+    header.innerHTML = `
+      <div>
+        <strong>${u.name || "(no name)"}</strong><br>
+        <span class="muted" style="font-size:12px">${u.email}</span>
+      </div>
+    `;
+
+    const roleWrap = document.createElement("div");
+    roleWrap.style.minWidth = "160px";
+    roleWrap.innerHTML = `
+      <select data-uid="${uid}">
+        <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
+        <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
+        <option value="view"  ${u.role==="view" ?"selected":""}>View Only</option>
+      </select>
+    `;
+
+    roleWrap.querySelector("select").onchange = async (e) => {
+      if (!can("manage_roles")) return alert("You cannot change roles.");
+      const newRole = e.target.value;
+      await updateDoc(doc(db, "users", uid), { role: newRole });
+      if (uid === window.fb.auth.currentUser.uid){
+        CURRENT_ROLE = newRole;
+        applyRoleUI();
+      }
+    };
+
+    header.appendChild(roleWrap);
+    card.appendChild(header);
+
+    const uploadsBox = document.createElement("div");
+    uploadsBox.className = "list";
+
+    const uq = query(
+      collection(db, "users", uid, "uploads"),
+      orderBy("createdAt","desc")
+    );
+    const usnaps = await getDocs(uq);
+
+    if (usnaps.empty){
+      uploadsBox.innerHTML = `<div class="placeholder">No uploads</div>`;
+    } else {
+      usnaps.forEach(snap => {
+        const d = snap.data();
+        const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+        const label = when ? when.toLocaleString() : "(pending)";
+
+        const row = document.createElement("div");
+        row.className = "el";
+        row.innerHTML = `
+          <div>
+            <strong>${d.type || "snapshot"}</strong>
+            <div class="muted" style="font-size:11px">${label}</div>
+          </div>
+          <button class="btn">Load</button>
+        `;
+        row.querySelector("button").onclick = () => loadSnapshot(d.payload);
+        uploadsBox.appendChild(row);
+      });
+    }
+
+    card.appendChild(uploadsBox);
+    root.appendChild(card);
+  }
+}
+
+/* -------------------------
+   Login wiring
+   ------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
+  const {
+    auth, onAuthStateChanged,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut, updateProfile
+  } = window.fb;
+
+  $("btnLogin").onclick = async () => {
+    const email = ($("auth_email").value||"").trim();
+    const pass  = ($("auth_pass").value||"").trim();
+    const name  = ($("auth_name").value||"").trim();
+    const err = $("auth_error");
+    try {
+      const cred = await signInWithEmailAndPassword(auth, email, pass);
+      if (name) await updateProfile(cred.user, { displayName: name });
+      err.style.display = "none";
+    } catch (e){
+      err.textContent = e.message;
+      err.style.display = "block";
+    }
+  };
+
+  $("btnSignup").onclick = async () => {
+    const email = ($("auth_email").value||"").trim();
+    const pass  = ($("auth_pass").value||"").trim();
+    const name  = ($("auth_name").value||"").trim();
+    const err = $("auth_error");
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, pass);
+      if (name) await updateProfile(cred.user, { displayName: name });
+      await ensureUserDoc(cred.user, name);
+      err.style.display = "none";
+    } catch (e){
+      err.textContent = e.message;
+      err.style.display = "block";
+    }
+  };
+
+  $("btnLogout").onclick = async () => {
+    await signOut(auth);
+    location.reload();
+  };
+
+  $("btnUpload").onclick = async () => {
+    if (!can("upload_files")) return;
+    await saveSnapshot();
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user){
+      showLogin();
+      return;
+    }
+    hideLogin();
+    CURRENT_USER = await ensureUserDoc(user, user.displayName || "");
+    CURRENT_ROLE = CURRENT_USER.role || "view";
+    applyRoleUI();
+
+    initApp();
+    renderMyUploads();
+    renderAdminUsers();
+  });
+
+  $("btnOpenRadio").onclick = () => { $("landing").classList.add("hidden"); $("radioView").classList.remove("hidden"); window.scrollTo(0,0); };
+  $("btnBack").onclick = () => { $("radioView").classList.add("hidden"); $("landing").classList.remove("hidden"); window.scrollTo(0,0); };
+});
+</script>
+
+<script>
+/** =======================
+ *  Deal Calc — UserData (Static Option A)
+ *  Keeps your Nielsen JSON read-only, and lets users add their own companies.
+ *  Data is saved in localStorage and can be exported/imported as JSON.
+ * ======================= */
+window.UserData = (function () {
+  const USER_KEY = 'dealcalc_user_data_v1';
+  const norm = s => (s ?? '').toString().trim().replace(/\s+/g,' ').toLowerCase();
+  const clone = o => JSON.parse(JSON.stringify(o));
+
+  function normalizeSchema(any){
+    if (any && Array.isArray(any.parents)) {
+      return {
+        parents: any.parents.map(p => ({
+          name: String(p.name ?? ''),
+          country: p.country ?? null,
+          markets: Array.isArray(p.markets) ? p.markets.map(m => ({
+            name: String(m.name ?? ''),
+            stations: Array.isArray(m.stations) ? m.stations.map(String) : []
+          })) : []
+        }))
+      };
+    }
+    if (any && typeof any === 'object' && !Array.isArray(any)) {
+      const parents = [];
+      for (const [parentName, marketsObj] of Object.entries(any)) {
+        const markets = [];
+        if (marketsObj && typeof marketsObj === 'object') {
+          for (const [marketName, stations] of Object.entries(marketsObj)) {
+            markets.push({ name: String(marketName), stations: Array.isArray(stations) ? stations.map(String) : [] });
+          }
+        }
+        parents.push({ name: String(parentName), country: null, markets });
+      }
+      return { parents };
+    }
+    return { parents: [] };
+  }
+
+  function readUser(){
+    try { return normalizeSchema(JSON.parse(localStorage.getItem(USER_KEY) || '')); }
+    catch { return { parents: [] }; }
+  }
+  function writeUser(data){ localStorage.setItem(USER_KEY, JSON.stringify(data)); }
+
+  function mergeBaseAndUser(base, user){
+    const out = clone(base);
+    for (const up of user.parents){
+      let p = out.parents.find(pp => norm(pp.name) === norm(up.name));
+      if (!p){ out.parents.push(clone(up)); continue; }
+      if (!p.country && up.country) p.country = up.country;
+      for (const um of up.markets){
+        let m = p.markets.find(mm => norm(mm.name) === norm(um.name));
+        if (!m){ p.markets.push(clone(um)); continue; }
+        const set = new Set(m.stations.map(norm));
+        for (const st of um.stations){ if (!set.has(norm(st))) m.stations.push(st); }
+      }
+    }
+    out.parents.sort((a,b)=>a.name.localeCompare(b.name));
+    out.parents.forEach(p => {
+      p.markets.sort((a,b)=>a.name.localeCompare(b.name));
+      p.markets.forEach(m => m.stations.sort());
+    });
     return out;
   }
 
-  async function loadDataset(){
+  let baseData = { parents: [] };
+  async function init(baseUrl){
     try {
-      const response = await fetch(DATA_URL);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const data = await response.json();
-      console.log(`Loaded ${data.stations?.length || 0} stations`);
-      return data;
+      const res = await fetch(baseUrl || 'radio_data.json', { cache: 'no-store' });
+      baseData = normalizeSchema(await res.json());
     } catch (e){
-      console.error('Failed to load dataset', e);
-      alert('Failed to load radio station data. Check radio_data.json path.');
-      return { parents: [], markets: [], stations: [] };
+      console.warn('Could not load base radio_data.json; using empty base.', e);
+      baseData = { parents: [] };
     }
   }
 
-  function rebuildIndex(){
-    IDX.parentSet = new Set(DS.parents || []);
-    IDX.marketSet = new Set(DS.markets || []);
-    IDX.stations = DS.stations || [];
-    IDX.stationsByParent.clear();
-    IDX.stationsByParentMarket.clear();
+  function getMerged(){ return mergeBaseAndUser(baseData, readUser()); }
 
-    IDX.stations.forEach(s => {
-      const p = s.parent || '';
-      const m = s.market || '';
+  function addEntry({ parent, country, market, station }){
+    const u = readUser();
+    if (!parent?.trim() || !market?.trim() || !station?.trim()) return false;
+    const pKey = norm(parent), mKey = norm(market), sKey = norm(station);
 
-      if (!IDX.stationsByParent.has(p)) IDX.stationsByParent.set(p, []);
-      IDX.stationsByParent.get(p).push(s);
+    let p = u.parents.find(pp => norm(pp.name) === pKey);
+    if (!p){ p = { name: parent.trim(), country: country?.trim() || null, markets: [] }; u.parents.push(p); }
+    else if (!p.country && country?.trim()) p.country = country.trim();
 
-      const key = p + '||' + m;
-      if (!IDX.stationsByParentMarket.has(key)) IDX.stationsByParentMarket.set(key, []);
-      IDX.stationsByParentMarket.get(key).push(s);
+    let m = p.markets.find(mm => norm(mm.name) === mKey);
+    if (!m){ m = { name: market.trim(), stations: [] }; p.markets.push(m); }
+
+    if (!m.stations.map(norm).includes(sKey)) m.stations.push(station.trim());
+
+    writeUser(u);
+    return true;
+  }
+
+  function exportUser(){
+    const blob = new Blob([localStorage.getItem(USER_KEY) || '{"parents":[]}'], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'user_radio_data.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
+  }
+
+  async function importUser(file){
+    const text = await file.text();
+    const incoming = normalizeSchema(JSON.parse(text));
+    const current = readUser();
+    const merged = mergeBaseAndUser(current, incoming);
+    writeUser(merged);
+  }
+
+  function removeParent(parentName) {
+    const u = readUser();
+    const key = norm(parentName);
+    const before = u.parents.length;
+    u.parents = u.parents.filter(p => norm(p.name) !== key);
+    writeUser(u);
+    return u.parents.length !== before;
+  }
+
+  return {
+    init,
+    getMerged,
+    addEntry,
+    export: exportUser,
+    import: importUser,
+    removeParent
+  };
+})();
+</script>
+
+<script>
+/* =======================
+   MAIN CALCULATOR JS
+   (same logic you had, cleaned up)
+   ======================= */
+
+let BASE_DS = { parents: [], markets: [], stations: [] };
+
+function mergeUserIntoDataset(baseDS, userMerged){
+  const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
+  const norm = s => (s||'').trim().toLowerCase();
+
+  const parentSet = new Set((out.parents||[]).map(norm));
+  const marketSet = new Set((out.markets||[]).map(norm));
+  const stationKeySet = new Set((out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`));
+
+  (userMerged?.parents || []).forEach(p => {
+    const parentName = (p.name || '').trim();
+    if (!parentName) return;
+    if (!parentSet.has(norm(parentName))) { out.parents.push(parentName); parentSet.add(norm(parentName)); }
+
+    (p.markets || []).forEach(m => {
+      const marketName = (m.name || '').trim();
+      if (!marketName) return;
+      if (!marketSet.has(norm(marketName))) { out.markets.push(marketName); marketSet.add(norm(marketName)); }
+
+      (m.stations || []).forEach(st => {
+        const stationName = (st || '').trim();
+        if (!stationName) return;
+        const key = `${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
+        if (!stationKeySet.has(key)) {
+          out.stations.push({
+            parent: parentName,
+            market: marketName,
+            station: stationName,
+            primeAQH: 0,
+            rosAQH: 0,
+            format: ''
+          });
+          stationKeySet.add(key);
+        }
+      });
     });
+  });
+
+  out.parents.sort((a,b)=>a.localeCompare(b));
+  out.markets.sort((a,b)=>a.localeCompare(b));
+  out.stations.sort((a,b)=> a.station.localeCompare(b.station) || a.market.localeCompare(b.market));
+
+  return out;
+}
+
+// CONFIG
+const DATA_URL = './radio_data.json';
+
+// Dataset + Index
+let DS = { parents: [], markets: [], stations: [] };
+const IDX = {
+  parentSet: new Set(),
+  marketSet: new Set(),
+  stations: [],
+  stationsByParent: new Map(),
+  stationsByParentMarket: new Map(),
+};
+const state = { parent: '', markets: new Set(), stations: new Set() };
+function $(id) { return document.getElementById(id); }
+
+// Products configuration
+const PRODUCTS = [
+  { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
+  { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
+  { id: 'topline_podcast', name: 'TopLine - Podcast', cash: 2500, barter: 3400 },
+  { id: 'topline_agency', name: 'TopLine - Agency', cash: 2500, barter: 3400 },
+  { id: 'post', name: 'POST', cash: 1000, barter: 1360 },
+  { id: 'mobile', name: 'Mobile', cash: 750, barter: 1020 },
+  { id: 'streaming', name: 'Streaming', cash: 500, barter: 680 },
+  { id: 'ldr', name: 'LDR', cash: 750, barter: 1020 },
+  { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680 },
+  { id: 'instant_video', name: 'Instant Video add-on', cash: 500, barter: 680 },
+  { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040 },
+  { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800 },
+  { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360 },
+  { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020 },
+  { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null },
+  { id: 'topline', name: 'TopLine', cash: null, barter: null }
+];
+
+const productState = {
+  selectedProducts: new Set(),
+  pricingType: 'cash',
+  customPrices: new Map(),
+  cpm: 2.00,
+  manualMinutes: new Map(),
+  stationCashValues: new Map()
+};
+
+// Load dataset
+async function loadDataset() {
+  try {
+    const response = await fetch(DATA_URL, { cache:'no-store' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    console.log(`Loaded ${data.stations?.length || 0} stations`);
+    return data;
+  } catch (error) {
+    console.error('Failed to load dataset:', error);
+    alert('Failed to load radio station data.');
+    return { parents: [], markets: [], stations: [] };
   }
+}
 
-  function setMarketsEnabled(enabled){
-    $('btnSelAllMarkets').disabled = !enabled;
-    $('btnClrAllMarkets').disabled = !enabled;
-    $('marketsPlaceholder').style.display = enabled ? 'none' : '';
-    if (!enabled) $('marketsList').innerHTML = '';
-  }
+function rebuildIndex(){
+  IDX.parentSet = new Set(DS.parents || []);
+  IDX.marketSet = new Set(DS.markets || []);
+  IDX.stations = DS.stations || [];
+  IDX.stationsByParent.clear();
+  IDX.stationsByParentMarket.clear();
+  (IDX.stations || []).forEach(s => {
+    const p = s.parent || ''; const m = s.market || '';
+    if (!IDX.stationsByParent.has(p)) IDX.stationsByParent.set(p, []);
+    IDX.stationsByParent.get(p).push(s);
+    const key = p + '||' + m;
+    if (!IDX.stationsByParentMarket.has(key)) IDX.stationsByParentMarket.set(key, []);
+    IDX.stationsByParentMarket.get(key).push(s);
+  });
+}
 
-  function setStationsEnabled(enabled){
-    $('btnSelAllStations').disabled = !enabled;
-    $('btnClrAllStations').disabled = !enabled;
-    $('stationsPlaceholder').style.display = enabled ? 'none' : '';
-    if (!enabled) $('stationsList').innerHTML = '';
-  }
+// UI enable/disable helpers
+function setMarketsEnabled(enabled) {
+  const sel = $('btnSelAllMarkets'); const clr = $('btnClrAllMarkets');
+  if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
+  const ph = $('marketsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
+  const list = $('marketsList'); if (list && !enabled) list.innerHTML = '';
+}
+function setStationsEnabled(enabled) {
+  const sel = $('btnSelAllStations'); const clr = $('btnClrAllStations');
+  if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
+  const ph = $('stationsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
+  const list = $('stationsList'); if (list && !enabled) list.innerHTML = '';
+}
 
-  async function initApp(){
-    await UserData.init(DATA_URL);
-    const main = document.querySelector('main');
-    const loading = document.createElement('div');
-    loading.id = 'loadingIndicator';
-    loading.style.cssText = 'text-align:center; padding:40px; font-size:18px; color:var(--text);';
-    loading.innerHTML = '⏳ Loading radio station data...<br><span style="font-size:14px; color:var(--muted);">Fetching JSON</span>';
-    main.insertBefore(loading, main.firstChild);
+// ===== initApp() CALLED AFTER LOGIN =====
+async function initApp() {
+  if (initApp._ran) return; // prevent double-run on auth refresh
+  initApp._ran = true;
 
-    BASE_DS = await loadDataset();
+  await UserData.init(DATA_URL);
+
+  BASE_DS = await loadDataset();
+  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+  rebuildIndex();
+
+  setupEventListeners();
+  renderProducts();
+  updateProductSummary();
+}
+
+// Event listeners
+function setupEventListeners() {
+  setMarketsEnabled(false);
+  setStationsEnabled(false);
+
+  const ps = $('parentSearch');
+  ps.addEventListener('input', () => renderParents(ps.value));
+  renderParents('');
+
+  $('marketSearch').addEventListener('input', renderMarkets);
+  $('stationSearch').addEventListener('input', renderStations);
+
+  $('btnSelAllMarkets').onclick = () => {
+    (IDX.stationsByParent.get(state.parent) || []).forEach(s => state.markets.add(s.market));
+    renderMarkets(); renderStations(); updatePreview();
+  };
+  $('btnClrAllMarkets').onclick = () => {
+    state.markets.clear(); renderMarkets(); renderStations(); updatePreview();
+  };
+
+  $('btnSelAllStations').onclick = () => {
+    document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
+      cb.checked = true; state.stations.add(cb.value);
+    });
+    updatePreview();
+  };
+  $('btnClrAllStations').onclick = () => {
+    document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
+      cb.checked = false; state.stations.delete(cb.value);
+    });
+    updatePreview();
+  };
+
+  // UserData toolbar
+  $('btnAddCompany').onclick = () => {
+    $('addCompanyModal').style.display = 'flex';
+    $('ac_parent').value = '';
+    $('ac_country').value = '';
+    $('ac_market').value = '';
+    $('ac_station').value = '';
+    $('ac_error').style.display = 'none';
+    $('ac_parent').focus();
+  };
+  $('ac_cancel').onclick = () => {
+    $('addCompanyModal').style.display = 'none';
+    $('ac_error').style.display = 'none';
+  };
+
+  $('btnExportUserData').onclick = () => {
+    UserData.export();
+    const s = $('userDataStatus'); if (s) { s.textContent = 'Exported user_radio_data.json'; setTimeout(()=>s.textContent='', 2000); }
+  };
+
+  $('inputImportUserData').onchange = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    await UserData.import(file);
     DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
     rebuildIndex();
+    renderParents($('parentSearch').value || '');
+    const s = $('userDataStatus'); if (s) { s.textContent = 'Imported user data'; setTimeout(()=>s.textContent='', 2000); }
+    e.target.value = '';
+  };
 
-    loading.remove();
-    setupEventListeners();
-    applyRoleUI();       // after DOM exists
-    renderProducts();    // seed products
-    updateProductSummary();
-  }
+  $('ac_save').onclick = () => {
+    if (!can('manage_custom_parents')) {
+      const err = $('ac_error');
+      err.textContent = 'Your role does not permit adding companies.';
+      err.style.display = 'block';
+      return;
+    }
 
-  function setupEventListeners(){
-    const landing = $('landing');
-    const radio = $('radioView');
+    const P = ($('ac_parent').value || '').trim();
+    const C = ($('ac_country').value || '').trim();
+    const M = ($('ac_market').value || '').trim();
+    const S = ($('ac_station').value || '').trim();
+    const err = $('ac_error');
+    if (!P || !M || !S) { err.textContent = 'Parent, Market, and Station are required.'; err.style.display = 'block'; return; }
+    err.style.display = 'none';
 
-    $('btnOpenRadio').onclick = () => {
-      landing.classList.add('hidden');
-      radio.classList.remove('hidden');
-      window.scrollTo(0,0);
-    };
+    UserData.addEntry({ parent: P, country: C, market: M, station: S });
+    $('addCompanyModal').style.display = 'none';
 
-    $('btnBack').onclick = () => {
-      radio.classList.add('hidden');
-      landing.classList.remove('hidden');
-      window.scrollTo(0,0);
-    };
+    DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+    rebuildIndex();
+    $('parentSearch').value = P;
+    renderParents(P);
+    setParent(P);
+  };
 
-    // UserData toolbar
-    $('btnAddCompany').onclick = () => {
-      if (!can('manage_custom_parents')) return;
-      $('addCompanyModal').style.display = 'flex';
-      $('ac_parent').value = '';
-      $('ac_country').value = '';
-      $('ac_market').value = '';
-      $('ac_station').value = '';
-      $('ac_error').style.display = 'none';
-      $('ac_parent').focus();
-    };
+  attachProductEventListeners();
+}
 
-    $('ac_cancel').onclick = () => {
-      $('addCompanyModal').style.display = 'none';
-      $('ac_error').style.display = 'none';
-    };
+function renderParents(q='') {
+  const list = $('parentResults');
+  list.innerHTML = '';
+  const qn = q.trim().toLowerCase();
 
-    $('ac_save').onclick = () => {
-      if (!can('manage_custom_parents')) {
-        $('ac_error').textContent = 'Your role does not permit adding companies.';
-        $('ac_error').style.display = 'block';
-        return;
-      }
+  const baseNames = (BASE_DS.parents || []).map(p => (p || '').toLowerCase());
+  const parents = Array.from(IDX.parentSet)
+    .filter(p => p.toLowerCase().includes(qn))
+    .sort();
 
-      const P = ($('ac_parent').value || '').trim();
-      const C = ($('ac_country').value || '').trim();
-      const M = ($('ac_market').value || '').trim();
-      const S = ($('ac_station').value || '').trim();
-      if (!P || !M || !S) {
-        $('ac_error').textContent = 'Parent, Market, and Station are required.';
-        $('ac_error').style.display = 'block';
-        return;
-      }
+  parents.slice(0, 300).forEach(p => {
+    const row = document.createElement('div');
+    row.className = 'el';
+    row.style.display = 'flex';
+    row.style.alignItems = 'center';
+    row.style.justifyContent = 'space-between';
+    row.style.gap = '8px';
 
-      $('ac_error').style.display = 'none';
-      UserData.addEntry({ parent:P, country:C, market:M, station:S });
-      $('addCompanyModal').style.display = 'none';
+    const left = document.createElement('label');
+    left.className = 'el';
+    left.style.flex = '1';
+    left.style.border = 'none';
+    left.style.padding = '0';
+    left.style.cursor = 'pointer';
+    left.style.gap = '8px';
 
-      DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
-      rebuildIndex();
-      $('parentSearch').value = P;
-      renderParents(P);
-      setParent(P);
-    };
+    const radio = document.createElement('input');
+    radio.type = 'radio';
+    radio.name = 'parentSelect';
+    radio.value = p;
+    radio.checked = (state.parent === p);
+    radio.onchange = () => setParent(p);
 
-    $('btnExportUserData').onclick = () => {
-      UserData.export();
-      $('userDataStatus').textContent = 'Exported user_radio_data.json';
-      setTimeout(() => $('userDataStatus').textContent = '', 2000);
-    };
+    const name = document.createElement('span');
+    name.textContent = p;
 
-    $('inputImportUserData').onchange = async (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-      await UserData.import(file);
-      DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
-      rebuildIndex();
-      renderParents($('parentSearch').value || '');
-      $('userDataStatus').textContent = 'Imported user data';
-      setTimeout(() => $('userDataStatus').textContent = '', 2000);
-      e.target.value = '';
-    };
+    left.appendChild(radio);
+    left.appendChild(name);
+    row.appendChild(left);
 
-    // Parent search
-    setMarketsEnabled(false);
-    setStationsEnabled(false);
-    $('parentSearch').addEventListener('input', () => renderParents($('parentSearch').value));
-    renderParents('');
+    const isBase = baseNames.includes(p.toLowerCase());
+    if (!isBase) {
+      const tag = document.createElement('span');
+      tag.className = 'badge';
+      tag.textContent = 'Custom';
+      row.appendChild(tag);
 
-    $('marketSearch').addEventListener('input', renderMarkets);
-    $('stationSearch').addEventListener('input', renderStations);
-
-    $('btnSelAllMarkets').onclick = () => {
-      (IDX.stationsByParent.get(state.parent) || []).forEach(s => state.markets.add(s.market));
-      renderMarkets(); renderStations(); updatePreview();
-    };
-    $('btnClrAllMarkets').onclick = () => {
-      state.markets.clear();
-      renderMarkets(); renderStations(); updatePreview();
-    };
-
-    $('btnSelAllStations').onclick = () => {
-      document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
-        cb.checked = true;
-        state.stations.add(cb.value);
-      });
-      updatePreview();
-    };
-    $('btnClrAllStations').onclick = () => {
-      document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
-        cb.checked = false;
-        state.stations.delete(cb.value);
-      });
-      updatePreview();
-    };
-
-    attachProductEventListeners();
-  }
-
-  function renderParents(q=''){
-    const list = $('parentResults');
-    list.innerHTML = '';
-    const qn = q.trim().toLowerCase();
-
-    const baseNames = (BASE_DS.parents || []).map(p => (p||'').toLowerCase());
-    const parents = Array.from(IDX.parentSet)
-      .filter(p => p.toLowerCase().includes(qn))
-      .sort()
-      .slice(0, 300);
-
-    parents.forEach(p => {
-      const row = document.createElement('div');
-      row.className = 'el';
-      row.style.display = 'flex';
-      row.style.alignItems = 'center';
-      row.style.justifyContent = 'space-between';
-      row.style.gap = '8px';
-
-      const left = document.createElement('label');
-      left.className = 'el';
-      left.style.flex = '1';
-      left.style.border = 'none';
-      left.style.padding = '0';
-      left.style.cursor = 'pointer';
-      left.style.gap = '8px';
-
-      const radio = document.createElement('input');
-      radio.type = 'radio';
-      radio.name = 'parentSelect';
-      radio.value = p;
-      radio.checked = (state.parent === p);
-      radio.onchange = () => setParent(p);
-
-      const name = document.createElement('span');
-      name.textContent = p;
-
-      left.appendChild(radio);
-      left.appendChild(name);
-      row.appendChild(left);
-
-      const isBase = baseNames.includes(p.toLowerCase());
-
-      if (!isBase) {
-        const tag = document.createElement('span');
-        tag.className = 'badge';
-        tag.textContent = 'Custom';
-        row.appendChild(tag);
-      }
-
-      if (!isBase && can('manage_custom_parents')) {
+      if (can('manage_custom_parents')) {
         const del = document.createElement('button');
         del.className = 'btn';
         del.textContent = 'Remove';
@@ -901,157 +1175,93 @@
             }
             renderParents($('parentSearch').value || '');
             updatePreview();
-            $('userDataStatus').textContent = 'Removed custom parent';
-            setTimeout(() => $('userDataStatus').textContent = '', 1800);
+            const s = $('userDataStatus');
+            if (s) { s.textContent = 'Removed custom parent'; setTimeout(() => s.textContent = '', 1800); }
           }
         };
         row.appendChild(del);
       }
-
-      list.appendChild(row);
-    });
-  }
-
-  function setParent(p){
-    state.parent = p;
-    state.markets.clear();
-    state.stations.clear();
-    setMarketsEnabled(!!state.parent);
-    setStationsEnabled(!!state.parent);
-    renderMarkets();
-    renderStations();
-    updatePreview();
-  }
-
-  function renderMarkets(){
-    if (!state.parent){ setMarketsEnabled(false); return; }
-    setMarketsEnabled(true);
-
-    const list = $('marketsList');
-    list.innerHTML = '';
-    const q = $('marketSearch').value.trim().toLowerCase();
-
-    const all = (IDX.stationsByParent.get(state.parent) || []).map(s => s.market);
-    const uniq = Array.from(new Set(all)).filter(m => m.toLowerCase().includes(q)).sort();
-
-    uniq.forEach(m => {
-      const row = document.createElement('label');
-      row.className = 'el';
-
-      const cb = document.createElement('input');
-      cb.type = 'checkbox';
-      cb.value = m;
-      cb.checked = state.markets.has(m);
-      cb.onchange = () => {
-        cb.checked ? state.markets.add(m) : state.markets.delete(m);
-        renderStations();
-        updatePreview();
-      };
-
-      const name = document.createElement('span');
-      name.textContent = m;
-
-      row.appendChild(cb);
-      row.appendChild(name);
-      list.appendChild(row);
-    });
-  }
-
-  function renderStations(){
-    if (!state.parent){ setStationsEnabled(false); return; }
-    setStationsEnabled(true);
-
-    const list = $('stationsList');
-    list.innerHTML = '';
-    const q = $('stationSearch').value.trim().toLowerCase();
-    const markets = Array.from(state.markets);
-
-    let pool = [];
-    if (markets.length === 0) pool = IDX.stationsByParent.get(state.parent) || [];
-    else {
-      markets.forEach(m => {
-        const key = state.parent + '||' + m;
-        (IDX.stationsByParentMarket.get(key) || []).forEach(s => pool.push(s));
-      });
     }
 
-    pool
-      .filter(s =>
-        (s.station||'').toLowerCase().includes(q) ||
-        (s.format||'').toLowerCase().includes(q)
-      )
-      .sort((a,b)=> (a.station||'').localeCompare(b.station||''))
-      .forEach(s => {
-        const key = s.parent + '|' + s.market + '|' + s.station;
+    list.appendChild(row);
+  });
+}
 
-        const row = document.createElement('label');
-        row.className = 'el';
+function setParent(p) {
+  state.parent = p; state.markets.clear(); state.stations.clear();
+  setMarketsEnabled(!!state.parent); setStationsEnabled(!!state.parent);
+  renderMarkets(); renderStations(); updatePreview();
+}
 
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = key;
-        cb.checked = state.stations.has(key);
-        cb.onchange = () => {
-          cb.checked ? state.stations.add(key) : state.stations.delete(key);
-          updatePreview();
-        };
+function renderMarkets() {
+  if (!state.parent) { setMarketsEnabled(false); return; } else { setMarketsEnabled(true); }
+  const list = $('marketsList'); list.innerHTML = '';
+  const q = $('marketSearch').value.trim().toLowerCase();
+  const all = (IDX.stationsByParent.get(state.parent) || []).map(s => s.market);
+  const uniq = Array.from(new Set(all)).filter(m => m.toLowerCase().includes(q)).sort();
+  uniq.forEach(m => {
+    const row = document.createElement('label'); row.className = 'el';
+    const cb = document.createElement('input'); cb.type='checkbox'; cb.value=m; cb.checked = state.markets.has(m);
+    cb.onchange = () => { if (cb.checked) state.markets.add(m); else state.markets.delete(m); renderStations(); updatePreview(); };
+    const name = document.createElement('span'); name.textContent = m;
+    row.appendChild(cb); row.appendChild(name); list.appendChild(row);
+  });
+}
 
-        const name = document.createElement('span');
-        name.innerHTML = `<strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span>`;
+function renderStations() {
+  if (!state.parent) { setStationsEnabled(false); return; } else { setStationsEnabled(true); }
+  const list = $('stationsList'); list.innerHTML = '';
+  const q = $('stationSearch').value.trim().toLowerCase();
+  const markets = Array.from(state.markets);
+  let pool = [];
+  if (markets.length === 0) { pool = IDX.stationsByParent.get(state.parent) || []; }
+  else { markets.forEach(m => { const key = state.parent + '||' + m; (IDX.stationsByParentMarket.get(key) || []).forEach(s => pool.push(s)); }); }
 
-        const aqh = document.createElement('span');
-        aqh.className='badge';
-        aqh.textContent = `Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}`;
-
-        row.appendChild(cb);
-        row.appendChild(name);
-        row.appendChild(aqh);
-        list.appendChild(row);
-      });
-  }
-
-  function updatePreview(){
-    const list = $('selectedPreview');
-    list.innerHTML = '';
-
-    let count=0, prime=0, ros=0;
-    const keyset = new Set(Array.from(state.stations));
-
-    (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+  pool
+    .filter(s => (s.station || '').toLowerCase().includes(q) || (s.format||'').toLowerCase().includes(q))
+    .sort((a,b)=> (a.station||'').localeCompare(b.station||''))
+    .forEach((s) => {
       const key = s.parent + '|' + s.market + '|' + s.station;
-      if (keyset.has(key)){
-        count++;
-        prime += (s.primeAQH||0);
-        ros   += (s.rosAQH||0);
-
-        const row = document.createElement('div');
-        row.className='el';
-        row.innerHTML =
-          `<span><strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span></span>` +
-          `<span class="badge">Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}</span>`;
-
-        list.appendChild(row);
-      }
+      const row = document.createElement('label'); row.className = 'el';
+      const cb = document.createElement('input'); cb.type='checkbox'; cb.value=key; cb.checked = state.stations.has(key);
+      cb.onchange = () => { if (cb.checked) state.stations.add(key); else state.stations.delete(key); updatePreview(); };
+      const name = document.createElement('span'); name.innerHTML = `<strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span>`;
+      const aqh = document.createElement('span'); aqh.className='badge'; aqh.textContent = `Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}`;
+      row.appendChild(cb); row.appendChild(name); row.appendChild(aqh); list.appendChild(row);
     });
+}
 
-    $('selCount').textContent = String(count);
-    $('primeSum').textContent = String(Math.round(prime));
-    $('rosSum').textContent = String(Math.round(ros));
+function updatePreview() {
+  const list = $('selectedPreview'); list.innerHTML='';
+  let count = 0, prime = 0, ros = 0;
+  const keyset = new Set(Array.from(state.stations));
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (keyset.has(key)) {
+      count++; prime += (s.primeAQH||0); ros += (s.rosAQH||0);
+      const row = document.createElement('div'); row.className='el';
+      row.innerHTML = `<span><strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span></span>`
+        + `<span class="badge">Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}</span>`;
+      list.appendChild(row);
+    }
+  });
+  $('selCount').textContent = String(count);
+  $('primeSum').textContent = String(Math.round(prime));
+  $('rosSum').textContent = String(Math.round(ros));
+  updateProductCalculations();
+}
 
-    updateProductCalculations();
-  }
+/* ================= PRODUCTS ================= */
 
-  /** =======================
-   * Products + Pricing
-   * ======================= */
+function renderProducts() {
+  const list = $('productsList');
+  list.innerHTML = '';
+  const q = $('productSearch').value.trim().toLowerCase();
+  const pricingType = productState.pricingType;
 
-  function renderProducts(){
-    const list = $('productsList');
-    list.innerHTML = '';
-    const q = $('productSearch').value.trim().toLowerCase();
-    const pricingType = productState.pricingType;
-
-    PRODUCTS.filter(p => p.name.toLowerCase().includes(q)).forEach(product => {
+  PRODUCTS
+    .filter(p => p.name.toLowerCase().includes(q))
+    .forEach(product => {
       const row = document.createElement('div');
       row.className = 'el';
       row.style.flexDirection = 'column';
@@ -1073,8 +1283,9 @@
       cb.type = 'checkbox';
       cb.checked = productState.selectedProducts.has(product.id);
       cb.onchange = () => {
-        if (cb.checked) productState.selectedProducts.add(product.id);
-        else {
+        if (cb.checked) {
+          productState.selectedProducts.add(product.id);
+        } else {
           productState.selectedProducts.delete(product.id);
           productState.customPrices.delete(product.id);
         }
@@ -1094,765 +1305,823 @@
       priceContainer.style.gap = '8px';
 
       const rateCardValue = pricingType === 'cash' ? product.cash : product.barter;
-      const currentValue  = productState.customPrices.get(product.id) ?? rateCardValue;
+      const currentValue = productState.customPrices.get(product.id) ?? rateCardValue;
 
-      if (rateCardValue === null){
-        const tbd = document.createElement('span');
-        tbd.className='badge';
-        tbd.textContent='TBD';
-        priceContainer.appendChild(tbd);
+      if (rateCardValue === null) {
+        const tbdBadge = document.createElement('span');
+        tbdBadge.className = 'badge';
+        tbdBadge.textContent = 'TBD';
+        priceContainer.appendChild(tbdBadge);
       } else {
-        const badge = document.createElement('span');
-        badge.className='badge';
-        badge.textContent=`Rate Card: $${rateCardValue.toLocaleString()}`;
-        priceContainer.appendChild(badge);
+        const rateCardBadge = document.createElement('span');
+        rateCardBadge.className = 'badge';
+        rateCardBadge.textContent = `Rate Card: $${rateCardValue.toLocaleString()}`;
+        priceContainer.appendChild(rateCardBadge);
       }
 
       topRow.appendChild(leftSide);
       topRow.appendChild(priceContainer);
+      row.appendChild(topRow);
 
-      // Override input only for Admin/Staff
-      if (productState.selectedProducts.has(product.id) && rateCardValue !== null) {
-        if (can('pricing_override')){
-          const overrideRow = document.createElement('div');
-          overrideRow.style.display='flex';
-          overrideRow.style.alignItems='center';
-          overrideRow.style.gap='8px';
-          overrideRow.style.marginLeft='28px';
+      // Override only if selected + allowed
+      if (productState.selectedProducts.has(product.id) && rateCardValue !== null && can('pricing_override')) {
+        const overrideRow = document.createElement('div');
+        overrideRow.style.display = 'flex';
+        overrideRow.style.alignItems = 'center';
+        overrideRow.style.gap = '8px';
+        overrideRow.style.marginLeft = '28px';
 
-          const label = document.createElement('span');
-          label.className='muted';
-          label.textContent='Override:';
+        const label = document.createElement('span');
+        label.className = 'muted';
+        label.textContent = 'Override:';
 
-          const input = document.createElement('input');
-          input.type='number';
-          input.min='0';
-          input.step = pricingType === 'cash' ? '1' : '10';
-          input.value=currentValue;
-          input.style.width='120px';
-          input.style.height='32px';
-          input.onchange=()=>{
-            const val = parseFloat(input.value);
-            if (!isNaN(val) && val >= 0){
-              productState.customPrices.set(product.id, val);
-              updateProductSummary();
-            }
-          };
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.step = pricingType === 'cash' ? '1' : '10';
+        input.value = currentValue;
+        input.style.width = '120px';
+        input.style.height = '32px';
+        input.onchange = () => {
+          const val = parseFloat(input.value);
+          if (!isNaN(val) && val >= 0) {
+            productState.customPrices.set(product.id, val);
+            updateProductSummary();
+          }
+        };
 
-          overrideRow.appendChild(label);
-          overrideRow.appendChild(input);
-
-          row.appendChild(topRow);
-          row.appendChild(overrideRow);
-        } else {
-          row.appendChild(topRow);
-        }
-      } else {
-        row.appendChild(topRow);
+        overrideRow.appendChild(label);
+        overrideRow.appendChild(input);
+        row.appendChild(overrideRow);
       }
 
       list.appendChild(row);
     });
+}
+
+function updateProductSummary() {
+  const pricingType = productState.pricingType;
+  let totalMonthlyValue = 0;
+  let productCount = 0;
+
+  productState.selectedProducts.forEach(productId => {
+    const product = PRODUCTS.find(p => p.id === productId);
+    if (!product) return;
+
+    const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+    if (rateCardValue === null) return;
+
+    const value = productState.customPrices.get(productId) ?? rateCardValue;
+    totalMonthlyValue += value;
+    productCount++;
+  });
+
+  const numStations = state.stations.size;
+  const totalMonthlyValueAllStations = totalMonthlyValue * numStations;
+
+  $('productCount').textContent = String(productCount);
+  $('totalValue').textContent = totalMonthlyValueAllStations.toLocaleString();
+
+  const proposalSection = $('proposalSection');
+  if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
+  else proposalSection.classList.add('hidden');
+
+  if (pricingType === 'barter') {
+    const annualBarterValue = totalMonthlyValueAllStations * 12;
+    calculateBarterMinutes(annualBarterValue, totalMonthlyValueAllStations);
+    $('cashValuesSection').classList.add('hidden');
+  } else if (pricingType === 'mixed') {
+    renderCashValues(totalMonthlyValueAllStations);
+  } else {
+    showCashSummary(totalMonthlyValueAllStations);
+    $('cashValuesSection').classList.add('hidden');
+  }
+}
+
+/* ---- Cash summary + barter calc + proposal generation ---- */
+/* NOTE: These match your logic. Kept intact aside from tiny guards. */
+
+function showCashSummary(totalMonthlyValue) {
+  const barterSection = $('barterMinutesSection');
+  const breakdown = $('barterBreakdown');
+  const sectionTitle = $('barterSectionTitle');
+  const barterControls = $('barterControls');
+  const barterTotals = $('barterTotals');
+
+  if (totalMonthlyValue === 0 || state.stations.size === 0) {
+    barterSection.classList.add('hidden');
+    return;
   }
 
-  function updateProductSummary(){
-    const pricingType = productState.pricingType;
+  barterSection.classList.remove('hidden');
+  breakdown.innerHTML = '';
 
-    let totalMonthlyPerStation = 0;
-    let productCount = 0;
+  if (sectionTitle) sectionTitle.textContent = 'CASH DEAL SUMMARY';
+  if (barterControls) barterControls.classList.add('hidden');
+  if (barterTotals) barterTotals.classList.add('hidden');
 
-    productState.selectedProducts.forEach(id => {
-      const p = PRODUCTS.find(x => x.id === id);
-      if (!p) return;
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
 
-      const rate = pricingType === 'cash' ? p.cash : p.barter;
-      if (rate === null) return;
+  if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
 
-      const val = productState.customPrices.get(id) ?? rate;
-      totalMonthlyPerStation += val;
-      productCount++;
+  const perStationMonthly = totalMonthlyValue / selectedStations.length;
+
+  selectedStations.forEach(station => {
+    const row = document.createElement('div');
+    row.className = 'el';
+    row.style.padding = '8px 10px';
+    row.style.justifyContent = 'space-between';
+
+    const stationName = document.createElement('div');
+    stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+
+    const stationValue = document.createElement('div');
+    stationValue.className = 'badge';
+    stationValue.textContent = `$${Math.round(perStationMonthly).toLocaleString()}/mo`;
+
+    row.appendChild(stationName);
+    row.appendChild(stationValue);
+    breakdown.appendChild(row);
+  });
+
+  const annualValue = totalMonthlyValue * 12;
+
+  const summaryRow = document.createElement('div');
+  summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 12px; background: rgba(15, 24, 35, 0.5);';
+
+  summaryRow.innerHTML = `
+    <div><strong>Per Station:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      $${Math.round(perStationMonthly).toLocaleString()}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
+    </div></div>
+    <div><strong>Total Monthly Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      $${Math.round(totalMonthlyValue).toLocaleString()}
+    </div></div>
+    <div><strong>Total Annual Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      $${Math.round(annualValue).toLocaleString()} ($${Math.round(totalMonthlyValue).toLocaleString()}/mo × 12)
+    </div></div>
+  `;
+  breakdown.appendChild(summaryRow);
+}
+
+function calculateBarterMinutes(totalBarterValue, monthlyBarterValue) {
+  const barterSection = $('barterMinutesSection');
+  const breakdown = $('barterBreakdown');
+  const sectionTitle = $('barterSectionTitle');
+  const barterControls = $('barterControls');
+  const barterTotals = $('barterTotals');
+
+  if (totalBarterValue === 0 || state.stations.size === 0) {
+    barterSection.classList.add('hidden');
+    return;
+  }
+
+  barterSection.classList.remove('hidden');
+  breakdown.innerHTML = '';
+  if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
+  if (barterControls) barterControls.classList.remove('hidden');
+  if (barterTotals) barterTotals.classList.remove('hidden');
+
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
+  if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
+
+  const cpm = productState.cpm;
+  const factor = cpm * 7 * 2 * 52;
+
+  const hasAnyManualOverrides = selectedStations.some(s => productState.manualMinutes.has(s.key));
+  let stationSpots = [];
+
+  if (hasAnyManualOverrides) {
+    selectedStations.forEach(station => {
+      const manualOverride = productState.manualMinutes.get(station.key);
+      stationSpots.push({
+        station,
+        primeSpots: manualOverride?.prime || 0,
+        rosSpots: manualOverride?.ros || 0,
+        primeAQH: station.primeAQH||0,
+        rosAQH: station.rosAQH||0,
+        manual: true
+      });
+    });
+  } else {
+    let totalPrimeEfficiency = 0, totalROSEfficiency=0;
+
+    selectedStations.forEach(station => {
+      const primeAQH = station.primeAQH || 0;
+      const rosAQH   = station.rosAQH || 0;
+      if (primeAQH>0) totalPrimeEfficiency += (primeAQH/1000)*factor;
+      if (rosAQH>0)   totalROSEfficiency   += (rosAQH/1000)*factor;
     });
 
-    const numStations = state.stations.size;
-    const totalMonthlyAllStations = totalMonthlyPerStation * numStations;
+    const totalEfficiency = totalPrimeEfficiency + totalROSEfficiency;
 
-    $('productCount').textContent = String(productCount);
-    $('totalValue').textContent   = totalMonthlyAllStations.toLocaleString();
+    selectedStations.forEach(station => {
+      const primeAQH = station.primeAQH || 0;
+      const rosAQH   = station.rosAQH || 0;
+      let primeSpots=0, rosSpots=0;
 
-    if (productCount > 0 && numStations > 0) $('proposalSection').classList.remove('hidden');
-    else $('proposalSection').classList.add('hidden');
+      if (primeAQH>0 && totalEfficiency>0){
+        const primeSpotValue=(primeAQH/1000)*factor;
+        const primeShare=(primeSpotValue/totalEfficiency)*totalBarterValue;
+        primeSpots=Math.round(primeShare/primeSpotValue); if(!primeSpots) primeSpots=1;
+      }
+      if (rosAQH>0 && totalEfficiency>0){
+        const rosSpotValue=(rosAQH/1000)*factor;
+        const rosShare=(rosSpotValue/totalEfficiency)*totalBarterValue;
+        rosSpots=Math.round(rosShare/rosSpotValue); if(!rosSpots) rosSpots=1;
+      }
 
-    if (pricingType === 'barter'){
-      $('cashValuesSection').classList.add('hidden');
-      const annualBarter = totalMonthlyAllStations * 12;
-      calculateBarterMinutes(annualBarter, totalMonthlyAllStations);
-    }
-    else if (pricingType === 'mixed'){
-      $('cashValuesSection').classList.remove('hidden');
-      renderCashValues(totalMonthlyAllStations);
-    }
-    else {
-      $('cashValuesSection').classList.add('hidden');
-      showCashSummary(totalMonthlyAllStations);
-    }
+      stationSpots.push({ station, primeSpots, rosSpots, primeAQH, rosAQH, manual:false });
+    });
   }
 
-  function showCashSummary(totalMonthly){
-    const barterSection = $('barterMinutesSection');
-    const breakdown = $('barterBreakdown');
+  let totalPrimeSpots=0, totalROSSpots=0, totalActualValue=0;
 
-    if (totalMonthly === 0 || state.stations.size === 0){
-      barterSection.classList.add('hidden');
-      return;
-    }
+  stationSpots.forEach(entry => {
+    totalPrimeSpots += entry.primeSpots;
+    totalROSSpots   += entry.rosSpots;
+    if (entry.primeAQH>0 && entry.primeSpots>0) totalActualValue += (entry.primeAQH/1000)*factor*entry.primeSpots;
+    if (entry.rosAQH>0 && entry.rosSpots>0)     totalActualValue += (entry.rosAQH/1000)*factor*entry.rosSpots;
+  });
 
-    barterSection.classList.remove('hidden');
-    breakdown.innerHTML='';
-    $('barterSectionTitle').textContent='CASH DEAL SUMMARY';
-    $('barterControls').classList.add('hidden');
-    $('barterTotals').classList.add('hidden');
+  stationSpots.forEach(entry => {
+    const station = entry.station;
+    const row = document.createElement('div');
+    row.className='el';
+    row.style.flexDirection='column';
+    row.style.alignItems='stretch';
+    row.style.gap='8px';
 
-    const selectedStations = getSelectedStations();
-    const perStationMonthly = totalMonthly / selectedStations.length;
+    const stationName = document.createElement('div');
+    stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+    row.appendChild(stationName);
 
-    selectedStations.forEach(st => {
-      const row = document.createElement('div');
-      row.className='el';
-      row.style.justifyContent='space-between';
-
-      row.innerHTML =
-        `<div><strong>${st.station}</strong> <span class="muted">— ${st.market}</span></div>
-         <div class="badge">$${Math.round(perStationMonthly).toLocaleString()}/mo</div>`;
-
+    if ((entry.primeAQH===0 && entry.rosAQH===0)) {
+      const noDataMsg = document.createElement('div');
+      noDataMsg.style.cssText='margin-left:8px;color:var(--muted);font-size:11px;font-style:italic;';
+      noDataMsg.textContent='⚠️ No AQH data available for this station';
+      row.appendChild(noDataMsg);
       breakdown.appendChild(row);
-    });
-
-    const annual = totalMonthly * 12;
-    const summary = document.createElement('div');
-    summary.style.cssText = 'padding:12px; font-size:12px; border-top:1px solid var(--edge); margin-top:8px; display:flex; flex-direction:column; gap:6px; background:rgba(15,24,35,.5);';
-    summary.innerHTML =
-      `<div><strong>Total Monthly Value:</strong> <span class="muted">$${Math.round(totalMonthly).toLocaleString()}</span></div>
-       <div><strong>Total Annual Value:</strong> <span class="muted">$${Math.round(annual).toLocaleString()}</span></div>`;
-    breakdown.appendChild(summary);
-  }
-
-  function calculateBarterMinutes(totalAnnualBarter, monthlyBarter){
-    const barterSection = $('barterMinutesSection');
-    const breakdown = $('barterBreakdown');
-
-    if (totalAnnualBarter === 0 || state.stations.size === 0){
-      barterSection.classList.add('hidden');
       return;
     }
 
-    barterSection.classList.remove('hidden');
-    breakdown.innerHTML='';
-    $('barterSectionTitle').textContent='Barter Spots Required (Distributed)';
-    $('barterControls').classList.remove('hidden');
-    $('barterTotals').classList.remove('hidden');
+    const editRow = document.createElement('div');
+    editRow.style.display='flex';
+    editRow.style.gap='12px';
+    editRow.style.marginLeft='8px';
+    editRow.style.alignItems='center';
 
-    const selectedStations = getSelectedStations();
-    if (selectedStations.length === 0){
-      barterSection.classList.add('hidden');
-      return;
+    if (entry.primeAQH>0) {
+      const g=document.createElement('div');
+      g.style.display='flex'; g.style.alignItems='center'; g.style.gap='6px';
+
+      const lbl=document.createElement('span'); lbl.className='muted'; lbl.textContent='Prime:';
+      const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.step='1'; inp.value=entry.primeSpots;
+      inp.style.width='60px'; inp.style.height='28px';
+      inp.onchange=()=> {
+        const val=Math.round(parseFloat(inp.value)||0);
+        const cur=productState.manualMinutes.get(station.key)||{};
+        productState.manualMinutes.set(station.key,{...cur,prime:val});
+        calculateBarterMinutes(totalBarterValue, monthlyBarterValue);
+      };
+      const unit=document.createElement('span'); unit.className='muted'; unit.style.fontSize='11px'; unit.textContent='spots/day';
+      const vBadge=document.createElement('span'); vBadge.className='badge'; vBadge.style.fontSize='10px';
+      vBadge.textContent=`$${Math.round((entry.primeAQH/1000)*factor).toLocaleString()}/yr`;
+
+      g.append(lbl,inp,unit,vBadge); editRow.appendChild(g);
     }
 
-    const cpm = productState.cpm;
-    const factor = cpm * 7 * 2 * 52;
+    if (entry.rosAQH>0) {
+      const g=document.createElement('div');
+      g.style.display='flex'; g.style.alignItems='center'; g.style.gap='6px';
 
-    const hasManual = selectedStations.some(s => productState.manualMinutes.has(s.key));
-    let stationSpots = [];
+      const lbl=document.createElement('span'); lbl.className='muted'; lbl.textContent='ROS:';
+      const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.step='1'; inp.value=entry.rosSpots;
+      inp.style.width='60px'; inp.style.height='28px';
+      inp.onchange=()=> {
+        const val=Math.round(parseFloat(inp.value)||0);
+        const cur=productState.manualMinutes.get(station.key)||{};
+        productState.manualMinutes.set(station.key,{...cur,ros:val});
+        calculateBarterMinutes(totalBarterValue, monthlyBarterValue);
+      };
+      const unit=document.createElement('span'); unit.className='muted'; unit.style.fontSize='11px'; unit.textContent='spots/day';
+      const vBadge=document.createElement('span'); vBadge.className='badge'; vBadge.style.fontSize='10px';
+      vBadge.textContent=`$${Math.round((entry.rosAQH/1000)*factor).toLocaleString()}/yr`;
 
-    if (hasManual){
-      selectedStations.forEach(st => {
-        const manual = productState.manualMinutes.get(st.key);
-        stationSpots.push({
-          station: st,
-          primeSpots: manual?.prime || 0,
-          rosSpots: manual?.ros || 0,
-          primeAQH: st.primeAQH||0,
-          rosAQH: st.rosAQH||0,
-          manual: true
-        });
-      });
-    } else {
-      let totalPrimeEff=0,totalROSEff=0;
-      selectedStations.forEach(st => {
-        if (st.primeAQH>0) totalPrimeEff += (st.primeAQH/1000)*factor;
-        if (st.rosAQH>0)   totalROSEff   += (st.rosAQH/1000)*factor;
-      });
-      const totalEff = totalPrimeEff + totalROSEff;
-
-      selectedStations.forEach(st => {
-        const primeVal = st.primeAQH>0 ? (st.primeAQH/1000)*factor : 0;
-        const rosVal   = st.rosAQH>0   ? (st.rosAQH/1000)*factor   : 0;
-
-        let primeSpots=0, rosSpots=0;
-
-        if (primeVal>0 && totalEff>0){
-          const share = (primeVal/totalEff)*totalAnnualBarter;
-          primeSpots = Math.round(share/primeVal) || 1;
-        }
-        if (rosVal>0 && totalEff>0){
-          const share = (rosVal/totalEff)*totalAnnualBarter;
-          rosSpots = Math.round(share/rosVal) || 1;
-        }
-
-        stationSpots.push({
-          station: st,
-          primeSpots, rosSpots,
-          primeAQH: st.primeAQH||0,
-          rosAQH: st.rosAQH||0,
-          manual:false
-        });
-      });
+      g.append(lbl,inp,unit,vBadge); editRow.appendChild(g);
     }
 
-    let totalPrime=0,totalROS=0,totalActual=0;
+    if (entry.manual) {
+      const manualBadge=document.createElement('span');
+      manualBadge.className='badge'; manualBadge.style.background='#1a3a52';
+      manualBadge.textContent='✏️ Manual';
+      editRow.appendChild(manualBadge);
+    }
 
-    stationSpots.forEach(entry => {
-      const st = entry.station;
-      totalPrime += entry.primeSpots;
-      totalROS   += entry.rosSpots;
+    row.appendChild(editRow);
+    breakdown.appendChild(row);
+  });
 
-      if (entry.primeAQH>0 && entry.primeSpots>0)
-        totalActual += (entry.primeAQH/1000)*factor*entry.primeSpots;
+  $('totalPrimeMinutes').textContent = `${totalPrimeSpots} spots/day`;
+  $('totalROSMinutes').textContent   = `${totalROSSpots} spots/day`;
 
-      if (entry.rosAQH>0 && entry.rosSpots>0)
-        totalActual += (entry.rosAQH/1000)*factor*entry.rosSpots;
+  const variance = ((totalActualValue-totalBarterValue)/totalBarterValue)*100;
+  const isWithinTolerance = Math.abs(variance) <= 5;
+  const status = hasAnyManualOverrides ? '✏️ Manual' : '✓ Distributed';
+  const actualMonthly= totalActualValue/12;
 
-      const row = document.createElement('div');
-      row.className='el';
-      row.style.flexDirection='column';
-      row.style.alignItems='stretch';
-      row.style.gap='8px';
+  const verifyRow=document.createElement('div');
+  verifyRow.style.cssText='padding:12px;font-size:12px;border-top:1px solid var(--edge);margin-top:8px;display:flex;flex-direction:column;gap:12px;background:rgba(15,24,35,0.5);';
+  verifyRow.innerHTML = `
+    <div><strong>Monthly Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      Target: $${Math.round(monthlyBarterValue).toLocaleString()}<br>
+      Actual: $${Math.round(actualMonthly).toLocaleString()} ${status}
+    </div></div>
+    <div><strong>Annual Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      Target: $${Math.round(totalBarterValue).toLocaleString()}<br>
+      Actual: $${Math.round(totalActualValue).toLocaleString()} ${status}<br>
+      <span style="color:${isWithinTolerance?'var(--muted)':'#ff6b6b'};font-weight:500;">
+        Variance: ${variance>0?'+':''}${variance.toFixed(1)}% ${isWithinTolerance?'':'⚠️ Outside ±5% tolerance'}
+      </span>
+    </div></div>
+  `;
+  breakdown.appendChild(verifyRow);
+}
 
-      const stationName = document.createElement('div');
-      stationName.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
-      row.appendChild(stationName);
+function renderCashValues(monthlyProductValue) {
+  const cashSection = $('cashValuesSection');
+  const cashList = $('cashValuesList');
 
-      if ((entry.primeAQH===0 && entry.rosAQH===0) || (entry.primeSpots===0 && entry.rosSpots===0)){
-        const noData = document.createElement('div');
-        noData.style.cssText='margin-left:8px; color:var(--muted); font-size:11px; font-style:italic;';
-        noData.textContent='⚠️ No AQH data available for this station';
-        row.appendChild(noData);
-        breakdown.appendChild(row);
-        return;
-      }
+  if (state.stations.size === 0) { cashSection.classList.add('hidden'); return; }
 
-      const editRow = document.createElement('div');
-      editRow.style.display='flex';
-      editRow.style.gap='12px';
-      editRow.style.marginLeft='8px';
-      editRow.style.alignItems='center';
+  cashSection.classList.remove('hidden');
+  cashList.innerHTML = '';
 
-      if (entry.primeAQH>0){
-        editRow.appendChild(makeSpotsEditor(st,'prime',entry.primeSpots,totalAnnualBarter,monthlyBarter,factor));
-      }
-      if (entry.rosAQH>0){
-        editRow.appendChild(makeSpotsEditor(st,'ros',entry.rosSpots,totalAnnualBarter,monthlyBarter,factor));
-      }
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
 
-      if (entry.manual){
-        const manualBadge = document.createElement('span');
-        manualBadge.className='badge';
-        manualBadge.style.background='#1a3a52';
-        manualBadge.textContent='✏️ Manual';
-        editRow.appendChild(manualBadge);
-      }
+  let totalCash = 0;
 
-      row.appendChild(editRow);
-      breakdown.appendChild(row);
-    });
+  selectedStations.forEach(station => {
+    const row = document.createElement('div');
+    row.className = 'el';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
 
-    $('totalPrimeMinutes').textContent = `${totalPrime} spots/day`;
-    $('totalROSMinutes').textContent   = `${totalROS} spots/day`;
+    const stationName = document.createElement('span');
+    stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
 
-    const verify = document.createElement('div');
-    verify.style.cssText='padding:12px; font-size:12px; border-top:1px solid var(--edge); margin-top:8px; display:flex; flex-direction:column; gap:6px; background:rgba(15,24,35,.5);';
+    const inputGroup = document.createElement('div');
+    inputGroup.style.display = 'flex';
+    inputGroup.style.alignItems = 'center';
+    inputGroup.style.gap = '6px';
 
-    const variance = ((totalActual-totalAnnualBarter)/totalAnnualBarter)*100;
-    const ok = Math.abs(variance)<=5;
-    verify.innerHTML =
-      `<div><strong>Monthly Value:</strong> <span class="muted">Target $${Math.round(monthlyBarter).toLocaleString()} / Actual $${Math.round(totalActual/12).toLocaleString()}</span></div>
-       <div><strong>Annual Value:</strong> <span class="muted">Target $${Math.round(totalAnnualBarter).toLocaleString()} / Actual $${Math.round(totalActual).toLocaleString()}</span></div>
-       <div style="color:${ok?'var(--muted)':'#ff6b6b'}"><strong>Variance:</strong> ${variance.toFixed(1)}% ${ok?'':'⚠️ Outside ±5%'}</div>`;
-    breakdown.appendChild(verify);
-  }
-
-  function makeSpotsEditor(station, kind, spots, totalAnnual, monthly, factor){
-    const group = document.createElement('div');
-    group.style.display='flex';
-    group.style.alignItems='center';
-    group.style.gap='6px';
-
-    const label = document.createElement('span');
-    label.className='muted';
-    label.textContent = kind === 'prime' ? 'Prime:' : 'ROS:';
+    const dollarSign = document.createElement('span');
+    dollarSign.textContent = '$';
 
     const input = document.createElement('input');
-    input.type='number';
-    input.min='0';
-    input.step='1';
-    input.value=spots;
-    input.style.width='60px';
-    input.style.height='28px';
-    input.onchange=()=>{
-      const val = Math.round(parseFloat(input.value) || 0);
-      const current = productState.manualMinutes.get(station.key) || {};
-      productState.manualMinutes.set(station.key, { ...current, [kind]: val });
-      calculateBarterMinutes(totalAnnual, monthly);
+    input.type = 'number';
+    input.min = '0';
+    input.step = '100';
+    input.placeholder = '0';
+    input.value = productState.stationCashValues.get(station.key) || '';
+    input.style.width = '100px';
+    input.style.height = '32px';
+    input.onchange = () => {
+      const val = parseFloat(input.value) || 0;
+      if (val > 0) productState.stationCashValues.set(station.key, val);
+      else productState.stationCashValues.delete(station.key);
+      updateMixedPricing(monthlyProductValue);
     };
 
-    const unit = document.createElement('span');
-    unit.className='muted';
-    unit.style.fontSize='11px';
-    unit.textContent='spots/day';
+    inputGroup.appendChild(dollarSign);
+    inputGroup.appendChild(input);
 
-    const aqh = kind==='prime' ? (station.primeAQH||0) : (station.rosAQH||0);
-    const perSpotValue = (aqh/1000)*factor;
-    const valBadge = document.createElement('span');
-    valBadge.className='badge';
-    valBadge.style.fontSize='10px';
-    valBadge.textContent = `$${Math.round(perSpotValue).toLocaleString()}/yr`;
+    row.appendChild(stationName);
+    row.appendChild(inputGroup);
+    cashList.appendChild(row);
 
-    group.appendChild(label);
-    group.appendChild(input);
-    group.appendChild(unit);
-    group.appendChild(valBadge);
-    return group;
-  }
+    totalCash += (productState.stationCashValues.get(station.key) || 0);
+  });
 
-  function renderCashValues(monthlyProductValue){
-    const cashSection = $('cashValuesSection');
-    const cashList = $('cashValuesList');
+  $('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
 
-    if (state.stations.size === 0){
-      cashSection.classList.add('hidden');
-      return;
-    }
+  const remainingMonthly = Math.max(0, monthlyProductValue - totalCash);
+  $('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
 
-    cashSection.classList.remove('hidden');
-    cashList.innerHTML='';
-
-    const selectedStations = getSelectedStations();
-    let totalCash=0;
-
-    selectedStations.forEach(st => {
-      const row = document.createElement('div');
-      row.className='el';
-      row.style.justifyContent='space-between';
-      row.style.alignItems='center';
-
-      const stationName = document.createElement('span');
-      stationName.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
-
-      const inputGroup = document.createElement('div');
-      inputGroup.style.display='flex';
-      inputGroup.style.alignItems='center';
-      inputGroup.style.gap='6px';
-
-      const dollar = document.createElement('span');
-      dollar.textContent='$';
-
-      const input = document.createElement('input');
-      input.type='number';
-      input.min='0';
-      input.step='100';
-      input.placeholder='0';
-      input.value = productState.stationCashValues.get(st.key) || '';
-      input.style.width='100px';
-      input.style.height='32px';
-      input.onchange=()=>{
-        const val = parseFloat(input.value) || 0;
-        if (val>0) productState.stationCashValues.set(st.key,val);
-        else productState.stationCashValues.delete(st.key);
-
-        renderCashValues(monthlyProductValue);
-      };
-
-      inputGroup.appendChild(dollar);
-      inputGroup.appendChild(input);
-
-      row.appendChild(stationName);
-      row.appendChild(inputGroup);
-      cashList.appendChild(row);
-
-      totalCash += (productState.stationCashValues.get(st.key) || 0);
-    });
-
-    $('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
-    const remainingMonthly = Math.max(0, monthlyProductValue - totalCash);
-    $('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
-
-    if (remainingMonthly>0){
-      calculateBarterMinutes(remainingMonthly*12, remainingMonthly);
-    } else {
-      $('barterMinutesSection').classList.add('hidden');
-    }
-  }
-
-  function resetMinutesToAuto(){
-    productState.manualMinutes.clear();
-    updateProductSummary();
-  }
-
-  function updateProductCalculations(){
-    if (productState.pricingType==='barter' && productState.selectedProducts.size>0){
-      updateProductSummary();
-    }
-  }
-
-  function handlePricingTypeChange(){
-    const selectedType = document.querySelector('input[name="pricingType"]:checked').value;
-    productState.pricingType = selectedType;
-
-    productState.customPrices.clear();
-    productState.manualMinutes.clear();
-
-    if (selectedType==='cash'){
-      $('cpmDisplay').classList.add('hidden');
-      $('cashValuesSection').classList.add('hidden');
-      $('barterMinutesSection').classList.add('hidden');
-    } else if (selectedType==='barter'){
-      $('cpmDisplay').classList.remove('hidden');
-      $('cashValuesSection').classList.add('hidden');
-    } else {
-      $('cpmDisplay').classList.remove('hidden');
-      $('cashValuesSection').classList.remove('hidden');
-    }
-
-    renderProducts();
-    updateProductSummary();
-  }
-
-  function resetPricingToRateCard(){
-    productState.customPrices.clear();
-    renderProducts();
-    updateProductSummary();
-  }
-
-  function attachProductEventListeners(){
-    document.querySelectorAll('input[name="pricingType"]').forEach(r => r.addEventListener('change', handlePricingTypeChange));
-    $('productSearch').addEventListener('input', renderProducts);
-
-    $('btnSelAllProducts').onclick = () => {
-      PRODUCTS.forEach(p => productState.selectedProducts.add(p.id));
-      renderProducts(); updateProductSummary();
-    };
-
-    $('btnClrAllProducts').onclick = () => {
-      productState.selectedProducts.clear();
-      productState.customPrices.clear();
-      renderProducts(); updateProductSummary();
-    };
-
-    $('btnResetPricing').onclick = resetPricingToRateCard;
-    $('btnResetMinutes').onclick = resetMinutesToAuto;
-
-    const genBtn = $('btnGenerateProposal');
-    genBtn.onclick = () => {
-      if (!can('generate_proposal')){
-        alert('Your role cannot generate proposals.');
-        return;
-      }
-      generateProposal();
-    };
-
-    $('btnCopyProposal').onclick = copyProposalToClipboard;
-
-    const syncGenBtn = () => {
-      const ok = productState.selectedProducts.size>0 && state.stations.size>0 && can('generate_proposal');
-      genBtn.disabled = !ok;
-    };
-    ['input','change','click'].forEach(evt => document.addEventListener(evt, syncGenBtn, true));
-    syncGenBtn();
-  }
-
-  function getSelectedStations(){
-    const selected=[];
-    (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
-      const key = s.parent + '|' + s.market + '|' + s.station;
-      if (state.stations.has(key)) selected.push({...s, key});
-    });
-    return selected;
-  }
-
-  /** =======================
-   * Proposal Generator
-   * ======================= */
-
-  function generateProposal(){
-    const pricingType = productState.pricingType;
-    $('proposalSection').classList.remove('hidden');
-    $('proposalOutput').classList.remove('hidden');
-
-    const stations = getSelectedStations();
-    if (stations.length===0){
-      $('proposalTable').innerHTML = `<div style="color:var(--muted); text-align:center; padding:20px;">No stations selected.</div>`;
-      return;
-    }
-
-    const products=[];
-    productState.selectedProducts.forEach(id => {
-      const p = PRODUCTS.find(x => x.id===id);
-      if (!p) return;
-      const rate = pricingType==='cash' ? p.cash : p.barter;
-      if (rate===null) return;
-      const val = productState.customPrices.get(id) ?? rate;
-      products.push({...p, monthlyValue: val});
-    });
-
-    if (products.length===0){
-      $('proposalTable').innerHTML = `<div style="color:var(--muted); text-align:center; padding:20px;">No products selected.</div>`;
-      return;
-    }
-
-    if (pricingType==='cash'){
-      $('proposalMode').textContent='Cash Deal';
-      $('proposalMode').style.background='#0d4a2e';
-      $('proposalTable').innerHTML = generateCashProposalTable(stations, products);
-    } else if (pricingType==='barter'){
-      $('proposalMode').textContent='Barter Deal';
-      $('proposalMode').style.background='#3a2d0b';
-      $('proposalTable').innerHTML = generateBarterProposalTable(stations, products);
-    } else {
-      $('proposalMode').textContent='Mixed Deal';
-      $('proposalMode').style.background='#2d1a3a';
-      $('proposalTable').innerHTML = generateMixedProposalTable(stations, products);
-    }
-
-    $('proposalSection').scrollIntoView({behavior:'smooth', block:'start'});
-  }
-
-  function generateCashProposalTable(stations, products){
-    const perStationMonthly = products.reduce((s,p)=>s+p.monthlyValue,0);
-    const totalMonthly = perStationMonthly * stations.length;
-    const totalAnnual = totalMonthly * 12;
-
-    return `
-      <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
-        <h2 style="text-align:center; margin:0 0 24px 0; color:#5fb584; font-size:20px;">FUTURI MEDIA - RADIO PROPOSAL</h2>
-
-        <div style="margin-bottom:30px;">
-          <h3 style="color:#5fb584; font-size:14px; margin:0 0 12px 0; text-transform:uppercase;">Products:</h3>
-          <table style="width:100%; border-collapse:collapse; background:white; color:black; border-radius:6px; overflow:hidden;">
-            <tbody>
-              ${products.map((p,i)=>`
-                <tr style="background:${i%2===0?'#fff':'#f8f9fa'};">
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0;">${p.name}</td>
-                  <td style="padding:12px 16px; text-align:right; font-weight:600; border-bottom:1px solid #e0e0e0;">$${p.monthlyValue.toLocaleString()}/month</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <h3 style="color:#5fb584; font-size:14px; margin:0 0 12px 0; text-transform:uppercase;">Stations:</h3>
-          <table style="width:100%; border-collapse:collapse; background:white; color:black; border-radius:6px; overflow:hidden;">
-            <thead>
-              <tr style="background:#4a6178; color:white;">
-                <th style="padding:12px 16px; text-align:left;">Station</th>
-                <th style="padding:12px 16px; text-align:left;">Market</th>
-                <th style="padding:12px 16px; text-align:right;">Monthly Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stations.map((s,i)=>`
-                <tr style="background:${i%2===0?'#fff':'#f8f9fa'};">
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0; font-weight:500;">${s.station}</td>
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0;">${s.market}</td>
-                  <td style="padding:12px 16px; text-align:right; font-weight:600; border-bottom:1px solid #e0e0e0;">$${perStationMonthly.toLocaleString()}</td>
-                </tr>`).join('')}
-            </tbody>
-            <tfoot>
-              <tr style="background:#e8f4f0; font-weight:700;">
-                <td colspan="2" style="padding:16px; text-align:right; border-top:2px solid #4a6178;">TOTAL MONTHLY:</td>
-                <td style="padding:16px; text-align:right; font-size:16px; color:#0d4a2e; border-top:2px solid #4a6178;">$${totalMonthly.toLocaleString()}</td>
-              </tr>
-              <tr style="background:#d4ede5; font-weight:700;">
-                <td colspan="2" style="padding:16px; text-align:right;">TOTAL ANNUAL:</td>
-                <td style="padding:16px; text-align:right; font-size:16px; color:#0d4a2e;">$${totalAnnual.toLocaleString()}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>`;
-  }
-
-  function generateBarterProposalTable(stations, products){
-    const perStationMonthly = products.reduce((s,p)=>s+p.monthlyValue,0);
-    const totalMonthly = perStationMonthly * stations.length;
-    const totalAnnual = totalMonthly * 12;
-
-    return `
-      <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
-        <h2 style="text-align:center; margin:0 0 24px 0; color:#5fb584; font-size:20px;">FUTURI MEDIA - RADIO PROPOSAL (BARTER)</h2>
-
-        <div style="margin-bottom:30px;">
-          <h3 style="color:#5fb584; font-size:14px; margin:0 0 12px 0; text-transform:uppercase;">Products:</h3>
-          <table style="width:100%; border-collapse:collapse; background:white; color:black; border-radius:6px; overflow:hidden;">
-            <tbody>
-              ${products.map((p,i)=>`
-                <tr style="background:${i%2===0?'#fff':'#f8f9fa'};">
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0;">${p.name}</td>
-                  <td style="padding:12px 16px; text-align:right; font-weight:600; border-bottom:1px solid #e0e0e0;">$${p.monthlyValue.toLocaleString()}/month</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <h3 style="color:#5fb584; font-size:14px; margin:0 0 12px 0; text-transform:uppercase;">Stations & Barter Spots:</h3>
-          <table style="width:100%; border-collapse:collapse; background:white; color:black; border-radius:6px; overflow:hidden;">
-            <thead>
-              <tr style="background:#4a6178; color:white;">
-                <th style="padding:12px 16px; text-align:left;">Station</th>
-                <th style="padding:12px 16px; text-align:left;">Market</th>
-                <th style="padding:12px 16px; text-align:center;">Prime Spots<br><span style="font-size:10px; font-weight:normal;">M-SU 5a-8p</span></th>
-                <th style="padding:12px 16px; text-align:center;">ROS Spots<br><span style="font-size:10px; font-weight:normal;">M-SU 6a-12a</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stations.map((s,i)=>`
-                <tr style="background:${i%2===0?'#fff':'#f8f9fa'};">
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0; font-weight:500;">${s.station}</td>
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0;">${s.market}</td>
-                  <td style="padding:12px 16px; text-align:center; font-weight:600; border-bottom:1px solid #e0e0e0;">1/day</td>
-                  <td style="padding:12px 16px; text-align:center; font-weight:600; border-bottom:1px solid #e0e0e0;">1/day</td>
-                </tr>`).join('')}
-            </tbody>
-            <tfoot>
-              <tr style="background:#e8f4f0; font-weight:700;">
-                <td colspan="4" style="padding:16px; text-align:center; border-top:2px solid #4a6178; font-size:14px;">
-                  MONTHLY VALUE: <span style="color:#0d4a2e;">$${totalMonthly.toLocaleString()}</span>
-                  &nbsp;|&nbsp;
-                  ANNUAL VALUE: <span style="color:#0d4a2e;">$${totalAnnual.toLocaleString()}</span>
-                </td>
-              </tr>
-            </tfoot>
-          </table>
-
-          <div style="margin-top:16px; padding:12px; background:rgba(74,97,120,.2); border-radius:6px; font-size:12px; color:#b0c4d4;">
-            <strong>Note:</strong> Prime = M-SU 5a-8p (Drive Time), ROS = M-SU 6a-12a (Run of Schedule). Spots are per day.
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function generateMixedProposalTable(stations, products){
-    const perStationMonthly = products.reduce((s,p)=>s+p.monthlyValue,0);
-    const totalMonthly = perStationMonthly * stations.length;
-    const totalAnnual = totalMonthly * 12;
-
-    let totalCash = 0;
-    stations.forEach(st => totalCash += (productState.stationCashValues.get(st.key) || 0));
-    const totalBarterMonthly = totalMonthly - totalCash;
-
-    return `
-      <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
-        <h2 style="text-align:center; margin:0 0 24px 0; color:#5fb584; font-size:20px;">FUTURI MEDIA - RADIO PROPOSAL (MIXED)</h2>
-
-        <div style="margin-bottom:30px;">
-          <h3 style="color:#5fb584; font-size:14px; margin:0 0 12px 0; text-transform:uppercase;">Products:</h3>
-          <table style="width:100%; border-collapse:collapse; background:white; color:black; border-radius:6px; overflow:hidden;">
-            <tbody>
-              ${products.map((p,i)=>`
-                <tr style="background:${i%2===0?'#fff':'#f8f9fa'};">
-                  <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0;">${p.name}</td>
-                  <td style="padding:12px 16px; text-align:right; font-weight:600; border-bottom:1px solid #e0e0e0;">$${p.monthlyValue.toLocaleString()}/month</td>
-                </tr>`).join('')}
-            </tbody>
-          </table>
-        </div>
-
-        <div>
-          <h3 style="color:#5fb584; font-size:14px; margin:0 0 12px 0; text-transform:uppercase;">Stations (Cash + Barter):</h3>
-          <table style="width:100%; border-collapse:collapse; background:white; color:black; border-radius:6px; overflow:hidden;">
-            <thead>
-              <tr style="background:#4a6178; color:white;">
-                <th style="padding:12px 16px; text-align:left;">Station</th>
-                <th style="padding:12px 16px; text-align:left;">Market</th>
-                <th style="padding:12px 16px; text-align:right;">Cash/Month</th>
-                <th style="padding:12px 16px; text-align:center;">Prime</th>
-                <th style="padding:12px 16px; text-align:center;">ROS</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${stations.map((s,i)=>{
-                const cash = productState.stationCashValues.get(s.key) || 0;
-                const cashStr = cash>0 ? `$${cash.toLocaleString()}` : '$0';
-                return `
-                  <tr style="background:${i%2===0?'#fff':'#f8f9fa'};">
-                    <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0; font-weight:500;">${s.station}</td>
-                    <td style="padding:12px 16px; border-bottom:1px solid #e0e0e0;">${s.market}</td>
-                    <td style="padding:12px 16px; text-align:right; font-weight:600; border-bottom:1px solid #e0e0e0;">${cashStr}</td>
-                    <td style="padding:12px 16px; text-align:center; font-weight:600; border-bottom:1px solid #e0e0e0;">—</td>
-                    <td style="padding:12px 16px; text-align:center; font-weight:600; border-bottom:1px solid #e0e0e0;">—</td>
-                  </tr>`;
-              }).join('')}
-            </tbody>
-            <tfoot>
-              <tr style="background:#e8f4f0; font-weight:700;">
-                <td colspan="2" style="padding:16px; text-align:right; border-top:2px solid #4a6178;">CASH TOTAL (MONTHLY):</td>
-                <td colspan="3" style="padding:16px; text-align:center; font-size:16px; color:#0d4a2e; border-top:2px solid #4a6178;">$${totalCash.toLocaleString()}</td>
-              </tr>
-              <tr style="background:#d4ede5; font-weight:700;">
-                <td colspan="2" style="padding:16px; text-align:right;">BARTER VALUE (MONTHLY):</td>
-                <td colspan="3" style="padding:16px; text-align:center; font-size:16px; color:#0d4a2e;">$${totalBarterMonthly.toLocaleString()}</td>
-              </tr>
-              <tr style="background:#c0e7d8; font-weight:700;">
-                <td colspan="2" style="padding:16px; text-align:right;">TOTAL ANNUAL VALUE:</td>
-                <td colspan="3" style="padding:16px; text-align:center; font-size:16px; color:#0d4a2e;">$${totalAnnual.toLocaleString()}</td>
-              </tr>
-            </tfoot>
-          </table>
-
-          <div style="margin-top:16px; padding:12px; background:rgba(74,97,120,.2); border-radius:6px; font-size:12px; color:#b0c4d4;">
-            <strong>Note:</strong> Mixed deals combine cash payments with barter inventory.
-          </div>
-        </div>
-      </div>`;
-  }
-
-  function copyProposalToClipboard(){
-    const proposalTable = $('proposalTable');
-    if (!proposalTable || !proposalTable.innerHTML || proposalTable.innerHTML.includes('No stations') || proposalTable.innerHTML.includes('No products')){
-      alert('Please generate a proposal first');
-      return;
-    }
-
-    const temp = document.createElement('div');
-    temp.innerHTML = proposalTable.innerHTML;
-    temp.style.position='absolute';
-    temp.style.left='-9999px';
-    document.body.appendChild(temp);
-
-    const range=document.createRange();
-    range.selectNode(temp);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
-
-    try{
-      document.execCommand('copy');
-      const btn=$('btnCopyProposal');
-      const old=btn.textContent;
-      btn.textContent='✓ Copied!';
-      btn.style.background='#0d4a2e';
-      setTimeout(()=>{ btn.textContent=old; btn.style.background=''; },2000);
-    }catch{
-      alert('Copy failed. Please manually select and copy.');
-    }
-
-    window.getSelection().removeAllRanges();
-    document.body.removeChild(temp);
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initApp);
+  if (remainingMonthly > 0) {
+    calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
   } else {
-    initApp();
+    $('barterMinutesSection').classList.add('hidden');
   }
-  </script>
+}
+
+function updateMixedPricing(monthlyProductValue) {
+  renderCashValues(monthlyProductValue);
+}
+
+function resetMinutesToAuto() {
+  productState.manualMinutes.clear();
+  updateProductSummary();
+}
+
+function updateProductCalculations() {
+  if (productState.pricingType === 'barter' && productState.selectedProducts.size > 0) {
+    updateProductSummary();
+  }
+}
+
+function handlePricingTypeChange() {
+  const selectedType = document.querySelector('input[name="pricingType"]:checked').value;
+  productState.pricingType = selectedType;
+  productState.customPrices.clear();
+  productState.manualMinutes.clear();
+
+  const cpmDisplay = $('cpmDisplay');
+  const cashValuesSection = $('cashValuesSection');
+  const barterSection = $('barterMinutesSection');
+
+  if (selectedType === 'cash') {
+    cpmDisplay.classList.add('hidden');
+    cashValuesSection.classList.add('hidden');
+    barterSection.classList.add('hidden');
+  } else if (selectedType === 'barter') {
+    cpmDisplay.classList.remove('hidden');
+    cashValuesSection.classList.add('hidden');
+  } else if (selectedType === 'mixed') {
+    cpmDisplay.classList.remove('hidden');
+    cashValuesSection.classList.remove('hidden');
+  }
+
+  renderProducts();
+  updateProductSummary();
+}
+
+function resetPricingToRateCard() {
+  productState.customPrices.clear();
+  renderProducts();
+  updateProductSummary();
+}
+
+/* ===== Proposal Generation ===== */
+
+function generateProposal() {
+  const pricingType = productState.pricingType;
+  const proposalSection = $('proposalSection');
+  const proposalOutput = $('proposalOutput');
+  const proposalTable = $('proposalTable');
+  const proposalMode = $('proposalMode');
+
+  proposalSection.classList.remove('hidden');
+  proposalOutput.classList.remove('hidden');
+
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
+
+  if (!selectedStations.length) {
+    proposalTable.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No stations selected. Please select stations first.</div>';
+    return;
+  }
+
+  const selectedProducts = [];
+  productState.selectedProducts.forEach(productId => {
+    const product = PRODUCTS.find(p => p.id === productId);
+    if (!product) return;
+    const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+    if (rateCardValue === null) return;
+    const value = productState.customPrices.get(productId) ?? rateCardValue;
+    selectedProducts.push({ ...product, monthlyValue: value });
+  });
+
+  if (!selectedProducts.length) {
+    proposalTable.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No products selected. Please select products first.</div>';
+    return;
+  }
+
+  if (pricingType === 'cash') { proposalMode.textContent = 'Cash Deal'; proposalMode.style.background = '#0d4a2e'; }
+  else if (pricingType === 'barter') { proposalMode.textContent = 'Barter Deal'; proposalMode.style.background = '#3a2d0b'; }
+  else { proposalMode.textContent = 'Mixed Deal'; proposalMode.style.background = '#2d1a3a'; }
+
+  proposalTable.innerHTML =
+    pricingType === 'cash'   ? generateCashProposalTable(selectedStations, selectedProducts) :
+    pricingType === 'barter' ? generateBarterProposalTable(selectedStations, selectedProducts) :
+                               generateMixedProposalTable(selectedStations, selectedProducts);
+
+  proposalSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* Your 3 proposal table builders retained exactly. */
+function generateCashProposalTable(stations, products) {
+  const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
+  const totalMonthly = perStationMonthly * stations.length;
+  const totalAnnual = totalMonthly * 12;
+
+  let html = `
+    <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
+      <h2 style="text-align: center; margin: 0 0 24px 0; color: #5fb584; font-size: 20px;">FUTURI MEDIA - RADIO PROPOSAL</h2>
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Products:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <tbody>`;
+  products.forEach((product, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${product.name}</td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; border-bottom: 1px solid #e0e0e0;">$${product.monthlyValue.toLocaleString()}/month</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Stations:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <thead>
+            <tr style="background: #4a6178; color: white;">
+              <th style="padding: 12px 16px; text-align: left;">Station</th>
+              <th style="padding: 12px 16px; text-align: left;">Market</th>
+              <th style="padding: 12px 16px; text-align: right;">Monthly Value</th>
+            </tr>
+          </thead>
+          <tbody>`;
+  stations.forEach((station, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${station.station}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${station.market}</td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; border-bottom: 1px solid #e0e0e0;">$${perStationMonthly.toLocaleString()}</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+          <tfoot>
+            <tr style="background: #e8f4f0; font-weight: 700;">
+              <td colspan="2" style="padding: 16px; text-align: right; border-top: 2px solid #4a6178;">TOTAL MONTHLY:</td>
+              <td style="padding: 16px; text-align: right; font-size: 16px; color: #0d4a2e; border-top: 2px solid #4a6178;">$${totalMonthly.toLocaleString()}</td>
+            </tr>
+            <tr style="background: #d4ede5; font-weight: 700;">
+              <td colspan="2" style="padding: 16px; text-align: right;">TOTAL ANNUAL:</td>
+              <td style="padding: 16px; text-align: right; font-size: 16px; color: #0d4a2e;">$${totalAnnual.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+  return html;
+}
+
+function generateBarterProposalTable(stations, products) {
+  const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
+  const totalMonthly = perStationMonthly * stations.length;
+  const totalAnnual = totalMonthly * 12;
+
+  let html = `
+    <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
+      <h2 style="text-align: center; margin: 0 0 24px 0; color: #5fb584; font-size: 20px;">FUTURI MEDIA - RADIO PROPOSAL (BARTER)</h2>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Products:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <tbody>`;
+  products.forEach((product, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${product.name}</td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; border-bottom: 1px solid #e0e0e0;">$${product.monthlyValue.toLocaleString()}/month</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Stations & Barter Spots:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <thead>
+            <tr style="background: #4a6178; color: white;">
+              <th style="padding: 12px 16px; text-align: left;">Station</th>
+              <th style="padding: 12px 16px; text-align: left;">Market</th>
+              <th style="padding: 12px 16px; text-align: center;">Prime Spots<br><span style="font-size: 10px; font-weight: normal;">M-SU 5a-8p</span></th>
+              <th style="padding: 12px 16px; text-align: center;">ROS Spots<br><span style="font-size: 10px; font-weight: normal;">M-SU 6a-12a</span></th>
+            </tr>
+          </thead>
+          <tbody>`;
+  stations.forEach((station, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    const manualOverride = productState.manualMinutes.get(station.key);
+    const primeSpots = manualOverride?.prime ?? 1;
+    const rosSpots = manualOverride?.ros ?? 1;
+
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${station.station}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${station.market}</td>
+              <td style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #e0e0e0;">${primeSpots}/day</td>
+              <td style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #e0e0e0;">${rosSpots}/day</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+          <tfoot>
+            <tr style="background: #e8f4f0; font-weight: 700;">
+              <td colspan="4" style="padding: 16px; text-align: center; border-top: 2px solid #4a6178; font-size: 14px;">
+                MONTHLY VALUE: <span style="color: #0d4a2e;">$${totalMonthly.toLocaleString()}</span>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                ANNUAL VALUE: <span style="color: #0d4a2e;">$${totalAnnual.toLocaleString()}</span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="margin-top: 16px; padding: 12px; background: rgba(74, 97, 120, 0.2); border-radius: 6px; font-size: 12px; color: #b0c4d4;">
+          <strong>Note:</strong> Prime = M-SU 5a-8p (Drive Time), ROS = M-SU 6a-12a (Run of Schedule). Spots are per day.
+        </div>
+      </div>
+    </div>`;
+  return html;
+}
+
+function generateMixedProposalTable(stations, products) {
+  const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
+  let totalCash=0;
+
+  let html = `
+    <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
+      <h2 style="text-align: center; margin: 0 0 24px 0; color: #5fb584; font-size: 20px;">FUTURI MEDIA - RADIO PROPOSAL (MIXED)</h2>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Products:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <tbody>`;
+  products.forEach((product, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background:${bgColor};">
+              <td style="padding:12px 16px;border-bottom:1px solid #e0e0e0;">${product.name}</td>
+              <td style="padding:12px 16px;text-align:right;font-weight:600;border-bottom:1px solid #e0e0e0;">$${product.monthlyValue.toLocaleString()}/month</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="color:#5fb584;font-size:14px;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.5px;">Stations (Cash + Barter):</h3>
+        <table style="width:100%;border-collapse:collapse;background:white;color:black;border-radius:6px;overflow:hidden;">
+          <thead>
+            <tr style="background:#4a6178;color:white;">
+              <th style="padding:12px 16px;text-align:left;">Station</th>
+              <th style="padding:12px 16px;text-align:left;">Market</th>
+              <th style="padding:12px 16px;text-align:right;">Cash/Month</th>
+              <th style="padding:12px 16px;text-align:center;">Prime</th>
+              <th style="padding:12px 16px;text-align:center;">ROS</th>
+            </tr>
+          </thead>
+          <tbody>`;
+  stations.forEach((station, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    const cashValue = productState.stationCashValues.get(station.key) || 0;
+    totalCash += cashValue;
+
+    const manualOverride = productState.manualMinutes.get(station.key);
+    const primeSpots = manualOverride?.prime ?? (cashValue<perStationMonthly?1:0);
+    const rosSpots   = manualOverride?.ros ?? 0;
+
+    html += `
+            <tr style="background:${bgColor};">
+              <td style="padding:12px 16px;border-bottom:1px solid #e0e0e0;font-weight:500;">${station.station}</td>
+              <td style="padding:12px 16px;border-bottom:1px solid #e0e0e0;">${station.market}</td>
+              <td style="padding:12px 16px;text-align:right;font-weight:600;border-bottom:1px solid #e0e0e0;">$${cashValue.toLocaleString()}</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;border-bottom:1px solid #e0e0e0;">${primeSpots?primeSpots+'/day':'None'}</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;border-bottom:1px solid #e0e0e0;">${rosSpots?rosSpots+'/day':'None'}</td>
+            </tr>`;
+  });
+
+  const totalMonthly = perStationMonthly * stations.length;
+  const totalAnnual = totalMonthly * 12;
+  const totalBarterMonthly = totalMonthly - totalCash;
+
+  html += `
+          </tbody>
+          <tfoot>
+            <tr style="background:#e8f4f0;font-weight:700;">
+              <td colspan="2" style="padding:16px;text-align:right;border-top:2px solid #4a6178;">CASH TOTAL (MONTHLY):</td>
+              <td colspan="3" style="padding:16px;text-align:center;font-size:16px;color:#0d4a2e;border-top:2px solid #4a6178;">$${totalCash.toLocaleString()}</td>
+            </tr>
+            <tr style="background:#d4ede5;font-weight:700;">
+              <td colspan="2" style="padding:16px;text-align:right;">BARTER VALUE (MONTHLY):</td>
+              <td colspan="3" style="padding:16px;text-align:center;font-size:16px;color:#0d4a2e;">$${totalBarterMonthly.toLocaleString()}</td>
+            </tr>
+            <tr style="background:#c0e7d8;font-weight:700;">
+              <td colspan="2" style="padding:16px;text-align:right;">TOTAL ANNUAL VALUE:</td>
+              <td colspan="3" style="padding:16px;text-align:center;font-size:16px;color:#0d4a2e;">$${totalAnnual.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="margin-top:16px;padding:12px;background:rgba(74,97,120,0.2);border-radius:6px;font-size:12px;color:#b0c4d4;">
+          <strong>Note:</strong> Mixed deal combines cash + barter. Prime = M-SU 5a-8p, ROS = M-SU 6a-12a. Spots per day.
+        </div>
+      </div>
+    </div>`;
+  return html;
+}
+
+function copyProposalToClipboard() {
+  const proposalTable = $('proposalTable');
+  if (!proposalTable || !proposalTable.innerHTML || proposalTable.innerHTML.includes('No stations') || proposalTable.innerHTML.includes('No products')) {
+    alert('Please generate a proposal first');
+    return;
+  }
+
+  const temp = document.createElement('div');
+  temp.innerHTML = proposalTable.innerHTML;
+  temp.style.position = 'absolute';
+  temp.style.left = '-9999px';
+  document.body.appendChild(temp);
+
+  const range = document.createRange();
+  range.selectNode(temp);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  try {
+    document.execCommand('copy');
+    const btn = $('btnCopyProposal');
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#0d4a2e';
+    setTimeout(() => { btn.textContent = originalText; btn.style.background = ''; }, 2000);
+  } catch {
+    alert('Failed to copy. Please manually select and copy the proposal.');
+  }
+  window.getSelection().removeAllRanges();
+  document.body.removeChild(temp);
+}
+
+function attachProductEventListeners() {
+  document.querySelectorAll('input[name="pricingType"]').forEach(radio => {
+    radio.addEventListener('change', handlePricingTypeChange);
+  });
+
+  $('productSearch').addEventListener('input', renderProducts);
+
+  $('btnSelAllProducts').onclick = () => {
+    PRODUCTS.forEach(p => productState.selectedProducts.add(p.id));
+    renderProducts();
+    updateProductSummary();
+  };
+
+  $('btnClrAllProducts').onclick = () => {
+    productState.selectedProducts.clear();
+    productState.customPrices.clear();
+    renderProducts();
+    updateProductSummary();
+  };
+
+  $('btnResetPricing').onclick = resetPricingToRateCard;
+  $('btnResetMinutes').onclick = resetMinutesToAuto;
+
+  const genBtn = $('btnGenerateProposal');
+  genBtn.onclick = () => {
+    if (!can('generate_proposal')) {
+      alert('Your role cannot generate proposals.');
+      return;
+    }
+    generateProposal();
+  };
+
+  $('btnCopyProposal').onclick = copyProposalToClipboard;
+
+  // enable/disable Generate button live
+  const syncGenBtn = () => {
+    const ok = (productState.selectedProducts.size > 0) && (state.stations.size > 0) && can('generate_proposal');
+    genBtn.disabled = !ok;
+  };
+  ['input','change','click'].forEach(evt => document.addEventListener(evt, syncGenBtn, true));
+  syncGenBtn();
+}
+</script>
+
 </body>
 </html>
