@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Confidential - Futuri Media Deal Calc (Google Auth)</title>
+  <title>Confidential - Futuri Media Deal Calc (Google-only)</title>
   <style>
     :root {
       --bg: #0b1117; --card:#0f1823; --edge:#223244; --text:#e7eef7; --muted:#9bb3c7; --accent:#1f9aff; --pill:#132437;
@@ -36,9 +36,10 @@
     input[type="number"] { background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:6px; padding:4px 8px; }
     .back-btn { background: #0f1823; border: 1px solid #223244; color: var(--text); padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
     .back-btn:hover { background: #152533; border-color: #2a4158; }
+    .role-badge { background:#132437; border:1px solid #223244; border-radius: 999px; padding:4px 10px; font-size:12px; }
 
-    /* Login overlay */
-    #loginScreen {
+    /* Google-only login overlay */
+    #googleLoginScreen {
       position: fixed; inset: 0;
       display: none;
       align-items: center; justify-content: center;
@@ -49,11 +50,18 @@
       background: #0f1823; color: var(--text);
       border: 1px solid var(--edge); border-radius: 14px;
       padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      display:grid; gap:12px;
+      text-align:center;
     }
-    .login-card h2 { margin: 0 0 10px 0; font-size: 18px; }
-    .login-card .muted { font-size: 12px; margin-bottom: 10px; display:block; }
-    .login-card .row { justify-content: flex-end; }
-    .role-badge { background:#132437; border:1px solid #223244; border-radius: 999px; padding:4px 10px; font-size:12px; }
+    .google-btn {
+      background:#ffffff; color:#111; border:1px solid #d0d7de;
+      padding:10px 12px; border-radius:10px; font-size:14px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
+    }
+    .google-btn:hover { background:#f6f8fa; }
+    .google-logo {
+      width:18px; height:18px; display:inline-block;
+    }
 
     /* Admin panel */
     #adminPanel .user-card {
@@ -74,27 +82,35 @@
 </head>
 <body>
 
-<!-- GOOGLE-ONLY LOGIN SCREEN -->
-<div id="loginScreen">
+<!-- GOOGLE LOGIN SCREEN -->
+<div id="googleLoginScreen">
   <div class="login-card">
-    <h2>Sign in</h2>
-    <span class="muted">Google-only access. Click below.</span>
-    <p id="auth_error" class="muted" style="color:#ff8a8a; display:none; margin: 8px 0 12px;"></p>
-    <div class="row" style="justify-content:flex-end;">
-      <button class="btn" id="btnLogin">Sign in with Google</button>
+    <h2 style="margin:0;">Sign in</h2>
+    <div class="muted" style="font-size:12px;">
+      Google-only access. Your Futuri account will be assigned a role automatically.
     </div>
+    <button class="google-btn" id="btnGoogleLogin">
+      <svg class="google-logo" viewBox="0 0 48 48" aria-hidden="true">
+        <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.6 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.2 6 29.4 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.3-.4-3.5z"/>
+        <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.2 6 29.4 4 24 4 16.2 4 9.4 8.4 6.3 14.7z"/>
+        <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.3l-6.2-5.1C29.2 35.5 26.7 36 24 36c-5.3 0-9.7-3.4-11.3-8.2l-6.5 5C9.2 39.5 16.1 44 24 44z"/>
+        <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3-3.4 5.4-6.3 6.6l6.2 5.1C38.7 36.4 44 31 44 24c0-1.3-.1-2.3-.4-3.5z"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <div id="googleLoginError" class="muted" style="display:none;color:#ff8a8a;font-size:12px;"></div>
   </div>
 </div>
 
 <header>
   <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
     <span id="whois" class="role-badge" title="Current role">Role: —</span>
-    <button class="btn" id="btnLogout" title="Sign out">Logout</button>
+    <button class="btn" id="btnLogout" title="Sign out" style="display:none;">Logout</button>
   </div>
   <div class="wrap" style="padding: 12px 16px;">
     <h1 style="margin-bottom: 4px;">Confidential - Futuri Media Deal Calc</h1>
     <div class="muted" style="font-size: 11px;">
-      <span style="opacity: 0.7;">v3.1 (Google Auth)</span>
+      <span style="opacity: 0.7;">v3.1 (Google-only)</span>
       <span style="margin: 0 8px;">•</span>
       <span style="opacity: 0.7;">20,981 stations • 5,186 parent companies</span>
     </div>
@@ -137,6 +153,7 @@
       <div class="title">Step 1: Select Parent Company</div>
       <input id="parentSearch" type="text" placeholder="Search parent companies..." />
 
+      <!-- Toolbar inside Step 1 -->
       <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
         <button class="btn" id="btnAddCompany">Add Company</button>
         <button class="btn" id="btnExportUserData" title="Download your custom companies">Export</button>
@@ -150,7 +167,7 @@
       <div id="parentResults" class="list"></div>
     </section>
 
-    <!-- Add Company Modal -->
+    <!-- Add Company Modal (single instance) -->
     <div id="addCompanyModal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999;">
       <div style="background:#fff; width:min(560px, 95vw); border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
         <div class="title" style="margin-bottom:8px;">Add Company (Custom)</div>
@@ -290,7 +307,7 @@
       </div>
     </section>
 
-    <!-- Firestore snapshots -->
+    <!-- Upload section (Firestore snapshots — no Storage) -->
     <section class="card" id="uploadsPanel">
       <div class="title">My Uploads (Firestore Snapshots)</div>
       <div class="row">
@@ -301,7 +318,7 @@
       <div id="uploadsList" class="list" style="margin-top:8px;"></div>
     </section>
 
-    <!-- Admin-only -->
+    <!-- Admin-only panel -->
     <section class="card hidden" id="adminPanel">
       <div class="title">Admin: Users & Uploads</div>
       <div class="muted" style="font-size:12px; margin-bottom:8px;">
@@ -313,14 +330,15 @@
   </div><!-- /radioView -->
 </main>
 
-<!-- ==========================================================
-     GOOGLE-ONLY FIREBASE AUTH (single module, no race on GH)
-     ========================================================== -->
+<!-- ===========================
+     FIREBASE (Modules)
+     =========================== -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import {
     getAuth, onAuthStateChanged,
-    GoogleAuthProvider, signInWithPopup, signOut
+    GoogleAuthProvider, signInWithPopup,
+    signOut
   } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
   import {
     getFirestore, doc, getDoc, setDoc, updateDoc,
@@ -337,99 +355,31 @@
     appId: "1:1068500491090:web:6654b26d72ad40b1eb388b"
   };
 
-  const app  = initializeApp(firebaseConfig);
+  const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const db   = getFirestore(app);
+  const db = getFirestore(app);
 
-  // expose helpers for the rest of the app
   window.fb = {
-    auth, db,
+    app, auth, db,
+    onAuthStateChanged,
+    GoogleAuthProvider, signInWithPopup,
+    signOut,
     doc, getDoc, setDoc, updateDoc,
     collection, addDoc, getDocs,
     query, orderBy, serverTimestamp
   };
-
-  const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
-
-  async function ensureUserDoc(user){
-    const uref = doc(db, "users", user.uid);
-    const snap = await getDoc(uref);
-
-    if (!snap.exists()){
-      await setDoc(uref, {
-        email: user.email,
-        name: user.displayName || "",
-        role: "admin",
-        createdAt: serverTimestamp()
-      });
-    }
-    return (await getDoc(uref)).data();
-  }
-
-  function showLogin(){
-    document.getElementById("loginScreen").style.display = "flex";
-    document.querySelector("main").style.filter = "blur(3px)";
-  }
-  function hideLogin(){
-    document.getElementById("loginScreen").style.display = "none";
-    document.querySelector("main").style.filter = "";
-  }
-
-  document.addEventListener("DOMContentLoaded", () => {
-    // Google sign-in button
-    document.getElementById("btnLogin").onclick = async () => {
-      const err = document.getElementById("auth_error");
-      try {
-        await signInWithPopup(auth, provider);
-        err.style.display = "none";
-      } catch (e){
-        err.textContent = e.message;
-        err.style.display = "block";
-      }
-    };
-
-    document.getElementById("btnLogout").onclick = async () => {
-      await signOut(auth);
-      location.reload();
-    };
-
-    // Only after auth is ready do we run the app
-    onAuthStateChanged(auth, async (user) => {
-      if (!user){
-        showLogin();
-        return;
-      }
-      hideLogin();
-
-      window.CURRENT_USER = await ensureUserDoc(user);
-      window.CURRENT_ROLE = window.CURRENT_USER.role || "view";
-
-      applyRoleUI();
-      initApp();
-      renderMyUploads();
-      renderAdminUsers();
-    });
-
-    document.getElementById("btnOpenRadio").onclick = () => {
-      document.getElementById("landing").classList.add("hidden");
-      document.getElementById("radioView").classList.remove("hidden");
-      window.scrollTo(0,0);
-    };
-    document.getElementById("btnBack").onclick = () => {
-      document.getElementById("radioView").classList.add("hidden");
-      document.getElementById("landing").classList.remove("hidden");
-      window.scrollTo(0,0);
-    };
-  });
 </script>
 
 <script>
 /* =========================
-   ROLES + "UPLOADS"
-   (Firestore only)
+   AUTH + ROLES + "UPLOADS"
+   Google-only
    ========================= */
-const $ = (id) => document.getElementById(id);
+const el = (id) => document.getElementById(id);
+
+const ADMIN_EMAILS = new Set([
+  "sabrinacarlo@futurimedia.com"
+]);
 
 const PERMS = {
   admin: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:true, manage_roles:true },
@@ -437,32 +387,65 @@ const PERMS = {
   view:  { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
 };
 
-window.CURRENT_USER = null;
-window.CURRENT_ROLE = "view";
+let CURRENT_USER = null;
+let CURRENT_ROLE = "staff"; // default staff for UX; real role comes from Firestore
 
-function currentRole(){ return window.CURRENT_ROLE; }
+function currentRole(){ return CURRENT_ROLE; }
 function can(action){ return !!PERMS[currentRole()]?.[action]; }
 
+function showGoogleLogin(){
+  el("googleLoginScreen").style.display = "flex";
+  document.querySelector("main").style.filter = "blur(3px)";
+}
+function hideGoogleLogin(){
+  el("googleLoginScreen").style.display = "none";
+  document.querySelector("main").style.filter = "";
+}
+
+async function ensureUserDoc(user){
+  const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
+  const uref = doc(db, "users", user.uid);
+  const snap = await getDoc(uref);
+
+  // If missing, create with role:
+  if (!snap.exists()){
+    const emailLower = (user.email || "").toLowerCase();
+    const role = ADMIN_EMAILS.has(emailLower) ? "admin" : "staff";
+
+    await setDoc(uref, {
+      email: user.email || "",
+      name: user.displayName || "",
+      role,
+      createdAt: serverTimestamp()
+    });
+
+    return { email: user.email || "", name: user.displayName || "", role };
+  }
+
+  // If exists, DO NOT update (rules block non-admin updates)
+  return snap.data();
+}
+
 function applyRoleUI(){
-  $("whois").textContent =
-    `Role: ${window.CURRENT_ROLE}` + (window.CURRENT_USER?.name ? ` (${window.CURRENT_USER.name})` : "");
+  el("whois").textContent =
+    `Role: ${CURRENT_ROLE}` + (CURRENT_USER?.name ? ` (${CURRENT_USER.name})` : "");
 
-  $("btnAddCompany").style.display = can("manage_custom_parents") ? "" : "none";
-  $("btnExportUserData").style.display = can("import_export") ? "" : "none";
+  el("btnAddCompany").style.display = can("manage_custom_parents") ? "" : "none";
+  el("btnExportUserData").style.display = can("import_export") ? "" : "none";
 
-  const importInput = $("inputImportUserData");
+  const importInput = el("inputImportUserData");
   if (importInput) {
     const label = importInput.closest("label");
     if (label) label.style.display = can("import_export") ? "" : "none";
   }
 
-  $("btnGenerateProposal").disabled = !can("generate_proposal");
-  $("btnUpload").style.display = can("upload_files") ? "" : "none";
-  $("uploadHint").textContent = can("upload_files")
+  el("btnGenerateProposal").disabled = !can("generate_proposal");
+  el("btnUpload").style.display = can("upload_files") ? "" : "none";
+  el("uploadHint").textContent = can("upload_files")
     ? "Snapshots save your current selections + pricing to Firestore."
     : "View-only accounts cannot save snapshots.";
 
-  $("adminPanel").classList.toggle("hidden", !can("view_all_uploads"));
+  el("adminPanel").classList.toggle("hidden", !can("view_all_uploads"));
 }
 
 /* -------------------------
@@ -484,7 +467,7 @@ function buildSnapshotPayload(){
     manualMinutes: Object.fromEntries(productState.manualMinutes),
     stationCashValues: Object.fromEntries(productState.stationCashValues),
     cpm: productState.cpm,
-    proposalHTML: $("proposalTable")?.innerHTML || ""
+    proposalHTML: el("proposalTable")?.innerHTML || ""
   };
 }
 
@@ -498,14 +481,14 @@ async function saveSnapshot(){
     return;
   }
 
-  $("uploadStatus").textContent = "Saving...";
+  el("uploadStatus").textContent = "Saving...";
   await addDoc(collection(db, "users", user.uid, "uploads"), {
     type: "snapshot",
     createdAt: serverTimestamp(),
     payload: buildSnapshotPayload()
   });
-  $("uploadStatus").textContent = "Saved ✓";
-  setTimeout(()=> $("uploadStatus").textContent = "", 1800);
+  el("uploadStatus").textContent = "Saved ✓";
+  setTimeout(()=> el("uploadStatus").textContent = "", 1800);
 
   await renderMyUploads();
   if (can("view_all_uploads")) await renderAdminUsers();
@@ -521,7 +504,7 @@ async function renderMyUploads(){
   );
   const snaps = await getDocs(qRef);
 
-  const list = $("uploadsList");
+  const list = el("uploadsList");
   list.innerHTML = "";
 
   if (snaps.empty){
@@ -568,7 +551,7 @@ function loadSnapshot(payload){
 
   setMarketsEnabled(!!state.parent);
   setStationsEnabled(!!state.parent);
-  renderParents($("parentSearch").value || "");
+  renderParents(el("parentSearch").value || "");
   renderMarkets();
   renderStations();
   renderProducts();
@@ -576,9 +559,9 @@ function loadSnapshot(payload){
   updateProductSummary();
 
   if (payload.proposalHTML){
-    $("proposalSection").classList.remove("hidden");
-    $("proposalOutput").classList.remove("hidden");
-    $("proposalTable").innerHTML = payload.proposalHTML;
+    el("proposalSection").classList.remove("hidden");
+    el("proposalOutput").classList.remove("hidden");
+    el("proposalTable").innerHTML = payload.proposalHTML;
   }
 
   alert("Snapshot loaded.");
@@ -599,7 +582,7 @@ async function renderAdminUsers(){
   const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
   const usersSnap = await getDocs(userQ);
 
-  const root = $("adminUsersList");
+  const root = el("adminUsersList");
   root.innerHTML = "";
   if (usersSnap.empty){
     root.innerHTML = `<div class="placeholder">No users yet.</div>`;
@@ -637,7 +620,7 @@ async function renderAdminUsers(){
       const newRole = e.target.value;
       await updateDoc(doc(db, "users", uid), { role: newRole });
       if (uid === window.fb.auth.currentUser.uid){
-        window.CURRENT_ROLE = newRole;
+        CURRENT_ROLE = newRole;
         applyRoleUI();
       }
     };
@@ -680,6 +663,66 @@ async function renderAdminUsers(){
     root.appendChild(card);
   }
 }
+
+/* -------------------------
+   Google-only Login wiring
+   ------------------------- */
+document.addEventListener("DOMContentLoaded", () => {
+  const {
+    auth, onAuthStateChanged,
+    GoogleAuthProvider, signInWithPopup,
+    signOut
+  } = window.fb;
+
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+
+  el("btnGoogleLogin").onclick = async () => {
+    const err = el("googleLoginError");
+    err.style.display = "none";
+    try {
+      await signInWithPopup(auth, provider);
+    } catch(e){
+      err.textContent = e.message;
+      err.style.display = "block";
+    }
+  };
+
+  el("btnLogout").onclick = async () => {
+    await signOut(auth);
+    location.reload();
+  };
+
+  el("btnUpload").onclick = async () => {
+    if (!can("upload_files")) return;
+    await saveSnapshot();
+  };
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user){
+      el("btnLogout").style.display = "none";
+      showGoogleLogin();
+      return;
+    }
+
+    hideGoogleLogin();
+    el("btnLogout").style.display = "";
+
+    // Create/read user doc, set role on first login:
+    CURRENT_USER = await ensureUserDoc(user);
+    CURRENT_ROLE = CURRENT_USER.role || (ADMIN_EMAILS.has((user.email||"").toLowerCase()) ? "admin" : "staff");
+
+    applyRoleUI();
+
+    // init app AFTER role set, to avoid admin reads for staff:
+    initApp();
+    renderMyUploads();
+    if (CURRENT_ROLE === "admin") renderAdminUsers();
+  });
+
+  el("btnOpenRadio").onclick = () => { el("landing").classList.add("hidden"); el("radioView").classList.remove("hidden"); window.scrollTo(0,0); };
+  el("btnBack").onclick = () => { el("radioView").classList.add("hidden"); el("landing").classList.remove("hidden"); window.scrollTo(0,0); };
+});
 </script>
 
 <script>
@@ -820,7 +863,6 @@ window.UserData = (function () {
 <script>
 /* =======================
    MAIN CALCULATOR JS
-   (your original logic)
    ======================= */
 
 let BASE_DS = { parents: [], markets: [], stations: [] };
@@ -869,8 +911,10 @@ function mergeUserIntoDataset(baseDS, userMerged){
   return out;
 }
 
+// CONFIG
 const DATA_URL = './radio_data.json';
 
+// Dataset + Index
 let DS = { parents: [], markets: [], stations: [] };
 const IDX = {
   parentSet: new Set(),
@@ -880,8 +924,8 @@ const IDX = {
   stationsByParentMarket: new Map(),
 };
 const state = { parent: '', markets: new Set(), stations: new Set() };
-function $(id) { return document.getElementById(id); }
 
+// Products configuration
 const PRODUCTS = [
   { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
   { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
@@ -910,6 +954,7 @@ const productState = {
   stationCashValues: new Map()
 };
 
+// Load dataset
 async function loadDataset() {
   try {
     const response = await fetch(DATA_URL, { cache:'no-store' });
@@ -919,7 +964,7 @@ async function loadDataset() {
     return data;
   } catch (error) {
     console.error('Failed to load dataset:', error);
-    alert('Failed to load radio station data.');
+    alert('Failed to load radio station data. Make sure radio_data.json is deployed next to index.html.');
     return { parents: [], markets: [], stations: [] };
   }
 }
@@ -940,22 +985,23 @@ function rebuildIndex(){
   });
 }
 
+// UI enable/disable helpers
 function setMarketsEnabled(enabled) {
-  const sel = $('btnSelAllMarkets'); const clr = $('btnClrAllMarkets');
+  const sel = el('btnSelAllMarkets'); const clr = el('btnClrAllMarkets');
   if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
-  const ph = $('marketsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
-  const list = $('marketsList'); if (list && !enabled) list.innerHTML = '';
+  const ph = el('marketsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
+  const list = el('marketsList'); if (list && !enabled) list.innerHTML = '';
 }
 function setStationsEnabled(enabled) {
-  const sel = $('btnSelAllStations'); const clr = $('btnClrAllStations');
+  const sel = el('btnSelAllStations'); const clr = el('btnClrAllStations');
   if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
-  const ph = $('stationsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
-  const list = $('stationsList'); if (list && !enabled) list.innerHTML = '';
+  const ph = el('stationsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
+  const list = el('stationsList'); if (list && !enabled) list.innerHTML = '';
 }
 
 // ===== initApp() CALLED AFTER LOGIN =====
 async function initApp() {
-  if (initApp._ran) return;
+  if (initApp._ran) return; // prevent double-run on auth refresh
   initApp._ran = true;
 
   await UserData.init(DATA_URL);
@@ -969,103 +1015,100 @@ async function initApp() {
   updateProductSummary();
 }
 
+// Event listeners
 function setupEventListeners() {
   setMarketsEnabled(false);
   setStationsEnabled(false);
 
-  const ps = $('parentSearch');
+  const ps = el('parentSearch');
   ps.addEventListener('input', () => renderParents(ps.value));
   renderParents('');
 
-  $('marketSearch').addEventListener('input', renderMarkets);
-  $('stationSearch').addEventListener('input', renderStations);
+  el('marketSearch').addEventListener('input', renderMarkets);
+  el('stationSearch').addEventListener('input', renderStations);
 
-  $('btnSelAllMarkets').onclick = () => {
+  el('btnSelAllMarkets').onclick = () => {
     (IDX.stationsByParent.get(state.parent) || []).forEach(s => state.markets.add(s.market));
     renderMarkets(); renderStations(); updatePreview();
   };
-  $('btnClrAllMarkets').onclick = () => {
+  el('btnClrAllMarkets').onclick = () => {
     state.markets.clear(); renderMarkets(); renderStations(); updatePreview();
   };
 
-  $('btnSelAllStations').onclick = () => {
+  el('btnSelAllStations').onclick = () => {
     document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
       cb.checked = true; state.stations.add(cb.value);
     });
     updatePreview();
   };
-  $('btnClrAllStations').onclick = () => {
+  el('btnClrAllStations').onclick = () => {
     document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
       cb.checked = false; state.stations.delete(cb.value);
     });
     updatePreview();
   };
 
-  $('btnAddCompany').onclick = () => {
-    $('addCompanyModal').style.display = 'flex';
-    $('ac_parent').value = '';
-    $('ac_country').value = '';
-    $('ac_market').value = '';
-    $('ac_station').value = '';
-    $('ac_error').style.display = 'none';
-    $('ac_parent').focus();
+  // UserData toolbar
+  el('btnAddCompany').onclick = () => {
+    el('addCompanyModal').style.display = 'flex';
+    el('ac_parent').value = '';
+    el('ac_country').value = '';
+    el('ac_market').value = '';
+    el('ac_station').value = '';
+    el('ac_error').style.display = 'none';
+    el('ac_parent').focus();
   };
-  $('ac_cancel').onclick = () => {
-    $('addCompanyModal').style.display = 'none';
-    $('ac_error').style.display = 'none';
+  el('ac_cancel').onclick = () => {
+    el('addCompanyModal').style.display = 'none';
+    el('ac_error').style.display = 'none';
   };
 
-  $('btnExportUserData').onclick = () => {
+  el('btnExportUserData').onclick = () => {
     UserData.export();
-    const s = $('userDataStatus'); if (s) { s.textContent = 'Exported user_radio_data.json'; setTimeout(()=>s.textContent='', 2000); }
+    const s = el('userDataStatus'); if (s) { s.textContent = 'Exported user_radio_data.json'; setTimeout(()=>s.textContent='', 2000); }
   };
 
-  $('inputImportUserData').onchange = async (e) => {
+  el('inputImportUserData').onchange = async (e) => {
     const file = e.target.files?.[0]; if (!file) return;
     await UserData.import(file);
     DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
     rebuildIndex();
-    renderParents($('parentSearch').value || '');
-    const s = $('userDataStatus'); if (s) { s.textContent = 'Imported user data'; setTimeout(()=>s.textContent='', 2000); }
+    renderParents(el('parentSearch').value || '');
+    const s = el('userDataStatus'); if (s) { s.textContent = 'Imported user data'; setTimeout(()=>s.textContent='', 2000); }
     e.target.value = '';
   };
 
-  $('ac_save').onclick = () => {
+  el('ac_save').onclick = () => {
     if (!can('manage_custom_parents')) {
-      const err = $('ac_error');
+      const err = el('ac_error');
       err.textContent = 'Your role does not permit adding companies.';
       err.style.display = 'block';
       return;
     }
 
-    const P = ($('ac_parent').value || '').trim();
-    const C = ($('ac_country').value || '').trim();
-    const M = ($('ac_market').value || '').trim();
-    const S = ($('ac_station').value || '').trim();
-    const err = $('ac_error');
+    const P = (el('ac_parent').value || '').trim();
+    const C = (el('ac_country').value || '').trim();
+    const M = (el('ac_market').value || '').trim();
+    const S = (el('ac_station').value || '').trim();
+    const err = el('ac_error');
     if (!P || !M || !S) { err.textContent = 'Parent, Market, and Station are required.'; err.style.display = 'block'; return; }
     err.style.display = 'none';
 
     UserData.addEntry({ parent: P, country: C, market: M, station: S });
-    $('addCompanyModal').style.display = 'none';
+    el('addCompanyModal').style.display = 'none';
 
     DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
     rebuildIndex();
-    $('parentSearch').value = P;
+    el('parentSearch').value = P;
     renderParents(P);
     setParent(P);
-  };
-
-  $('btnUpload').onclick = async () => {
-    if (!can("upload_files")) return;
-    await saveSnapshot();
   };
 
   attachProductEventListeners();
 }
 
 function renderParents(q='') {
-  const list = $('parentResults');
+  const list = el('parentResults');
   list.innerHTML = '';
   const qn = q.trim().toLowerCase();
 
@@ -1128,9 +1171,9 @@ function renderParents(q='') {
               setMarketsEnabled(false);
               setStationsEnabled(false);
             }
-            renderParents($('parentSearch').value || '');
+            renderParents(el('parentSearch').value || '');
             updatePreview();
-            const s = $('userDataStatus');
+            const s = el('userDataStatus');
             if (s) { s.textContent = 'Removed custom parent'; setTimeout(() => s.textContent = '', 1800); }
           }
         };
@@ -1150,8 +1193,8 @@ function setParent(p) {
 
 function renderMarkets() {
   if (!state.parent) { setMarketsEnabled(false); return; } else { setMarketsEnabled(true); }
-  const list = $('marketsList'); list.innerHTML = '';
-  const q = $('marketSearch').value.trim().toLowerCase();
+  const list = el('marketsList'); list.innerHTML = '';
+  const q = el('marketSearch').value.trim().toLowerCase();
   const all = (IDX.stationsByParent.get(state.parent) || []).map(s => s.market);
   const uniq = Array.from(new Set(all)).filter(m => m.toLowerCase().includes(q)).sort();
   uniq.forEach(m => {
@@ -1165,8 +1208,8 @@ function renderMarkets() {
 
 function renderStations() {
   if (!state.parent) { setStationsEnabled(false); return; } else { setStationsEnabled(true); }
-  const list = $('stationsList'); list.innerHTML = '';
-  const q = $('stationSearch').value.trim().toLowerCase();
+  const list = el('stationsList'); list.innerHTML = '';
+  const q = el('stationSearch').value.trim().toLowerCase();
   const markets = Array.from(state.markets);
   let pool = [];
   if (markets.length === 0) { pool = IDX.stationsByParent.get(state.parent) || []; }
@@ -1180,15 +1223,14 @@ function renderStations() {
       const row = document.createElement('label'); row.className = 'el';
       const cb = document.createElement('input'); cb.type='checkbox'; cb.value=key; cb.checked = state.stations.has(key);
       cb.onchange = () => { if (cb.checked) state.stations.add(key); else state.stations.delete(key); updatePreview(); };
-      const name = document.createElement('span');
-      name.innerHTML = `<strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span>`;
+      const name = document.createElement('span'); name.innerHTML = `<strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span>`;
       const aqh = document.createElement('span'); aqh.className='badge'; aqh.textContent = `Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}`;
       row.appendChild(cb); row.appendChild(name); row.appendChild(aqh); list.appendChild(row);
     });
 }
 
 function updatePreview() {
-  const list = $('selectedPreview'); list.innerHTML='';
+  const list = el('selectedPreview'); list.innerHTML='';
   let count = 0, prime = 0, ros = 0;
   const keyset = new Set(Array.from(state.stations));
   (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
@@ -1201,19 +1243,18 @@ function updatePreview() {
       list.appendChild(row);
     }
   });
-  $('selCount').textContent = String(count);
-  $('primeSum').textContent = String(Math.round(prime));
-  $('rosSum').textContent = String(Math.round(ros));
+  el('selCount').textContent = String(count);
+  el('primeSum').textContent = String(Math.round(prime));
+  el('rosSum').textContent = String(Math.round(ros));
   updateProductCalculations();
 }
 
 /* ================= PRODUCTS ================= */
-/* (rest of your product/pricing/proposal code unchanged) */
 
 function renderProducts() {
-  const list = $('productsList');
+  const list = el('productsList');
   list.innerHTML = '';
-  const q = $('productSearch').value.trim().toLowerCase();
+  const q = el('productSearch').value.trim().toLowerCase();
   const pricingType = productState.pricingType;
 
   PRODUCTS
@@ -1280,6 +1321,7 @@ function renderProducts() {
       topRow.appendChild(priceContainer);
       row.appendChild(topRow);
 
+      // Override only if selected + allowed
       if (productState.selectedProducts.has(product.id) && rateCardValue !== null && can('pricing_override')) {
         const overrideRow = document.createElement('div');
         overrideRow.style.display = 'flex';
@@ -1335,34 +1377,366 @@ function updateProductSummary() {
   const numStations = state.stations.size;
   const totalMonthlyValueAllStations = totalMonthlyValue * numStations;
 
-  $('productCount').textContent = String(productCount);
-  $('totalValue').textContent = totalMonthlyValueAllStations.toLocaleString();
+  el('productCount').textContent = String(productCount);
+  el('totalValue').textContent = totalMonthlyValueAllStations.toLocaleString();
 
-  const proposalSection = $('proposalSection');
+  const proposalSection = el('proposalSection');
   if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
   else proposalSection.classList.add('hidden');
 
   if (pricingType === 'barter') {
     const annualBarterValue = totalMonthlyValueAllStations * 12;
     calculateBarterMinutes(annualBarterValue, totalMonthlyValueAllStations);
-    $('cashValuesSection').classList.add('hidden');
+    el('cashValuesSection').classList.add('hidden');
   } else if (pricingType === 'mixed') {
     renderCashValues(totalMonthlyValueAllStations);
   } else {
     showCashSummary(totalMonthlyValueAllStations);
-    $('cashValuesSection').classList.add('hidden');
+    el('cashValuesSection').classList.add('hidden');
   }
 }
 
 /* ---- Cash summary + barter calc + proposal generation ---- */
-/* These are your originals, unchanged below. */
 
-function showCashSummary(totalMonthlyValue) { /* ... unchanged ... */ }
-function calculateBarterMinutes(totalBarterValue, monthlyBarterValue) { /* ... unchanged ... */ }
-function renderCashValues(monthlyProductValue) { /* ... unchanged ... */ }
-function updateMixedPricing(monthlyProductValue) { renderCashValues(monthlyProductValue); }
-function resetMinutesToAuto() { productState.manualMinutes.clear(); updateProductSummary(); }
-function updateProductCalculations() { if (productState.pricingType === 'barter' && productState.selectedProducts.size > 0) updateProductSummary(); }
+function showCashSummary(totalMonthlyValue) {
+  const barterSection = el('barterMinutesSection');
+  const breakdown = el('barterBreakdown');
+  const sectionTitle = el('barterSectionTitle');
+  const barterControls = el('barterControls');
+  const barterTotals = el('barterTotals');
+
+  if (totalMonthlyValue === 0 || state.stations.size === 0) {
+    barterSection.classList.add('hidden');
+    return;
+  }
+
+  barterSection.classList.remove('hidden');
+  breakdown.innerHTML = '';
+
+  if (sectionTitle) sectionTitle.textContent = 'CASH DEAL SUMMARY';
+  if (barterControls) barterControls.classList.add('hidden');
+  if (barterTotals) barterTotals.classList.add('hidden');
+
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
+
+  if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
+
+  const perStationMonthly = totalMonthlyValue / selectedStations.length;
+
+  selectedStations.forEach(station => {
+    const row = document.createElement('div');
+    row.className = 'el';
+    row.style.padding = '8px 10px';
+    row.style.justifyContent = 'space-between';
+
+    const stationName = document.createElement('div');
+    stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+
+    const stationValue = document.createElement('div');
+    stationValue.className = 'badge';
+    stationValue.textContent = `$${Math.round(perStationMonthly).toLocaleString()}/mo`;
+
+    row.appendChild(stationName);
+    row.appendChild(stationValue);
+    breakdown.appendChild(row);
+  });
+
+  const annualValue = totalMonthlyValue * 12;
+
+  const summaryRow = document.createElement('div');
+  summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 12px; background: rgba(15, 24, 35, 0.5);';
+
+  summaryRow.innerHTML = `
+    <div><strong>Per Station:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      $${Math.round(perStationMonthly).toLocaleString()}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
+    </div></div>
+    <div><strong>Total Monthly Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      $${Math.round(totalMonthlyValue).toLocaleString()}
+    </div></div>
+    <div><strong>Total Annual Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      $${Math.round(annualValue).toLocaleString()} ($${Math.round(totalMonthlyValue).toLocaleString()}/mo × 12)
+    </div></div>
+  `;
+  breakdown.appendChild(summaryRow);
+}
+
+function calculateBarterMinutes(totalBarterValue, monthlyBarterValue) {
+  const barterSection = el('barterMinutesSection');
+  const breakdown = el('barterBreakdown');
+  const sectionTitle = el('barterSectionTitle');
+  const barterControls = el('barterControls');
+  const barterTotals = el('barterTotals');
+
+  if (totalBarterValue === 0 || state.stations.size === 0) {
+    barterSection.classList.add('hidden');
+    return;
+  }
+
+  barterSection.classList.remove('hidden');
+  breakdown.innerHTML = '';
+  if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
+  if (barterControls) barterControls.classList.remove('hidden');
+  if (barterTotals) barterTotals.classList.remove('hidden');
+
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
+  if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
+
+  const cpm = productState.cpm;
+  const factor = cpm * 7 * 2 * 52;
+
+  const hasAnyManualOverrides = selectedStations.some(s => productState.manualMinutes.has(s.key));
+  let stationSpots = [];
+
+  if (hasAnyManualOverrides) {
+    selectedStations.forEach(station => {
+      const manualOverride = productState.manualMinutes.get(station.key);
+      stationSpots.push({
+        station,
+        primeSpots: manualOverride?.prime || 0,
+        rosSpots: manualOverride?.ros || 0,
+        primeAQH: station.primeAQH||0,
+        rosAQH: station.rosAQH||0,
+        manual: true
+      });
+    });
+  } else {
+    let totalPrimeEfficiency = 0, totalROSEfficiency=0;
+
+    selectedStations.forEach(station => {
+      const primeAQH = station.primeAQH || 0;
+      const rosAQH   = station.rosAQH || 0;
+      if (primeAQH>0) totalPrimeEfficiency += (primeAQH/1000)*factor;
+      if (rosAQH>0)   totalROSEfficiency   += (rosAQH/1000)*factor;
+    });
+
+    const totalEfficiency = totalPrimeEfficiency + totalROSEfficiency;
+
+    selectedStations.forEach(station => {
+      const primeAQH = station.primeAQH || 0;
+      const rosAQH   = station.rosAQH || 0;
+      let primeSpots=0, rosSpots=0;
+
+      if (primeAQH>0 && totalEfficiency>0){
+        const primeSpotValue=(primeAQH/1000)*factor;
+        const primeShare=(primeSpotValue/totalEfficiency)*totalBarterValue;
+        primeSpots=Math.round(primeShare/primeSpotValue); if(!primeSpots) primeSpots=1;
+      }
+      if (rosAQH>0 && totalEfficiency>0){
+        const rosSpotValue=(rosAQH/1000)*factor;
+        const rosShare=(rosSpotValue/totalEfficiency)*totalBarterValue;
+        rosSpots=Math.round(rosShare/rosSpotValue); if(!rosSpots) rosSpots=1;
+      }
+
+      stationSpots.push({ station, primeSpots, rosSpots, primeAQH, rosAQH, manual:false });
+    });
+  }
+
+  let totalPrimeSpots=0, totalROSSpots=0, totalActualValue=0;
+
+  stationSpots.forEach(entry => {
+    totalPrimeSpots += entry.primeSpots;
+    totalROSSpots   += entry.rosSpots;
+    if (entry.primeAQH>0 && entry.primeSpots>0) totalActualValue += (entry.primeAQH/1000)*factor*entry.primeSpots;
+    if (entry.rosAQH>0 && entry.rosSpots>0)     totalActualValue += (entry.rosAQH/1000)*factor*entry.rosSpots;
+  });
+
+  stationSpots.forEach(entry => {
+    const station = entry.station;
+    const row = document.createElement('div');
+    row.className='el';
+    row.style.flexDirection='column';
+    row.style.alignItems='stretch';
+    row.style.gap='8px';
+
+    const stationName = document.createElement('div');
+    stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+    row.appendChild(stationName);
+
+    if ((entry.primeAQH===0 && entry.rosAQH===0)) {
+      const noDataMsg = document.createElement('div');
+      noDataMsg.style.cssText='margin-left:8px;color:var(--muted);font-size:11px;font-style:italic;';
+      noDataMsg.textContent='⚠️ No AQH data available for this station';
+      row.appendChild(noDataMsg);
+      breakdown.appendChild(row);
+      return;
+    }
+
+    const editRow = document.createElement('div');
+    editRow.style.display='flex';
+    editRow.style.gap='12px';
+    editRow.style.marginLeft='8px';
+    editRow.style.alignItems='center';
+
+    if (entry.primeAQH>0) {
+      const g=document.createElement('div');
+      g.style.display='flex'; g.style.alignItems='center'; g.style.gap='6px';
+
+      const lbl=document.createElement('span'); lbl.className='muted'; lbl.textContent='Prime:';
+      const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.step='1'; inp.value=entry.primeSpots;
+      inp.style.width='60px'; inp.style.height='28px';
+      inp.onchange=()=> {
+        const val=Math.round(parseFloat(inp.value)||0);
+        const cur=productState.manualMinutes.get(station.key)||{};
+        productState.manualMinutes.set(station.key,{...cur,prime:val});
+        calculateBarterMinutes(totalBarterValue, monthlyBarterValue);
+      };
+      const unit=document.createElement('span'); unit.className='muted'; unit.style.fontSize='11px'; unit.textContent='spots/day';
+      const vBadge=document.createElement('span'); vBadge.className='badge'; vBadge.style.fontSize='10px';
+      vBadge.textContent=`$${Math.round((entry.primeAQH/1000)*factor).toLocaleString()}/yr`;
+
+      g.append(lbl,inp,unit,vBadge); editRow.appendChild(g);
+    }
+
+    if (entry.rosAQH>0) {
+      const g=document.createElement('div');
+      g.style.display='flex'; g.style.alignItems='center'; g.style.gap='6px';
+
+      const lbl=document.createElement('span'); lbl.className='muted'; lbl.textContent='ROS:';
+      const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.step='1'; inp.value=entry.rosSpots;
+      inp.style.width='60px'; inp.style.height='28px';
+      inp.onchange=()=> {
+        const val=Math.round(parseFloat(inp.value)||0);
+        const cur=productState.manualMinutes.get(station.key)||{};
+        productState.manualMinutes.set(station.key,{...cur,ros:val});
+        calculateBarterMinutes(totalBarterValue, monthlyBarterValue);
+      };
+      const unit=document.createElement('span'); unit.className='muted'; unit.style.fontSize='11px'; unit.textContent='spots/day';
+      const vBadge=document.createElement('span'); vBadge.className='badge'; vBadge.style.fontSize='10px';
+      vBadge.textContent=`$${Math.round((entry.rosAQH/1000)*factor).toLocaleString()}/yr`;
+
+      g.append(lbl,inp,unit,vBadge); editRow.appendChild(g);
+    }
+
+    if (entry.manual) {
+      const manualBadge=document.createElement('span');
+      manualBadge.className='badge'; manualBadge.style.background='#1a3a52';
+      manualBadge.textContent='✏️ Manual';
+      editRow.appendChild(manualBadge);
+    }
+
+    row.appendChild(editRow);
+    breakdown.appendChild(row);
+  });
+
+  el('totalPrimeMinutes').textContent = `${totalPrimeSpots} spots/day`;
+  el('totalROSMinutes').textContent   = `${totalROSSpots} spots/day`;
+
+  const variance = ((totalActualValue-totalBarterValue)/totalBarterValue)*100;
+  const isWithinTolerance = Math.abs(variance) <= 5;
+  const status = hasAnyManualOverrides ? '✏️ Manual' : '✓ Distributed';
+  const actualMonthly= totalActualValue/12;
+
+  const verifyRow=document.createElement('div');
+  verifyRow.style.cssText='padding:12px;font-size:12px;border-top:1px solid var(--edge);margin-top:8px;display:flex;flex-direction:column;gap:12px;background:rgba(15,24,35,0.5);';
+  verifyRow.innerHTML = `
+    <div><strong>Monthly Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      Target: $${Math.round(monthlyBarterValue).toLocaleString()}<br>
+      Actual: $${Math.round(actualMonthly).toLocaleString()} ${status}
+    </div></div>
+    <div><strong>Annual Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+      Target: $${Math.round(totalBarterValue).toLocaleString()}<br>
+      Actual: $${Math.round(totalActualValue).toLocaleString()} ${status}<br>
+      <span style="color:${isWithinTolerance?'var(--muted)':'#ff6b6b'};font-weight:500;">
+        Variance: ${variance>0?'+':''}${variance.toFixed(1)}% ${isWithinTolerance?'':'⚠️ Outside ±5% tolerance'}
+      </span>
+    </div></div>
+  `;
+  breakdown.appendChild(verifyRow);
+}
+
+function renderCashValues(monthlyProductValue) {
+  const cashSection = el('cashValuesSection');
+  const cashList = el('cashValuesList');
+
+  if (state.stations.size === 0) { cashSection.classList.add('hidden'); return; }
+
+  cashSection.classList.remove('hidden');
+  cashList.innerHTML = '';
+
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
+
+  let totalCash = 0;
+
+  selectedStations.forEach(station => {
+    const row = document.createElement('div');
+    row.className = 'el';
+    row.style.justifyContent = 'space-between';
+    row.style.alignItems = 'center';
+
+    const stationName = document.createElement('span');
+    stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+
+    const inputGroup = document.createElement('div');
+    inputGroup.style.display = 'flex';
+    inputGroup.style.alignItems = 'center';
+    inputGroup.style.gap = '6px';
+
+    const dollarSign = document.createElement('span');
+    dollarSign.textContent = '$';
+
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = '0';
+    input.step = '100';
+    input.placeholder = '0';
+    input.value = productState.stationCashValues.get(station.key) || '';
+    input.style.width = '100px';
+    input.style.height = '32px';
+    input.onchange = () => {
+      const val = parseFloat(input.value) || 0;
+      if (val > 0) productState.stationCashValues.set(station.key, val);
+      else productState.stationCashValues.delete(station.key);
+      updateMixedPricing(monthlyProductValue);
+    };
+
+    inputGroup.appendChild(dollarSign);
+    inputGroup.appendChild(input);
+
+    row.appendChild(stationName);
+    row.appendChild(inputGroup);
+    cashList.appendChild(row);
+
+    totalCash += (productState.stationCashValues.get(station.key) || 0);
+  });
+
+  el('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
+
+  const remainingMonthly = Math.max(0, monthlyProductValue - totalCash);
+  el('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
+
+  if (remainingMonthly > 0) {
+    calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
+  } else {
+    el('barterMinutesSection').classList.add('hidden');
+  }
+}
+
+function updateMixedPricing(monthlyProductValue) {
+  renderCashValues(monthlyProductValue);
+}
+
+function resetMinutesToAuto() {
+  productState.manualMinutes.clear();
+  updateProductSummary();
+}
+
+function updateProductCalculations() {
+  if (productState.pricingType === 'barter' && productState.selectedProducts.size > 0) {
+    updateProductSummary();
+  }
+}
 
 function handlePricingTypeChange() {
   const selectedType = document.querySelector('input[name="pricingType"]:checked').value;
@@ -1370,9 +1744,9 @@ function handlePricingTypeChange() {
   productState.customPrices.clear();
   productState.manualMinutes.clear();
 
-  const cpmDisplay = $('cpmDisplay');
-  const cashValuesSection = $('cashValuesSection');
-  const barterSection = $('barterMinutesSection');
+  const cpmDisplay = el('cpmDisplay');
+  const cashValuesSection = el('cashValuesSection');
+  const barterSection = el('barterMinutesSection');
 
   if (selectedType === 'cash') {
     cpmDisplay.classList.add('hidden');
@@ -1396,36 +1770,336 @@ function resetPricingToRateCard() {
   updateProductSummary();
 }
 
-function generateProposal() { /* ... unchanged ... */ }
-function generateCashProposalTable(stations, products) { /* ... unchanged ... */ }
-function generateBarterProposalTable(stations, products) { /* ... unchanged ... */ }
-function generateMixedProposalTable(stations, products) { /* ... unchanged ... */ }
-function copyProposalToClipboard() { /* ... unchanged ... */ }
+/* ===== Proposal Generation ===== */
+
+function generateProposal() {
+  const pricingType = productState.pricingType;
+  const proposalSection = el('proposalSection');
+  const proposalOutput = el('proposalOutput');
+  const proposalTable = el('proposalTable');
+  const proposalMode = el('proposalMode');
+
+  proposalSection.classList.remove('hidden');
+  proposalOutput.classList.remove('hidden');
+
+  const selectedStations = [];
+  (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+    const key = s.parent + '|' + s.market + '|' + s.station;
+    if (state.stations.has(key)) selectedStations.push({...s, key});
+  });
+
+  if (!selectedStations.length) {
+    proposalTable.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No stations selected. Please select stations first.</div>';
+    return;
+  }
+
+  const selectedProducts = [];
+  productState.selectedProducts.forEach(productId => {
+    const product = PRODUCTS.find(p => p.id === productId);
+    if (!product) return;
+    const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+    if (rateCardValue === null) return;
+    const value = productState.customPrices.get(productId) ?? rateCardValue;
+    selectedProducts.push({ ...product, monthlyValue: value });
+  });
+
+  if (!selectedProducts.length) {
+    proposalTable.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No products selected. Please select products first.</div>';
+    return;
+  }
+
+  if (pricingType === 'cash') { proposalMode.textContent = 'Cash Deal'; proposalMode.style.background = '#0d4a2e'; }
+  else if (pricingType === 'barter') { proposalMode.textContent = 'Barter Deal'; proposalMode.style.background = '#3a2d0b'; }
+  else { proposalMode.textContent = 'Mixed Deal'; proposalMode.style.background = '#2d1a3a'; }
+
+  proposalTable.innerHTML =
+    pricingType === 'cash'   ? generateCashProposalTable(selectedStations, selectedProducts) :
+    pricingType === 'barter' ? generateBarterProposalTable(selectedStations, selectedProducts) :
+                               generateMixedProposalTable(selectedStations, selectedProducts);
+
+  proposalSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* Proposal table builders (unchanged logic) */
+function generateCashProposalTable(stations, products) {
+  const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
+  const totalMonthly = perStationMonthly * stations.length;
+  const totalAnnual = totalMonthly * 12;
+
+  let html = `
+    <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
+      <h2 style="text-align: center; margin: 0 0 24px 0; color: #5fb584; font-size: 20px;">FUTURI MEDIA - RADIO PROPOSAL</h2>
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Products:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <tbody>`;
+  products.forEach((product, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${product.name}</td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; border-bottom: 1px solid #e0e0e0;">$${product.monthlyValue.toLocaleString()}/month</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Stations:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <thead>
+            <tr style="background: #4a6178; color: white;">
+              <th style="padding: 12px 16px; text-align: left;">Station</th>
+              <th style="padding: 12px 16px; text-align: left;">Market</th>
+              <th style="padding: 12px 16px; text-align: right;">Monthly Value</th>
+            </tr>
+          </thead>
+          <tbody>`;
+  stations.forEach((station, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${station.station}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${station.market}</td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; border-bottom: 1px solid #e0e0e0;">$${perStationMonthly.toLocaleString()}</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+          <tfoot>
+            <tr style="background: #e8f4f0; font-weight: 700;">
+              <td colspan="2" style="padding: 16px; text-align: right; border-top: 2px solid #4a6178;">TOTAL MONTHLY:</td>
+              <td style="padding: 16px; text-align: right; font-size: 16px; color: #0d4a2e; border-top: 2px solid #4a6178;">$${totalMonthly.toLocaleString()}</td>
+            </tr>
+            <tr style="background: #d4ede5; font-weight: 700;">
+              <td colspan="2" style="padding: 16px; text-align: right;">TOTAL ANNUAL:</td>
+              <td style="padding: 16px; text-align: right; font-size: 16px; color: #0d4a2e;">$${totalAnnual.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>`;
+  return html;
+}
+
+function generateBarterProposalTable(stations, products) {
+  const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
+  const totalMonthly = perStationMonthly * stations.length;
+  const totalAnnual = totalMonthly * 12;
+
+  let html = `
+    <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
+      <h2 style="text-align: center; margin: 0 0 24px 0; color: #5fb584; font-size: 20px;">FUTURI MEDIA - RADIO PROPOSAL (BARTER)</h2>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Products:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <tbody>`;
+  products.forEach((product, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${product.name}</td>
+              <td style="padding: 12px 16px; text-align: right; font-weight: 600; border-bottom: 1px solid #e0e0e0;">$${product.monthlyValue.toLocaleString()}/month</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Stations & Barter Spots:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <thead>
+            <tr style="background: #4a6178; color: white;">
+              <th style="padding: 12px 16px; text-align: left;">Station</th>
+              <th style="padding: 12px 16px; text-align: left;">Market</th>
+              <th style="padding: 12px 16px; text-align: center;">Prime Spots<br><span style="font-size: 10px; font-weight: normal;">M-SU 5a-8p</span></th>
+              <th style="padding: 12px 16px; text-align: center;">ROS Spots<br><span style="font-size: 10px; font-weight: normal;">M-SU 6a-12a</span></th>
+            </tr>
+          </thead>
+          <tbody>`;
+  stations.forEach((station, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    const manualOverride = productState.manualMinutes.get(station.key);
+    const primeSpots = manualOverride?.prime ?? 1;
+    const rosSpots = manualOverride?.ros ?? 1;
+
+    html += `
+            <tr style="background: ${bgColor};">
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0; font-weight: 500;">${station.station}</td>
+              <td style="padding: 12px 16px; border-bottom: 1px solid #e0e0e0;">${station.market}</td>
+              <td style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #e0e0e0;">${primeSpots}/day</td>
+              <td style="padding: 12px 16px; text-align: center; font-weight: 600; border-bottom: 1px solid #e0e0e0;">${rosSpots}/day</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+          <tfoot>
+            <tr style="background: #e8f4f0; font-weight: 700;">
+              <td colspan="4" style="padding: 16px; text-align: center; border-top: 2px solid #4a6178; font-size: 14px;">
+                MONTHLY VALUE: <span style="color: #0d4a2e;">$${totalMonthly.toLocaleString()}</span>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                ANNUAL VALUE: <span style="color: #0d4a2e;">$${totalAnnual.toLocaleString()}</span>
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="margin-top: 16px; padding: 12px; background: rgba(74, 97, 120, 0.2); border-radius: 6px; font-size: 12px; color: #b0c4d4;">
+          <strong>Note:</strong> Prime = M-SU 5a-8p (Drive Time), ROS = M-SU 6a-12a (Run of Schedule). Spots are per day.
+        </div>
+      </div>
+    </div>`;
+  return html;
+}
+
+function generateMixedProposalTable(stations, products) {
+  const perStationMonthly = products.reduce((sum, p) => sum + p.monthlyValue, 0);
+  let totalCash=0;
+
+  let html = `
+    <div style="font-family: Arial, sans-serif; color: white; background: #0f1823; padding: 20px; border-radius: 8px;">
+      <h2 style="text-align: center; margin: 0 0 24px 0; color: #5fb584; font-size: 20px;">FUTURI MEDIA - RADIO PROPOSAL (MIXED)</h2>
+
+      <div style="margin-bottom: 30px;">
+        <h3 style="color: #5fb584; font-size: 14px; margin: 0 0 12px 0; text-transform: uppercase; letter-spacing: 0.5px;">Products:</h3>
+        <table style="width: 100%; border-collapse: collapse; background: white; color: black; border-radius: 6px; overflow: hidden;">
+          <tbody>`;
+  products.forEach((product, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    html += `
+            <tr style="background:${bgColor};">
+              <td style="padding:12px 16px;border-bottom:1px solid #e0e0e0;">${product.name}</td>
+              <td style="padding:12px 16px;text-align:right;font-weight:600;border-bottom:1px solid #e0e0e0;">$${product.monthlyValue.toLocaleString()}/month</td>
+            </tr>`;
+  });
+  html += `
+          </tbody>
+        </table>
+      </div>
+
+      <div>
+        <h3 style="color:#5fb584;font-size:14px;margin:0 0 12px 0;text-transform:uppercase;letter-spacing:0.5px;">Stations (Cash + Barter):</h3>
+        <table style="width:100%;border-collapse:collapse;background:white;color:black;border-radius:6px;overflow:hidden;">
+          <thead>
+            <tr style="background:#4a6178;color:white;">
+              <th style="padding:12px 16px;text-align:left;">Station</th>
+              <th style="padding:12px 16px;text-align:left;">Market</th>
+              <th style="padding:12px 16px;text-align:right;">Cash/Month</th>
+              <th style="padding:12px 16px;text-align:center;">Prime</th>
+              <th style="padding:12px 16px;text-align:center;">ROS</th>
+            </tr>
+          </thead>
+          <tbody>`;
+  stations.forEach((station, idx) => {
+    const bgColor = idx % 2 === 0 ? '#ffffff' : '#f8f9fa';
+    const cashValue = productState.stationCashValues.get(station.key) || 0;
+    totalCash += cashValue;
+
+    const manualOverride = productState.manualMinutes.get(station.key);
+    const primeSpots = manualOverride?.prime ?? (cashValue<perStationMonthly?1:0);
+    const rosSpots   = manualOverride?.ros ?? 0;
+
+    html += `
+            <tr style="background:${bgColor};">
+              <td style="padding:12px 16px;border-bottom:1px solid #e0e0e0;font-weight:500;">${station.station}</td>
+              <td style="padding:12px 16px;border-bottom:1px solid #e0e0e0;">${station.market}</td>
+              <td style="padding:12px 16px;text-align:right;font-weight:600;border-bottom:1px solid #e0e0e0;">$${cashValue.toLocaleString()}</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;border-bottom:1px solid #e0e0e0;">${primeSpots?primeSpots+'/day':'None'}</td>
+              <td style="padding:12px 16px;text-align:center;font-weight:600;border-bottom:1px solid #e0e0e0;">${rosSpots?rosSpots+'/day':'None'}</td>
+            </tr>`;
+  });
+
+  const totalMonthly = perStationMonthly * stations.length;
+  const totalAnnual = totalMonthly * 12;
+  const totalBarterMonthly = totalMonthly - totalCash;
+
+  html += `
+          </tbody>
+          <tfoot>
+            <tr style="background:#e8f4f0;font-weight:700;">
+              <td colspan="2" style="padding:16px;text-align:right;border-top:2px solid #4a6178;">CASH TOTAL (MONTHLY):</td>
+              <td colspan="3" style="padding:16px;text-align:center;font-size:16px;color:#0d4a2e;border-top:2px solid #4a6178;">$${totalCash.toLocaleString()}</td>
+            </tr>
+            <tr style="background:#d4ede5;font-weight:700;">
+              <td colspan="2" style="padding:16px;text-align:right;">BARTER VALUE (MONTHLY):</td>
+              <td colspan="3" style="padding:16px;text-align:center;font-size:16px;color:#0d4a2e;">$${totalBarterMonthly.toLocaleString()}</td>
+            </tr>
+            <tr style="background:#c0e7d8;font-weight:700;">
+              <td colspan="2" style="padding:16px;text-align:right;">TOTAL ANNUAL VALUE:</td>
+              <td colspan="3" style="padding:16px;text-align:center;font-size:16px;color:#0d4a2e;">$${totalAnnual.toLocaleString()}</td>
+            </tr>
+          </tfoot>
+        </table>
+
+        <div style="margin-top:16px;padding:12px;background:rgba(74,97,120,0.2);border-radius:6px;font-size:12px;color:#b0c4d4;">
+          <strong>Note:</strong> Mixed deal combines cash + barter. Prime = M-SU 5a-8p, ROS = M-SU 6a-12a. Spots per day.
+        </div>
+      </div>
+    </div>`;
+  return html;
+}
+
+function copyProposalToClipboard() {
+  const proposalTable = el('proposalTable');
+  if (!proposalTable || !proposalTable.innerHTML || proposalTable.innerHTML.includes('No stations') || proposalTable.innerHTML.includes('No products')) {
+    alert('Please generate a proposal first');
+    return;
+  }
+
+  const temp = document.createElement('div');
+  temp.innerHTML = proposalTable.innerHTML;
+  temp.style.position = 'absolute';
+  temp.style.left = '-9999px';
+  document.body.appendChild(temp);
+
+  const range = document.createRange();
+  range.selectNode(temp);
+  window.getSelection().removeAllRanges();
+  window.getSelection().addRange(range);
+
+  try {
+    document.execCommand('copy');
+    const btn = el('btnCopyProposal');
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Copied!';
+    btn.style.background = '#0d4a2e';
+    setTimeout(() => { btn.textContent = originalText; btn.style.background = ''; }, 2000);
+  } catch {
+    alert('Failed to copy. Please manually select and copy the proposal.');
+  }
+  window.getSelection().removeAllRanges();
+  document.body.removeChild(temp);
+}
 
 function attachProductEventListeners() {
   document.querySelectorAll('input[name="pricingType"]').forEach(radio => {
     radio.addEventListener('change', handlePricingTypeChange);
   });
 
-  $('productSearch').addEventListener('input', renderProducts);
+  el('productSearch').addEventListener('input', renderProducts);
 
-  $('btnSelAllProducts').onclick = () => {
+  el('btnSelAllProducts').onclick = () => {
     PRODUCTS.forEach(p => productState.selectedProducts.add(p.id));
     renderProducts();
     updateProductSummary();
   };
 
-  $('btnClrAllProducts').onclick = () => {
+  el('btnClrAllProducts').onclick = () => {
     productState.selectedProducts.clear();
     productState.customPrices.clear();
     renderProducts();
     updateProductSummary();
   };
 
-  $('btnResetPricing').onclick = resetPricingToRateCard;
-  $('btnResetMinutes').onclick = resetMinutesToAuto;
+  el('btnResetPricing').onclick = resetPricingToRateCard;
+  el('btnResetMinutes').onclick = resetMinutesToAuto;
 
-  const genBtn = $('btnGenerateProposal');
+  const genBtn = el('btnGenerateProposal');
   genBtn.onclick = () => {
     if (!can('generate_proposal')) {
       alert('Your role cannot generate proposals.');
@@ -1434,8 +2108,9 @@ function attachProductEventListeners() {
     generateProposal();
   };
 
-  $('btnCopyProposal').onclick = copyProposalToClipboard;
+  el('btnCopyProposal').onclick = copyProposalToClipboard;
 
+  // enable/disable Generate button live
   const syncGenBtn = () => {
     const ok = (productState.selectedProducts.size > 0) && (state.stations.size > 0) && can('generate_proposal');
     genBtn.disabled = !ok;
@@ -1447,3 +2122,4 @@ function attachProductEventListeners() {
 
 </body>
 </html>
+
