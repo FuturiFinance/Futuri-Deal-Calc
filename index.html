@@ -360,7 +360,7 @@
       await setDoc(uref, {
         email: user.email,
         name: user.displayName || "",
-        role: "view",
+        role: "admin",
         createdAt: serverTimestamp()
       });
     }
