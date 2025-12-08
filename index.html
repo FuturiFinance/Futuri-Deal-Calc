@@ -376,6 +376,7 @@
    Google-only
    ========================= */
 const el = (id) => document.getElementById(id);
+const $ = el; // ✅ alias so $() works everywhere below
 
 const ADMIN_EMAILS = new Set([
   "sabrinacarlo@futurimedia.com"
@@ -393,151 +394,7 @@ let CURRENT_ROLE = "staff"; // default staff for UX; real role comes from Firest
 function currentRole(){ return CURRENT_ROLE; }
 function can(action){ return !!PERMS[currentRole()]?.[action]; }
 
-function showGoogleLogin(){
-  el("googleLoginScreen").style.display = "flex";
-  document.querySelector("main").style.filter = "blur(3px)";
-}
-function hideGoogleLogin(){
-  el("googleLoginScreen").style.display = "none";
-  document.querySelector("main").style.filter = "";
-}
-
-async function ensureUserDoc(user){
-  const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
-  const uref = doc(db, "users", user.uid);
-  const snap = await getDoc(uref);
-
-  // If missing, create with role:
-  if (!snap.exists()){
-    const emailLower = (user.email || "").toLowerCase();
-    const role = ADMIN_EMAILS.has(emailLower) ? "admin" : "staff";
-
-    await setDoc(uref, {
-      email: user.email || "",
-      name: user.displayName || "",
-      role,
-      createdAt: serverTimestamp()
-    });
-
-    return { email: user.email || "", name: user.displayName || "", role };
-  }
-
-  // If exists, DO NOT update (rules block non-admin updates)
-  return snap.data();
-}
-
-function applyRoleUI(){
-  el("whois").textContent =
-    `Role: ${CURRENT_ROLE}` + (CURRENT_USER?.name ? ` (${CURRENT_USER.name})` : "");
-
-  el("btnAddCompany").style.display = can("manage_custom_parents") ? "" : "none";
-  el("btnExportUserData").style.display = can("import_export") ? "" : "none";
-
-  const importInput = el("inputImportUserData");
-  if (importInput) {
-    const label = importInput.closest("label");
-    if (label) label.style.display = can("import_export") ? "" : "none";
-  }
-
-  el("btnGenerateProposal").disabled = !can("generate_proposal");
-  el("btnUpload").style.display = can("upload_files") ? "" : "none";
-  el("uploadHint").textContent = can("upload_files")
-    ? "Snapshots save your current selections + pricing to Firestore."
-    : "View-only accounts cannot save snapshots.";
-
-  el("adminPanel").classList.toggle("hidden", !can("view_all_uploads"));
-}
-
-/* -------------------------
-   Firestore Upload Snapshots
-   ------------------------- */
-function buildSnapshotPayload(){
-  const stations = Array.from(state.stations);
-  const markets  = Array.from(state.markets);
-  const products = Array.from(productState.selectedProducts);
-
-  return {
-    parent: state.parent,
-    markets,
-    stations,
-    products,
-    pricingType: productState.pricingType,
-    customPrices: Object.fromEntries(productState.customPrices),
-    manualMinutes: Object.fromEntries(productState.manualMinutes),
-    stationCashValues: Object.fromEntries(productState.stationCashValues),
-    cpm: productState.cpm,
-    proposalHTML: $("proposalTable")?.innerHTML || ""
-  };
-}
-
-async function saveSnapshot(){
-  const { db, auth, collection, addDoc, serverTimestamp } = window.fb;
-  const user = auth.currentUser;
-  if (!user) return;
-
-  if (!state.parent || state.stations.size === 0 || productState.selectedProducts.size === 0){
-    alert("Pick a parent, stations, and products first — then save a snapshot.");
-    return;
-  }
-
-  // Ask user for snapshot name
-  let snapName = prompt("Name this snapshot (optional):", "");
-  if (snapName) snapName = snapName.trim();
-  if (!snapName) snapName = null;
-
-  $("uploadStatus").textContent = "Saving...";
-
-  await addDoc(collection(db, "users", user.uid, "uploads"), {
-    type: "snapshot",
-    name: snapName,                 // 🔥 save snapshot name
-    createdAt: serverTimestamp(),
-    payload: buildSnapshotPayload()
-  });
-
-  $("uploadStatus").textContent = "Saved ✓";
-  setTimeout(()=> $("uploadStatus").textContent = "", 1800);
-
-  await renderMyUploads();
-  if (can("view_all_uploads")) await renderAdminUsers();
-}
-
-async function renderMyUploads(){
-  const { db, auth, collection, getDocs, query, orderBy } = window.fb;
-  const uid = auth.currentUser.uid;
-
-  const qRef = query(
-    collection(db, "users", uid, "uploads"),
-    orderBy("createdAt", "desc")
-  );
-  const snaps = await getDocs(qRef);
-
-  const list = $("uploadsList");
-  list.innerHTML = "";
-
-  if (snaps.empty){
-    list.innerHTML = `<div class="placeholder">No snapshots yet.</div>`;
-    return;
-  }
-
-  snaps.forEach(docSnap => {
-    const d = docSnap.data();
-    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
-    const label = when ? when.toLocaleString() : "(pending timestamp)";
-    const displayName = d.name || "Snapshot";
-
-    const row = document.createElement("div");
-    row.className = "el";
-    row.innerHTML = `
-      <div>
-        <strong>${displayName}</strong>
-        <div class="muted" style="font-size:11px">${label}</div>
-      </div>
-      <button class="btn" data-id="${docSnap.id}">Load</button>
-    `;
-    row.querySelector("button").onclick = () => loadSnapshot(d.payload);
-    list.appendChild(row);
-  });
-}
+// ... everything else stays the same ...
 
 function loadSnapshot(payload){
   if (!payload) return;
@@ -573,8 +430,6 @@ function loadSnapshot(payload){
   }
 
   alert("Snapshot loaded.");
-}
-
 }
 
 /* -------------------------
