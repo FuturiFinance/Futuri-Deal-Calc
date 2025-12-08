@@ -481,18 +481,27 @@ async function saveSnapshot(){
     return;
   }
 
-  el("uploadStatus").textContent = "Saving...";
+  // ✅ ask for a name
+  let snapName = prompt("Name this snapshot (optional):", "");
+  if (snapName) snapName = snapName.trim();
+  if (!snapName) snapName = null;
+
+  $("uploadStatus").textContent = "Saving...";
+
   await addDoc(collection(db, "users", user.uid, "uploads"), {
     type: "snapshot",
+    name: snapName,                 // ✅ new field
     createdAt: serverTimestamp(),
     payload: buildSnapshotPayload()
   });
-  el("uploadStatus").textContent = "Saved ✓";
-  setTimeout(()=> el("uploadStatus").textContent = "", 1800);
+
+  $("uploadStatus").textContent = "Saved ✓";
+  setTimeout(()=> $("uploadStatus").textContent = "", 1800);
 
   await renderMyUploads();
   if (can("view_all_uploads")) await renderAdminUsers();
 }
+
 
 async function renderMyUploads(){
   const { db, auth, collection, getDocs, query, orderBy } = window.fb;
@@ -519,13 +528,24 @@ async function renderMyUploads(){
 
     const row = document.createElement("div");
     row.className = "el";
-    row.innerHTML = `
-      <div>
-        <strong>${d.type || "snapshot"}</strong>
-        <div class="muted" style="font-size:11px">${label}</div>
-      </div>
-      <button class="btn" data-id="${docSnap.id}">Load</button>
-    `;
+    snaps.forEach(docSnap => {
+  const d = docSnap.data();
+  const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+  const label = when ? when.toLocaleString() : "(pending timestamp)";
+  const displayName = d.name || "Snapshot";
+
+  const row = document.createElement("div");
+  row.className = "el";
+  row.innerHTML = `
+    <div>
+      <strong>${displayName}</strong>
+      <div class="muted" style="font-size:11px">${label}</div>
+    </div>
+    <button class="btn" data-id="${docSnap.id}">Load</button>
+  `;
+  row.querySelector("button").onclick = () => loadSnapshot(d.payload);
+  list.appendChild(row);
+});
     row.querySelector("button").onclick = () => loadSnapshot(d.payload);
     list.appendChild(row);
   });
@@ -649,7 +669,7 @@ async function renderAdminUsers(){
         row.className = "el";
         row.innerHTML = `
           <div>
-            <strong>${d.type || "snapshot"}</strong>
+            <strong>${d.name || d.type || "Snapshot"}</strong>
             <div class="muted" style="font-size:11px">${label}</div>
           </div>
           <button class="btn">Load</button>
