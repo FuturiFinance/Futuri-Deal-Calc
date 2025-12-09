@@ -38,6 +38,10 @@
     .back-btn:hover { background: #152533; border-color: #2a4158; }
     .role-badge { background:#132437; border:1px solid #223244; border-radius: 999px; padding:4px 10px; font-size:12px; }
 
+    /* Prevent padding/border from increasing element width */
+    *, *::before, *::after { box-sizing: border-box; }
+
+
     /* Google-only login overlay */
     #googleLoginScreen {
       position: fixed; inset: 0;
@@ -162,6 +166,30 @@
   color: #ff9a9a;
   font-size: 12px;
 }
+
+  /* Any direct form control inside .row should flex and shrink nicely */
+.row > input,
+.row > select,
+.row > textarea {
+  flex: 1 1 auto;
+  min-width: 0;   /* allows shrinking inside flex */
+  width: auto;    /* overrides width:100% */
+}
+
+/* If you wrap inputs in a div inside .row, make the wrapper flex too */
+.row > .field,
+.row > .grow {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.row > .field > input,
+.row > .field > select,
+.row > .grow > input,
+.row > .grow > select {
+  width: 100%;
+  min-width: 0;
+}
+
 
   </style>
 </head>
