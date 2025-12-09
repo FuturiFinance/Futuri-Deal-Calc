@@ -504,56 +504,80 @@ function loadSnapshot(payload){
 }
 
 // Save snapshot (FIXED to use CURRENT_UID)
-async function saveSnapshot(){
-  if (!CURRENT_UID) {
-    console.warn("saveSnapshot: no CURRENT_UID yet");
-    return;
-  }
-  if (!can("upload_files")) return;
+async function saveSnapshot() {
+  if (!CURRENT_USER) return alert("Not signed in.");
 
   const { db, collection, addDoc, serverTimestamp } = window.fb;
 
-  const payload = serializeSnapshotPayload();
-  const name = `Snapshot ${new Date().toLocaleString()}`;
+  // --- ask for a name ---
+  let name = prompt("Name this snapshot:", "");
+  if (name === null) return; // user canceled
+  name = name.trim();
 
-  await addDoc(
-    collection(db, "users", CURRENT_UID, "uploads"),
-    {
-      type: "snapshot",
-      name,
-      createdAt: serverTimestamp(),
-      payload
-    }
-  );
+  if (!name) {
+    // fallback to timestamp name if blank
+    const now = new Date();
+    name = `Snapshot ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+  }
 
-  el("uploadStatus").textContent = "Saved ✓";
-  setTimeout(()=>el("uploadStatus").textContent="", 1600);
+  // --- build payload ---
+  const payload = buildSnapshotPayload(); // ✅ helper below
 
-  await renderMyUploads();
-  if (CURRENT_ROLE === "admin") renderAdminUsers();
+  function buildSnapshotPayload() {
+  return {
+    parent: state.parent,
+    markets: Array.from(state.markets),
+    stations: Array.from(state.stations),
+
+    pricingType: productState.pricingType,
+    products: Array.from(productState.selectedProducts),
+    customPrices: Object.fromEntries(productState.customPrices),
+    manualMinutes: Object.fromEntries(productState.manualMinutes),
+    stationCashValues: Object.fromEntries(productState.stationCashValues),
+    cpm: productState.cpm,
+
+    // store proposal if already generated
+    proposalHTML: el("proposalTable")?.innerHTML || null
+  };
 }
 
-// Render MY uploads (FIXED to use CURRENT_UID)
-async function renderMyUploads(){
-  if (!CURRENT_UID) return;
-  const { db, collection, getDocs, query, orderBy } = window.fb;
 
+  // --- write ---
+  await addDoc(collection(db, "users", CURRENT_USER.uid, "uploads"), {
+    type: "snapshot",
+    name,
+    payload,
+    createdAt: serverTimestamp()
+  });
+
+  el("uploadStatus").textContent = "Saved!";
+  setTimeout(() => (el("uploadStatus").textContent = ""), 1500);
+
+  await renderMyUploads();
+  if (currentRole() === "admin") await renderAdminUsers();
+}
+
+async function renderMyUploads() {
+  const { db, collection, getDocs, query, orderBy } = window.fb;
   const root = el("uploadsList");
   root.innerHTML = "";
 
+  if (!CURRENT_USER) return;
+
   const uq = query(
-    collection(db, "users", CURRENT_UID, "uploads"),
-    orderBy("createdAt","desc")
+    collection(db, "users", CURRENT_USER.uid, "uploads"),
+    orderBy("createdAt", "desc")
   );
+
   const snaps = await getDocs(uq);
 
-  if (snaps.empty){
+  if (snaps.empty) {
     root.innerHTML = `<div class="placeholder">No snapshots yet.</div>`;
     return;
   }
 
-  snaps.forEach(snap => {
-    const d = snap.data();
+  snaps.forEach(docSnap => {
+    const d = docSnap.data();
     const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
     const label = when ? when.toLocaleString() : "(pending)";
 
@@ -561,7 +585,7 @@ async function renderMyUploads(){
     row.className = "el";
     row.innerHTML = `
       <div>
-        <strong>${d.name || d.type || "Snapshot"}</strong>
+        <strong>${d.name || "Untitled Snapshot"}</strong>
         <div class="muted" style="font-size:11px">${label}</div>
       </div>
       <button class="btn">Load</button>
@@ -570,6 +594,7 @@ async function renderMyUploads(){
     root.appendChild(row);
   });
 }
+
 
 /* -------------------------
    Admin: Users + Uploads
