@@ -76,6 +76,95 @@
     }
     a { color: #7fc1ff; text-decoration: none; }
     a:hover { text-decoration: underline; }
+
+    /* ===== Modal styling ===== */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.55);
+  z-index: 9999;
+}
+
+.modal.hidden { display: none !important; }
+
+.modal-card {
+  width: min(560px, 95vw);
+  background: var(--card);
+  border: 1px solid var(--edge);
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  display: grid;
+  gap: 12px;
+}
+
+.modal-header {
+  display:flex;
+  justify-content: space-between;
+  align-items:center;
+}
+
+.modal-close {
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.modal-grid {
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .modal-grid { grid-template-columns: 1fr; }
+}
+
+.field label {
+  display:block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.field input {
+  width:100%;
+  height:40px;
+  background:#0c131b;
+  border:1px solid var(--edge);
+  color:var(--text);
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:14px;
+}
+
+.field input:focus {
+  outline:none;
+  border-color:#2a4a66;
+}
+
+.req { color:#ff8a8a; font-weight:600; margin-left:4px; }
+
+.modal-actions {
+  display:flex;
+  justify-content:flex-end;
+  gap:8px;
+  margin-top: 4px;
+}
+
+.modal-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 80, 80, .08);
+  border: 1px solid rgba(255, 80, 80, .25);
+  color: #ff9a9a;
+  font-size: 12px;
+}
+
   </style>
 </head>
 <body>
@@ -160,34 +249,45 @@
     </section>
 
     <!-- Add Company Modal -->
-    <div id="addCompanyModal" style="position:fixed; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.35); z-index:9999;">
-      <div style="background:#fff; width:min(560px, 95vw); border-radius:12px; padding:16px; box-shadow:0 10px 30px rgba(0,0,0,.2);">
-        <div class="title" style="margin-bottom:8px;">Add Company (Custom)</div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
-          <div>
-            <label>Parent <span style="color:#b00020">*</span></label>
-            <input id="ac_parent" type="text" placeholder="e.g., SonicTrek"/>
-          </div>
-          <div>
-            <label>Country</label>
-            <input id="ac_country" type="text" placeholder="e.g., Canada"/>
-          </div>
-          <div>
-            <label>Market <span style="color:#b00020">*</span></label>
-            <input id="ac_market" type="text" placeholder="e.g., Toronto"/>
-          </div>
-          <div>
-            <label>Station <span style="color:#b00020">*</span></label>
-            <input id="ac_station" type="text" placeholder="e.g., CKFM-FM"/>
-          </div>
-        </div>
-        <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px;">
-          <button class="btn" id="ac_cancel" type="button">Cancel</button>
-          <button class="btn" id="ac_save" type="button">Save</button>
-        </div>
-        <p id="ac_error" style="margin-top:8px; color:#b00020; display:none;"></p>
+    <!-- Add Company Modal (clean layout) -->
+<div id="addCompanyModal" class="modal hidden">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="title">Add Company (Custom)</div>
+      <button class="btn modal-close" id="ac_cancel" type="button">✕</button>
+    </div>
+
+    <div class="modal-grid">
+      <div class="field">
+        <label for="ac_parent">Parent <span class="req">*</span></label>
+        <input id="ac_parent" type="text" placeholder="PARENT" />
+      </div>
+
+      <div class="field">
+        <label for="ac_country">Country</label>
+        <input id="ac_country" type="text" placeholder="COUNTRY" />
+      </div>
+
+      <div class="field">
+        <label for="ac_market">Market <span class="req">*</span></label>
+        <input id="ac_market" type="text" placeholder="MARKET" />
+      </div>
+
+      <div class="field">
+        <label for="ac_station">Station <span class="req">*</span></label>
+        <input id="ac_station" type="text" placeholder="STATION" />
       </div>
     </div>
+
+    <p id="ac_error" class="modal-error hidden"></p>
+
+    <div class="modal-actions">
+      <button class="btn" id="ac_cancel_2" type="button">Cancel</button>
+      <button class="btn" id="ac_save" type="button">Save</button>
+    </div>
+  </div>
+</div>
+
 
     <section class="card">
       <div class="title">Step 2: Select Markets (Optional)</div>
@@ -1073,10 +1173,16 @@ function setupEventListeners() {
     el('ac_error').style.display = 'none';
     el('ac_parent').focus();
   };
-  el('ac_cancel').onclick = () => {
-    el('addCompanyModal').style.display = 'none';
-    el('ac_error').style.display = 'none';
-  };
+  
+ function closeAddCompanyModal() {
+  el('addCompanyModal').classList.add('hidden');
+  el('ac_error').classList.add('hidden');
+}
+
+el('ac_cancel').onclick = closeAddCompanyModal;
+const c2 = el('ac_cancel_2');
+if (c2) c2.onclick = closeAddCompanyModal;
+
 
   el('ac_save').onclick = () => {
     if (!can('manage_custom_parents')) {
