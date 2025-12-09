@@ -375,9 +375,9 @@ const ADMIN_EMAILS = new Set([
 ]);
 
 const PERMS = {
-  admin: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:true, manage_roles:true },
-  staff: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:false, manage_roles:false },
-  view:  { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
+  admin: { manage_custom_parents:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:true, manage_roles:true },
+  staff: { manage_custom_parents:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:false, manage_roles:false },
+  view:  { manage_custom_parents:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
 };
 
 let CURRENT_USER = null;   // Firestore user doc data
