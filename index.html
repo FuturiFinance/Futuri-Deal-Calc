@@ -171,19 +171,19 @@
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
           <div>
             <label>Parent <span style="color:#b00020">*</span></label>
-            <input id="ac_parent" type="text" placeholder="e.g., SonicTrek"/>
+            <input id="ac_parent" type="text" placeholder="e.g., PARENT COMPANY"/>
           </div>
           <div>
             <label>Country</label>
-            <input id="ac_country" type="text" placeholder="e.g., Canada"/>
+            <input id="ac_country" type="text" placeholder="e.g., COUNTRY"/>
           </div>
           <div>
             <label>Market <span style="color:#b00020">*</span></label>
-            <input id="ac_market" type="text" placeholder="e.g., Toronto"/>
+            <input id="ac_market" type="text" placeholder="e.g., MARKET"/>
           </div>
           <div>
             <label>Station <span style="color:#b00020">*</span></label>
-            <input id="ac_station" type="text" placeholder="e.g., CKFM-FM"/>
+            <input id="ac_station" type="text" placeholder="e.g., STATION"/>
           </div>
         </div>
         <div class="row" style="justify-content:flex-end; gap:8px; margin-top:12px;">
@@ -859,23 +859,6 @@ window.UserData = (function () {
 
     writeUser(u);
     return true;
-  }
-
-  function exportUser(){
-    const blob = new Blob([localStorage.getItem(USER_KEY) || '{"parents":[]}'], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'user_radio_data.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
-  }
-
-  async function importUser(file){
-    const text = await file.text();
-    const incoming = normalizeSchema(JSON.parse(text));
-    const current = readUser();
-    const merged = mergeBaseAndUser(current, incoming);
-    writeUser(merged);
   }
 
   function removeParent(parentName) {
