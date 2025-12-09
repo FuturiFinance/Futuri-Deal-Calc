@@ -1079,21 +1079,6 @@ function setupEventListeners() {
     el('ac_error').style.display = 'none';
   };
 
-  el('btnExportUserData').onclick = () => {
-    UserData.export();
-    const s = el('userDataStatus'); if (s) { s.textContent = 'Exported user_radio_data.json'; setTimeout(()=>s.textContent='', 2000); }
-  };
-
-  el('inputImportUserData').onchange = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    await UserData.import(file);
-    DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
-    rebuildIndex();
-    renderParents(el('parentSearch').value || '');
-    const s = el('userDataStatus'); if (s) { s.textContent = 'Imported user data'; setTimeout(()=>s.textContent='', 2000); }
-    e.target.value = '';
-  };
-
   el('ac_save').onclick = () => {
     if (!can('manage_custom_parents')) {
       const err = el('ac_error');
