@@ -152,14 +152,9 @@
       <input id="parentSearch" type="text" placeholder="Search parent companies..." />
 
       <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
-        <button class="btn" id="btnAddCompany">Add Company</button>
-        <button class="btn" id="btnExportUserData" title="Download your custom companies">Export</button>
-        <label class="btn" style="cursor:pointer;">
-          Import
-          <input id="inputImportUserData" type="file" accept="application/json" style="display:none;" />
-        </label>
-        <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
-      </div>
+  <button class="btn" id="btnAddCompany">Add Company</button>
+  <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
+</div>
 
       <div id="parentResults" class="list"></div>
     </section>
@@ -861,23 +856,6 @@ window.UserData = (function () {
     return true;
   }
 
-  function exportUser(){
-    const blob = new Blob([localStorage.getItem(USER_KEY) || '{"parents":[]}'], {type:'application/json'});
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'user_radio_data.json';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(()=>URL.revokeObjectURL(a.href), 1200);
-  }
-
-  async function importUser(file){
-    const text = await file.text();
-    const incoming = normalizeSchema(JSON.parse(text));
-    const current = readUser();
-    const merged = mergeBaseAndUser(current, incoming);
-    writeUser(merged);
-  }
-
   function removeParent(parentName) {
     const u = readUser();
     const key = norm(parentName);
@@ -888,13 +866,12 @@ window.UserData = (function () {
   }
 
   return {
-    init,
-    getMerged,
-    addEntry,
-    export: exportUser,
-    import: importUser,
-    removeParent
-  };
+  init,
+  getMerged,
+  addEntry,
+  removeParent
+};
+
 })();
 </script>
 
@@ -1099,21 +1076,6 @@ function setupEventListeners() {
   el('ac_cancel').onclick = () => {
     el('addCompanyModal').style.display = 'none';
     el('ac_error').style.display = 'none';
-  };
-
-  el('btnExportUserData').onclick = () => {
-    UserData.export();
-    const s = el('userDataStatus'); if (s) { s.textContent = 'Exported user_radio_data.json'; setTimeout(()=>s.textContent='', 2000); }
-  };
-
-  el('inputImportUserData').onchange = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    await UserData.import(file);
-    DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
-    rebuildIndex();
-    renderParents(el('parentSearch').value || '');
-    const s = el('userDataStatus'); if (s) { s.textContent = 'Imported user data'; setTimeout(()=>s.textContent='', 2000); }
-    e.target.value = '';
   };
 
   el('ac_save').onclick = () => {
