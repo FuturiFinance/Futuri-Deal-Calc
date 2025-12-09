@@ -1158,52 +1158,79 @@ function setupEventListeners() {
     updatePreview();
   };
 
-  // UserData toolbar
-  el('btnAddCompany').onclick = () => {
-    el('addCompanyModal').style.display = 'flex';
-    el('ac_parent').value = '';
-    el('ac_country').value = '';
-    el('ac_market').value = '';
-    el('ac_station').value = '';
-    el('ac_error').style.display = 'none';
-    el('ac_parent').focus();
-  };
-  
- el('btnAddCompany').onclick = () => {
-  el('addCompanyModal').style.display = 'flex';
-  ...
+  // UserData toolbar — OPEN MODAL (ONLY ONCE)
+el('btnAddCompany').onclick = () => {
+  const modal = el('addCompanyModal');
+  modal.style.display = 'flex';
+
+  el('ac_parent').value  = '';
+  el('ac_country').value = '';
+  el('ac_market').value  = '';
+  el('ac_station').value = '';
+
+  const err = el('ac_error');
+  err.style.display = 'none';
+  err.textContent = '';
+
+  el('ac_parent').focus();
 };
 
+// CANCEL / CLOSE
 el('ac_cancel').onclick = () => {
   el('addCompanyModal').style.display = 'none';
-  el('ac_error').style.display = 'none';
+  const err = el('ac_error');
+  err.style.display = 'none';
+  err.textContent = '';
 };
 
-  el('ac_save').onclick = () => {
-    if (!can('manage_custom_parents')) {
-      const err = el('ac_error');
-      err.textContent = 'Your role does not permit adding companies.';
-      err.style.display = 'block';
-      return;
-    }
-
-    const P = (el('ac_parent').value || '').trim();
-    const C = (el('ac_country').value || '').trim();
-    const M = (el('ac_market').value || '').trim();
-    const S = (el('ac_station').value || '').trim();
+// SAVE
+el('ac_save').onclick = () => {
+  if (!can('manage_custom_parents')) {
     const err = el('ac_error');
-    if (!P || !M || !S) { err.textContent = 'Parent, Market, and Station are required.'; err.style.display = 'block'; return; }
-    err.style.display = 'none';
+    err.textContent = 'Your role does not permit adding companies.';
+    err.style.display = 'block';
+    return;
+  }
 
-    UserData.addEntry({ parent: P, country: C, market: M, station: S });
-    el('addCompanyModal').style.display = 'none';
+  const P = (el('ac_parent').value  || '').trim();
+  const C = (el('ac_country').value || '').trim();
+  const M = (el('ac_market').value  || '').trim();
+  const S = (el('ac_station').value || '').trim();
 
-    DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
-    rebuildIndex();
-    el('parentSearch').value = P;
-    renderParents(P);
-    setParent(P);
-  };
+  const err = el('ac_error');
+  if (!P || !M || !S) {
+    err.textContent = 'Parent, Market, and Station are required.';
+    err.style.display = 'block';
+    return;
+  }
+
+  err.style.display = 'none';
+  err.textContent = '';
+
+  // your existing add logic
+  UserData.addEntry({ parent: P, country: C, market: M, station: S });
+
+  el('addCompanyModal').style.display = 'none';
+
+  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+  rebuildIndex();
+  el('parentSearch').value = P;
+  renderParents(P);
+  setParent(P);
+};
+
+  // click backdrop to close
+el('addCompanyModal').addEventListener('click', (e) => {
+  if (e.target.id === 'addCompanyModal') el('ac_cancel').click();
+});
+
+// esc to close
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && el('addCompanyModal').style.display === 'flex') {
+    el('ac_cancel').click();
+  }
+});
+
 
   attachProductEventListeners();
 }
