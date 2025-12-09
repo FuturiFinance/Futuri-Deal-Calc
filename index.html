@@ -77,18 +77,16 @@
     a { color: #7fc1ff; text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-    /* ===== Modal styling ===== */
+  /* ===== Modal styling ===== */
 .modal {
   position: fixed;
   inset: 0;
-  display: flex;
+  display: flex;           /* stays flex when visible */
   align-items: center;
   justify-content: center;
   background: rgba(0,0,0,.55);
   z-index: 9999;
 }
-
-.modal.hidden { display: none !important; }
 
 .modal-card {
   width: min(560px, 95vw);
@@ -248,9 +246,8 @@
       <div id="parentResults" class="list"></div>
     </section>
 
-    <!-- Add Company Modal -->
-    <!-- Add Company Modal (clean layout) -->
-<div id="addCompanyModal" class="modal hidden">
+    <!-- Add Company Modal (clean layout, same IDs) -->
+<div id="addCompanyModal" class="modal" style="display:none;">
   <div class="modal-card">
     <div class="modal-header">
       <div class="title">Add Company (Custom)</div>
@@ -260,34 +257,32 @@
     <div class="modal-grid">
       <div class="field">
         <label for="ac_parent">Parent <span class="req">*</span></label>
-        <input id="ac_parent" type="text" placeholder="PARENT" />
+        <input id="ac_parent" type="text" placeholder="PARENT"/>
       </div>
 
       <div class="field">
         <label for="ac_country">Country</label>
-        <input id="ac_country" type="text" placeholder="COUNTRY" />
+        <input id="ac_country" type="text" placeholder="COUNTRY"/>
       </div>
 
       <div class="field">
         <label for="ac_market">Market <span class="req">*</span></label>
-        <input id="ac_market" type="text" placeholder="MARKET" />
+        <input id="ac_market" type="text" placeholder="MARKET"/>
       </div>
 
       <div class="field">
         <label for="ac_station">Station <span class="req">*</span></label>
-        <input id="ac_station" type="text" placeholder="STATION" />
+        <input id="ac_station" type="text" placeholder="STATION"/>
       </div>
     </div>
 
-    <p id="ac_error" class="modal-error hidden"></p>
+    <p id="ac_error" class="modal-error" style="display:none;"></p>
 
     <div class="modal-actions">
-      <button class="btn" id="ac_cancel_2" type="button">Cancel</button>
       <button class="btn" id="ac_save" type="button">Save</button>
     </div>
   </div>
 </div>
-
 
     <section class="card">
       <div class="title">Step 2: Select Markets (Optional)</div>
@@ -1174,15 +1169,15 @@ function setupEventListeners() {
     el('ac_parent').focus();
   };
   
- function closeAddCompanyModal() {
-  el('addCompanyModal').classList.add('hidden');
-  el('ac_error').classList.add('hidden');
-}
+ el('btnAddCompany').onclick = () => {
+  el('addCompanyModal').style.display = 'flex';
+  ...
+};
 
-el('ac_cancel').onclick = closeAddCompanyModal;
-const c2 = el('ac_cancel_2');
-if (c2) c2.onclick = closeAddCompanyModal;
-
+el('ac_cancel').onclick = () => {
+  el('addCompanyModal').style.display = 'none';
+  el('ac_error').style.display = 'none';
+};
 
   el('ac_save').onclick = () => {
     if (!can('manage_custom_parents')) {
