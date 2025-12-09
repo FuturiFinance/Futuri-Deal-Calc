@@ -40,6 +40,10 @@
       --pill: #111b26;
     }
 
+    /* Prevent padding/border from increasing element width */
+    *, *::before, *::after { box-sizing: border-box; }
+
+
     html, body {
       background:
         radial-gradient(1200px 900px at 10% -10%, rgba(103,36,119,.18), transparent 60%),
@@ -128,12 +132,29 @@
       margin-bottom: 8px;
     }
 
-    .row {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      flex-wrap: wrap;
+    /* Any direct form control inside .row should flex and shrink nicely */
+    .row > input,
+    .row > select,
+    .row > textarea {
+      flex: 1 1 auto;
+      min-width: 0;   /* allows shrinking inside flex */
+      width: auto;    /* overrides width:100% */
     }
+
+    /* If you wrap inputs in a div inside .row, make the wrapper flex too */
+    .row > .field,
+    .row > .grow {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .row > .field > input,
+    .row > .field > select,
+    .row > .grow > input,
+    .row > .grow > select {
+      width: 100%;
+      min-width: 0;
+  }
+
 
     .btn {
       background: #0b1a27;
@@ -467,6 +488,16 @@
       color: #ff9a9a;
       font-size: 12px;
     }
+
+     #proposalOutput h2,
+     #proposalOutput h3 {
+      color: #5fb584 !important;
+    }
+    #proposalOutput .badge {
+      background: #0b233a !important;  /* original badge bg */
+      border-color: #223244 !important;
+    }
+
   </style>
 </head>
 
