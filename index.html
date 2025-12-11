@@ -2,95 +2,177 @@
 <html lang="en">
 <head>
   <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Confidential - Futuri Media Deal Calc (Google-only)</title>
-
   <style>
-    :root{
-      --bg:#0b1117;--card:#0f1823;--edge:#223244;--text:#e7eef7;--muted:#9bb3c7;--accent:#1f9aff;--pill:#132437;
+    :root {
+      --bg: #0b1117; --card:#0f1823; --edge:#223244; --text:#e7eef7; --muted:#9bb3c7; --accent:#1f9aff; --pill:#132437;
     }
-    html,body{background:var(--bg);color:var(--text);font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;margin:0;}
-    header{border-bottom:1px solid var(--edge);position:sticky;top:0;z-index:10;background:rgba(11,17,23,.9);backdrop-filter:blur(6px);}
-    .wrap{max-width:1100px;margin:0 auto;padding:14px 16px;}
-    h1{font-size:18px;margin:0;}
-    .pill{display:inline-flex;background:var(--pill);border:1px solid var(--edge);border-radius:999px;padding:4px 10px;gap:8px;align-items:center;}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
-    .card{background:#0e1621;border:1px solid #223244;border-radius:14px;padding:14px;}
-    .title{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#8fa5b9;margin-bottom:8px;}
-    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-    .btn{background:#0b2034;color:var(--text);border:1px solid #223244;padding:7px 12px;border-radius:10px;cursor:pointer;font-size:13px;transition:all .2s;}
-    .btn:hover:not(:disabled){background:#0d2a42;border-color:#2a4158;}
-    .btn:disabled{opacity:.5;cursor:default;}
-    input[type="text"],input[type="email"],input[type="password"]{
-      width:100%;height:40px;background:#0c131b;border:1px solid #223244;color:#e7eef7;border-radius:10px;padding:8px 10px;font-size:14px;
+    html, body { background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; margin:0; }
+    header { border-bottom: 1px solid var(--edge); position: sticky; top:0; z-index:10; background: rgba(11,17,23,0.9); backdrop-filter: blur(6px); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 14px 16px; }
+    h1 { font-size: 18px; margin: 0; }
+    .pill { display:inline-flex; background: var(--pill); border:1px solid var(--edge); border-radius:999px; padding:4px 10px; gap:8px; align-items:center; }
+    .grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+    .card { background: #0e1621; border:1px solid #223244; border-radius: 14px; padding: 14px; }
+    .title { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: #8fa5b9; margin-bottom: 8px; }
+    .row { display:flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn { background: #0b2034; color: var(--text); border:1px solid #223244; padding:7px 12px; border-radius: 10px; cursor:pointer; font-size: 13px; transition: all 0.2s; }
+    .btn:hover:not(:disabled) { background: #0d2a42; border-color: #2a4158; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    input[type="text"], input[type="email"], input[type="password"] {
+      width: 100%; height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:10px; padding:8px 10px; font-size: 14px;
     }
-    input[type="text"]:focus,input[type="email"]:focus,input[type="password"]:focus{outline:none;border-color:#2a4a66;}
-    .list{display:flex;flex-direction:column;gap:6px;max-height:260px;overflow:auto;}
-    .el{display:flex;align-items:center;gap:8px;justify-content:space-between;padding:6px 10px;border-radius:10px;border:1px solid transparent;transition:all .15s;}
-    .el:hover{background:#0d1621;border-color:#223244;}
-    label.el{cursor:pointer;}
-    .muted{color:#9bb3c7;}
-    .badge{background:#0b233a;border:1px solid #223244;border-radius:6px;padding:2px 6px;font-size:12px;}
-    .placeholder{border:1px dashed #2a3b4f;border-radius:10px;padding:10px 12px;color:#8fa5b9;background:#0b121a;text-align:center;}
-    .hidden{display:none!important;}
-    input[type="radio"],input[type="checkbox"]{width:18px;height:18px;cursor:pointer;accent-color:var(--accent);}
-    input[type="number"]{background:#0c131b;border:1px solid #223244;color:#e7eef7;border-radius:6px;padding:4px 8px;}
-    .back-btn{background:#0f1823;border:1px solid #223244;color:var(--text);padding:8px 16px;border-radius:10px;cursor:pointer;font-size:14px;transition:all .2s;display:inline-flex;align-items:center;gap:6px;}
-    .back-btn:hover{background:#152533;border-color:#2a4158;}
-    .role-badge{background:#132437;border:1px solid #223244;border-radius:999px;padding:4px 10px;font-size:12px;}
-    *,*::before,*::after{box-sizing:border-box;}
+    input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus { outline: none; border-color: #2a4a66; }
+    .list { display:flex; flex-direction: column; gap: 6px; max-height: 260px; overflow: auto; }
+    .el { display:flex; align-items:center; gap:8px; justify-content: space-between; padding:6px 10px; border-radius:10px; border:1px solid transparent; transition: all 0.15s; }
+    .el:hover { background:#0d1621; border-color:#223244; }
+    label.el { cursor: pointer; }
+    .muted { color:#9bb3c7; }
+    .badge { background:#0b233a; border:1px solid #223244; border-radius: 6px; padding:2px 6px; font-size:12px; }
+    .placeholder { border: 1px dashed #2a3b4f; border-radius:10px; padding: 10px 12px; color:#8fa5b9; background:#0b121a; text-align: center; }
+    .hidden { display:none !important; }
+    input[type="radio"], input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; accent-color: var(--accent); }
+    input[type="number"] { background:#0c131b; border:1px solid #223244; color:#e7eef7; border-radius:6px; padding:4px 8px; }
+    .back-btn { background: #0f1823; border: 1px solid #223244; color: var(--text); padding: 8px 16px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all 0.2s; display: inline-flex; align-items: center; gap: 6px; }
+    .back-btn:hover { background: #152533; border-color: #2a4158; }
+    .role-badge { background:#132437; border:1px solid #223244; border-radius: 999px; padding:4px 10px; font-size:12px; }
+
+    *, *::before, *::after { box-sizing: border-box; }
 
     /* Google-only login overlay */
-    #googleLoginScreen{
-      position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:99999;
+    #googleLoginScreen {
+      position: fixed; inset: 0;
+      display: none;
+      align-items: center; justify-content: center;
+      background: rgba(0,0,0,.55); z-index: 99999;
     }
-    .login-card{
-      width:min(440px,92vw);background:#0f1823;color:var(--text);border:1px solid var(--edge);border-radius:14px;
-      padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:grid;gap:12px;text-align:center;
+    .login-card {
+      width: min(440px, 92vw);
+      background: #0f1823; color: var(--text);
+      border: 1px solid var(--edge); border-radius: 14px;
+      padding: 18px; box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      display:grid; gap:12px;
+      text-align:center;
     }
-    .google-btn{
-      background:#fff;color:#111;border:1px solid #d0d7de;padding:10px 12px;border-radius:10px;font-size:14px;cursor:pointer;
-      display:flex;align-items:center;justify-content:center;gap:10px;
+    .google-btn {
+      background:#ffffff; color:#111; border:1px solid #d0d7de;
+      padding:10px 12px; border-radius:10px; font-size:14px; cursor:pointer;
+      display:flex; align-items:center; justify-content:center; gap:10px;
     }
-    .google-btn:hover{background:#f6f8fa;}
-    .google-logo{width:18px;height:18px;display:inline-block;}
+    .google-btn:hover { background:#f6f8fa; }
+    .google-logo { width:18px; height:18px; display:inline-block; }
 
     /* Admin panel */
-    #adminPanel .user-card{
-      border:1px solid var(--edge);background:var(--card);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px;
+    #adminPanel .user-card {
+      border:1px solid var(--edge);
+      background: var(--card);
+      border-radius: 12px;
+      padding: 10px;
+      display:flex; flex-direction:column; gap:8px;
     }
-    #adminUsersList .rowline{display:flex;justify-content:space-between;gap:10px;align-items:center;}
-    select{
-      height:40px;background:#0c131b;border:1px solid #223244;color:#e7eef7;border-radius:10px;padding:6px 10px;width:100%;
+    #adminUsersList .rowline { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    select {
+      height:40px; background:#0c131b; border:1px solid #223244; color:#e7eef7;
+      border-radius:10px; padding:6px 10px; width: 100%;
     }
-    a{color:#7fc1ff;text-decoration:none;}
-    a:hover{text-decoration:underline;}
+    a { color: #7fc1ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
 
-    /* Modal styling */
-    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:9999;}
-    .modal-card{
-      width:min(560px,95vw);background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:16px;
-      box-shadow:0 10px 30px rgba(0,0,0,.35);display:grid;gap:12px;
+    /* ===== Modal styling ===== */
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.55);
+      z-index: 9999;
     }
-    .modal-header{display:flex;justify-content:space-between;align-items:center;}
-    .modal-close{padding:4px 8px;font-size:14px;line-height:1;}
-    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-    @media (max-width:640px){.modal-grid{grid-template-columns:1fr;}}
-    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;}
-    .field input{
-      width:100%;height:40px;background:#0c131b;border:1px solid var(--edge);color:var(--text);border-radius:10px;padding:8px 10px;font-size:14px;
+    .modal-card {
+      width: min(560px, 95vw);
+      background: var(--card);
+      border: 1px solid var(--edge);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      display: grid;
+      gap: 12px;
     }
-    .field input:focus{outline:none;border-color:#2a4a66;}
-    .req{color:#ff8a8a;font-weight:600;margin-left:4px;}
-    .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px;}
-    .modal-error{
-      margin:0;padding:8px 10px;border-radius:8px;background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.25);
-      color:#ff9a9a;font-size:12px;
+    .modal-header {
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+    }
+    .modal-close {
+      padding: 4px 8px;
+      font-size: 14px;
+      line-height: 1;
+    }
+    .modal-grid {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 640px) {
+      .modal-grid { grid-template-columns: 1fr; }
+    }
+    .field label {
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .field input {
+      width:100%;
+      height:40px;
+      background:#0c131b;
+      border:1px solid var(--edge);
+      color:var(--text);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:14px;
+    }
+    .field input:focus {
+      outline:none;
+      border-color:#2a4a66;
+    }
+    .req { color:#ff8a8a; font-weight:600; margin-left:4px; }
+    .modal-actions {
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top: 4px;
+    }
+    .modal-error {
+      margin: 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 80, 80, .08);
+      border: 1px solid rgba(255, 80, 80, .25);
+      color: #ff9a9a;
+      font-size: 12px;
     }
 
-    .row>input,.row>select,.row>textarea{flex:1 1 auto;min-width:0;width:auto;}
-    .row>.field,.row>.grow{flex:1 1 auto;min-width:0;}
-    .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0;}
+    .row > input,
+    .row > select,
+    .row > textarea {
+      flex: 1 1 auto;
+      min-width: 0;
+      width: auto;
+    }
+    .row > .field,
+    .row > .grow {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .row > .field > input,
+    .row > .field > select,
+    .row > .grow > input,
+    .row > .grow > select {
+      width: 100%;
+      min-width: 0;
+    }
   </style>
 </head>
 <body>
@@ -116,16 +198,16 @@
 </div>
 
 <header>
-  <div style="position:absolute;right:16px;top:12px;display:flex;gap:8px;align-items:center;">
+  <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
     <span id="whois" class="role-badge" title="Current role">Role: —</span>
     <button class="btn" id="btnLogout" title="Sign out" style="display:none;">Logout</button>
   </div>
-  <div class="wrap" style="padding:12px 16px;">
-    <h1 style="margin-bottom:4px;">Confidential - Futuri Media Deal Calc</h1>
-    <div class="muted" style="font-size:11px;">
-      <span style="opacity:.7;">v3.1 (Google-only)</span>
-      <span style="margin:0 8px;">•</span>
-      <span style="opacity:.7;">20,981 stations • 5,186 parent companies</span>
+  <div class="wrap" style="padding: 12px 16px;">
+    <h1 style="margin-bottom: 4px;">Confidential - Futuri Media Deal Calc</h1>
+    <div class="muted" style="font-size: 11px;">
+      <span style="opacity: 0.7;">v3.2 (Google-only)</span>
+      <span style="margin: 0 8px;">•</span>
+      <span style="opacity: 0.7;">20,981 stations • 5,186 parent companies</span>
     </div>
   </div>
 </header>
@@ -134,7 +216,6 @@
 
   <!-- LANDING -->
   <div id="landing" class="grid">
-
     <section class="card">
       <div class="title">TV Deals</div>
       <div class="row">
@@ -152,18 +233,28 @@
     </section>
 
     <section class="card">
-      <div class="title">Other</div>
+      <div class="title">Snapshots</div>
       <div class="row">
-        <div class="muted">Coming soon</div>
-        <button class="btn" disabled>Not available yet</button>
+        <div class="muted">View your saved snapshots</div>
+        <button class="btn" id="btnOpenSnapshots">Open Snapshots</button>
       </div>
     </section>
+  </div>
 
-    <!-- LANDING SNAPSHOT VIEWER (filters + list only) -->
-    <section class="card" id="uploadsPanel" style="grid-column:1/-1;">
-      <div class="title">My Uploads (Firestore Snapshots)</div>
+  <!-- SNAPSHOTS VIEW (landing-only browsing) -->
+  <div id="snapshotsView" class="grid hidden" style="grid-template-columns: 1fr;">
+    <div class="row" style="justify-content:flex-start; margin-bottom:12px;">
+      <button class="back-btn" id="btnBackFromSnapshots">← Back to Landing</button>
+    </div>
 
-      <div class="card" style="margin-top:10px;background:#0b121a;">
+    <section class="card" id="uploadsPanel">
+      <div class="title">My Snapshots (Firestore)</div>
+      <div class="muted" style="font-size:12px; margin-bottom:8px;">
+        Go to <strong>Radio</strong> to create new snapshots.
+      </div>
+
+      <!-- RICH SEARCH / FILTERS -->
+      <div class="card" style="margin-top:10px; background:#0b121a;">
         <div class="title" style="margin-bottom:6px;">Search Snapshots</div>
 
         <div class="row" style="margin-bottom:8px;">
@@ -215,7 +306,7 @@
             <input id="uploadsDateTo" type="date" />
           </div>
 
-          <div class="row" style="align-self:flex-end;margin-left:auto;">
+          <div class="row" style="align-self:flex-end; margin-left:auto;">
             <button class="btn" id="btnClearUploadsFilters" type="button">Clear Filters</button>
           </div>
         </div>
@@ -224,22 +315,29 @@
       <div id="uploadsList" class="list" style="margin-top:10px;"></div>
     </section>
 
-  </div><!-- /landing -->
+    <!-- Admin-only panel still lives in snapshots view -->
+    <section class="card hidden" id="adminPanel">
+      <div class="title">Admin: Users & Uploads</div>
+      <div class="muted" style="font-size:12px; margin-bottom:8px;">
+        Promote roles + browse each user’s upload folder.
+      </div>
+      <div id="adminUsersList" class="list"></div>
+    </section>
+  </div>
 
   <!-- RADIO VIEW -->
-  <div id="radioView" class="grid hidden" style="grid-template-columns:1fr;">
-
-    <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
+  <div id="radioView" class="grid hidden" style="grid-template-columns: 1fr;">
+    <div class="row" style="justify-content:flex-start; margin-bottom:12px;">
       <button class="back-btn" id="btnBack">← Back to Landing</button>
     </div>
 
     <section class="card">
       <div class="title">Step 1: Select Parent Company</div>
-      <input id="parentSearch" type="text" placeholder="Search parent companies..."/>
+      <input id="parentSearch" type="text" placeholder="Search parent companies..." />
 
-      <div class="row" style="gap:8px;align-items:center;margin-top:8px;">
+      <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
         <button class="btn" id="btnAddCompany">Add Company</button>
-        <span id="userDataStatus" style="font-size:12px;color:#9bb3c7;"></span>
+        <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
       </div>
 
       <div id="parentResults" class="list"></div>
@@ -318,29 +416,29 @@
     <section class="card">
       <div class="title">Step 5: Select Products & Pricing</div>
 
-      <div class="row" style="margin-bottom:12px;">
-        <label style="display:flex;align-items:center;gap:8px;">
+      <div class="row" style="margin-bottom: 12px;">
+        <label style="display:flex; align-items:center; gap:8px;">
           <input type="radio" name="pricingType" value="cash" checked>
           <span>Cash</span>
         </label>
-        <label style="display:flex;align-items:center;gap:8px;">
+        <label style="display:flex; align-items:center; gap:8px;">
           <input type="radio" name="pricingType" value="barter">
           <span>Barter</span>
         </label>
-        <label style="display:flex;align-items:center;gap:8px;">
+        <label style="display:flex; align-items:center; gap:8px;">
           <input type="radio" name="pricingType" value="mixed">
           <span>Mixed (Cash + Barter)</span>
         </label>
       </div>
 
-      <div id="cpmDisplay" class="hidden" style="margin-bottom:12px;">
+      <div id="cpmDisplay" class="hidden" style="margin-bottom: 12px;">
         <div class="row">
           <span class="muted">CPM:</span>
           <span class="badge">$2.00 (approval required to change)</span>
         </div>
       </div>
 
-      <div class="row" style="margin-bottom:8px;">
+      <div class="row" style="margin-bottom: 8px;">
         <input id="productSearch" type="text" placeholder="Search products..."/>
         <button class="btn" id="btnSelAllProducts">Select All</button>
         <button class="btn" id="btnClrAllProducts">Clear All</button>
@@ -348,7 +446,7 @@
       </div>
       <div id="productsList" class="list"></div>
 
-      <div class="row" style="margin-top:12px;">
+      <div class="row" style="margin-top: 12px;">
         <div class="pill">Products Selected: <span id="productCount">0</span></div>
         <div class="pill">Total Value: $<span id="totalValue">0</span></div>
       </div>
@@ -356,11 +454,9 @@
 
     <section class="card hidden" id="cashValuesSection">
       <div class="title">Cash Values by Station (All Selected Stations)</div>
-      <div class="muted" style="margin-bottom:12px;">
-        Enter monthly cash payment for each station below. Barter will automatically cover remaining value.
-      </div>
+      <div class="muted" style="margin-bottom: 12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
       <div id="cashValuesList" class="list"></div>
-      <div class="row" style="margin-top:12px;">
+      <div class="row" style="margin-top: 12px;">
         <div class="pill">Total Cash (Monthly): $<span id="totalCashInput">0</span></div>
         <div class="pill">Remaining for Barter (Monthly): $<span id="remainingForBarter">0</span></div>
       </div>
@@ -368,12 +464,12 @@
 
     <section class="card hidden" id="barterMinutesSection">
       <div class="title" id="barterSectionTitle">Barter Spots Required (Distributed)</div>
-      <div class="row" style="margin-bottom:12px;" id="barterControls">
+      <div class="row" style="margin-bottom: 12px;" id="barterControls">
         <div class="muted">Spots distributed proportionally across all stations. Edit manually if needed.</div>
         <button class="btn" id="btnResetMinutes">Reset to Auto</button>
       </div>
       <div id="barterBreakdown" class="list"></div>
-      <div class="row" style="margin-top:12px;" id="barterTotals">
+      <div class="row" style="margin-top: 12px;" id="barterTotals">
         <div class="pill">Total Prime: <span id="totalPrimeMinutes">0</span></div>
         <div class="pill">Total ROS: <span id="totalROSMinutes">0</span></div>
       </div>
@@ -381,42 +477,32 @@
 
     <section class="card hidden" id="proposalSection">
       <div class="title">Step 6: Generate Proposal</div>
-      <div class="row" style="margin-bottom:12px;">
-        <button class="btn" id="btnGenerateProposal" style="background:#0d4a2e;border-color:#1a6b45;">Generate Proposal</button>
+      <div class="row" style="margin-bottom: 12px;">
+        <button class="btn" id="btnGenerateProposal" style="background: #0d4a2e; border-color: #1a6b45;">Generate Proposal</button>
         <button class="btn" id="btnCopyProposal">Copy to Clipboard</button>
       </div>
 
-      <div id="proposalOutput" class="hidden" style="background:#0c131b;border:1px solid #223244;border-radius:10px;padding:16px;margin-top:12px;">
-        <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-          <strong style="color:#5fb584;">Proposal Ready</strong>
+      <div id="proposalOutput" class="hidden" style="background: #0c131b; border: 1px solid #223244; border-radius: 10px; padding: 16px; margin-top: 12px;">
+        <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+          <strong style="color: #5fb584;">Proposal Ready</strong>
           <span class="badge" id="proposalMode">Cash Deal</span>
         </div>
-        <div id="proposalTable" style="overflow-x:auto;"></div>
+        <div id="proposalTable" style="overflow-x: auto;"></div>
       </div>
     </section>
 
-    <!-- RADIO-ONLY SAVE SNAPSHOT PANEL -->
-    <section class="card" id="radioSavePanel">
-      <div class="title">Save Snapshot</div>
+    <!-- RADIO-ONLY SNAPSHOT SAVE CARD -->
+    <section class="card" id="snapshotSaveCard">
+      <div class="title">Snapshots</div>
       <div class="row">
         <button class="btn" id="btnUpload">Save Snapshot</button>
         <span class="muted" id="uploadHint">Staff/Admin only</span>
         <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
       </div>
-      <div class="muted" style="font-size:11px;margin-top:6px;">
-        You can view and search all snapshots on the Landing page.
+      <div class="muted" style="font-size:12px; margin-top:8px;">
+        Snapshots will appear on the landing page under <strong>Snapshots</strong>.
       </div>
     </section>
-
-    <!-- Admin-only panel -->
-    <section class="card hidden" id="adminPanel">
-      <div class="title">Admin: Users & Uploads</div>
-      <div class="muted" style="font-size:12px;margin-bottom:8px;">
-        Promote roles + browse each user’s upload folder.
-      </div>
-      <div id="adminUsersList" class="list"></div>
-    </section>
-
   </div><!-- /radioView -->
 </main>
 
@@ -426,12 +512,14 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
   import {
-    getAuth, onAuthStateChanged, GoogleAuthProvider,
-    signInWithPopup, signOut
+    getAuth, onAuthStateChanged,
+    GoogleAuthProvider, signInWithPopup,
+    signOut
   } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
   import {
     getFirestore, doc, getDoc, setDoc, updateDoc,
-    collection, addDoc, getDocs, query, orderBy, serverTimestamp
+    collection, addDoc, getDocs,
+    query, orderBy, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
   const firebaseConfig = {
@@ -450,7 +538,8 @@
   window.fb = {
     app, auth, db,
     onAuthStateChanged,
-    GoogleAuthProvider, signInWithPopup, signOut,
+    GoogleAuthProvider, signInWithPopup,
+    signOut,
     doc, getDoc, setDoc, updateDoc,
     collection, addDoc, getDocs,
     query, orderBy, serverTimestamp
@@ -460,249 +549,265 @@
 <script>
 /* =========================
    AUTH + ROLES + SNAPSHOTS
+   Google-only
    ========================= */
-const el = (id)=>document.getElementById(id);
+const el = (id) => document.getElementById(id);
 const $ = el;
 
-const ADMIN_EMAILS = new Set(["sabrinacarlo@futurimedia.com"]);
+const ADMIN_EMAILS = new Set([
+  "sabrinacarlo@futurimedia.com"
+]);
 
 const PERMS = {
-  admin:{ manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:true, manage_roles:true },
-  staff:{ manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:false, manage_roles:false },
-  view: { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
+  admin: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:true, manage_roles:true },
+  staff: { manage_custom_parents:true, import_export:true, pricing_override:true, generate_proposal:true, upload_files:true, view_all_uploads:false, manage_roles:false },
+  view:  { manage_custom_parents:false, import_export:false, pricing_override:false, generate_proposal:false, upload_files:false, view_all_uploads:false, manage_roles:false }
 };
 
-let CURRENT_USER=null, CURRENT_UID=null, CURRENT_ROLE="staff";
-let MY_UPLOADS_CACHE=[];
+let CURRENT_USER = null;
+let CURRENT_UID  = null;
+let CURRENT_ROLE = "staff";
+let MY_UPLOADS_CACHE = [];
 
-function currentRole(){return CURRENT_ROLE;}
-function can(action){return !!PERMS[currentRole()]?.[action];}
+function currentRole(){ return CURRENT_ROLE; }
+function can(action){ return !!PERMS[currentRole()]?.[action]; }
 
-function showGoogleLogin(){ el("googleLoginScreen").style.display="flex"; }
-function hideGoogleLogin(){ el("googleLoginScreen").style.display="none"; }
+function showGoogleLogin(){ el("googleLoginScreen").style.display = "flex"; }
+function hideGoogleLogin(){ el("googleLoginScreen").style.display = "none"; }
 
 async function ensureUserDoc(authUser){
-  const {db,doc,getDoc,setDoc,serverTimestamp}=window.fb;
-  const ref = doc(db,"users",authUser.uid);
+  const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
+  const ref = doc(db, "users", authUser.uid);
   const snap = await getDoc(ref);
 
-  if(!snap.exists()){
-    const email=(authUser.email||"").toLowerCase();
-    const role=ADMIN_EMAILS.has(email)?"admin":"staff";
-    const payload={
-      uid:authUser.uid,email:authUser.email||"",name:authUser.displayName||"",
-      role,createdAt:serverTimestamp()
+  if (!snap.exists()){
+    const email = (authUser.email || "").toLowerCase();
+    const role = ADMIN_EMAILS.has(email) ? "admin" : "staff";
+    const payload = {
+      uid: authUser.uid,
+      email: authUser.email || "",
+      name: authUser.displayName || "",
+      role,
+      createdAt: serverTimestamp()
     };
-    await setDoc(ref,payload);
+    await setDoc(ref, payload);
     return payload;
   }
 
-  const data=snap.data()||{};
-  if(!data.uid){
-    await setDoc(ref,{uid:authUser.uid},{merge:true});
-    data.uid=authUser.uid;
+  const data = snap.data() || {};
+  if (!data.uid){
+    await setDoc(ref, { uid: authUser.uid }, { merge:true });
+    data.uid = authUser.uid;
   }
   return data;
 }
 
 function applyRoleUI(){
-  el("whois").textContent=`Role: ${CURRENT_ROLE}`;
-  el("uploadHint").textContent=can("upload_files")?"Staff/Admin only":"View-only";
-  el("btnUpload").disabled=!can("upload_files");
+  const who = el("whois");
+  if (who) who.textContent = `Role: ${CURRENT_ROLE}`;
 
-  if(CURRENT_ROLE==="admin") el("adminPanel").classList.remove("hidden");
-  else el("adminPanel").classList.add("hidden");
+  const hint = el("uploadHint");
+  if (hint) hint.textContent = can("upload_files") ? "Staff/Admin only" : "View-only";
+
+  const upBtn = el("btnUpload");
+  if (upBtn) upBtn.disabled = !can("upload_files");
+
+  if (CURRENT_ROLE === "admin") el("adminPanel")?.classList.remove("hidden");
+  else el("adminPanel")?.classList.add("hidden");
 }
 
-function serializeSnapshotPayload(){
-  const pick=(s)=>Array.from(s||[]);
-  const mapToObj=(m)=>{
-    const out={}; (m||new Map()).forEach((v,k)=>out[k]=v); return out;
-  };
-  return {
-    parent: state.parent||"",
-    markets: pick(state.markets),
-    stations: pick(state.stations),
-    pricingType: productState.pricingType,
-    products: pick(productState.selectedProducts),
-    customPrices: mapToObj(productState.customPrices),
-    manualMinutes: mapToObj(productState.manualMinutes),
-    stationCashValues: mapToObj(productState.stationCashValues),
-    cpm: productState.cpm,
-    proposalHTML: el("proposalTable")?.innerHTML || ""
-  };
+function openLanding(){
+  el("landing")?.classList.remove("hidden");
+  el("radioView")?.classList.add("hidden");
+  el("snapshotsView")?.classList.add("hidden");
+  window.scrollTo(0,0);
+}
+function openRadioView(){
+  el("landing")?.classList.add("hidden");
+  el("snapshotsView")?.classList.add("hidden");
+  el("radioView")?.classList.remove("hidden");
+  window.scrollTo(0,0);
+}
+function openSnapshotsView(){
+  el("landing")?.classList.add("hidden");
+  el("radioView")?.classList.add("hidden");
+  el("snapshotsView")?.classList.remove("hidden");
+  window.scrollTo(0,0);
 }
 
 function loadSnapshot(payload){
-  if(!payload) return;
-
-  // jump to radio view if currently on landing
-  if(!el("radioView").classList.contains("hidden")===false){
-    el("landing").classList.add("hidden");
-    el("radioView").classList.remove("hidden");
-    window.scrollTo(0,0);
-  } else if (el("radioView").classList.contains("hidden")) {
-    el("landing").classList.add("hidden");
-    el("radioView").classList.remove("hidden");
-    window.scrollTo(0,0);
-  }
+  if (!payload) return;
+  openRadioView(); // <— ensure we’re in radio UI before hydrating
 
   state.parent = payload.parent || "";
-  state.markets = new Set(payload.markets||[]);
-  state.stations = new Set(payload.stations||[]);
+  state.markets = new Set(payload.markets || []);
+  state.stations = new Set(payload.stations || []);
 
   productState.pricingType = payload.pricingType || "cash";
-  productState.selectedProducts = new Set(payload.products||[]);
-  productState.customPrices = new Map(Object.entries(payload.customPrices||{}));
-  productState.manualMinutes = new Map(Object.entries(payload.manualMinutes||{}));
-  productState.stationCashValues = new Map(Object.entries(payload.stationCashValues||{}));
+  productState.selectedProducts = new Set(payload.products || []);
+  productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
+  productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
+  productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
   productState.cpm = payload.cpm ?? 2.0;
 
-  document.querySelectorAll('input[name="pricingType"]').forEach(r=>{
-    r.checked=(r.value===productState.pricingType);
+  document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+    r.checked = (r.value === productState.pricingType);
   });
 
   setMarketsEnabled(!!state.parent);
   setStationsEnabled(!!state.parent);
-  renderParents($("parentSearch").value||"");
+  renderParents($("parentSearch").value || "");
   renderMarkets();
   renderStations();
   renderProducts();
   updatePreview();
   updateProductSummary();
 
-  if(payload.proposalHTML){
+  if (payload.proposalHTML){
     $("proposalSection").classList.remove("hidden");
     $("proposalOutput").classList.remove("hidden");
-    $("proposalTable").innerHTML=payload.proposalHTML;
+    $("proposalTable").innerHTML = payload.proposalHTML;
   }
 
   alert("Snapshot loaded.");
 }
 
-async function saveSnapshot(){
-  if(!CURRENT_USER) return alert("Not signed in.");
-  const {db,collection,addDoc,serverTimestamp}=window.fb;
+async function saveSnapshot() {
+  if (!CURRENT_USER) return alert("Not signed in.");
+  const { db, collection, addDoc, serverTimestamp } = window.fb;
 
-  let name=prompt("Name this snapshot:",""); 
-  if(name===null) return;
-  name=name.trim();
-  if(!name){
-    const now=new Date();
-    name=`Snapshot ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+  let name = prompt("Name this snapshot:", "");
+  if (name === null) return;
+  name = name.trim();
+  if (!name) {
+    const now = new Date();
+    name = `Snapshot ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
   }
 
   const payload = {
     parent: state.parent,
     markets: Array.from(state.markets),
     stations: Array.from(state.stations),
+
     pricingType: productState.pricingType,
     products: Array.from(productState.selectedProducts),
     customPrices: Object.fromEntries(productState.customPrices),
     manualMinutes: Object.fromEntries(productState.manualMinutes),
     stationCashValues: Object.fromEntries(productState.stationCashValues),
     cpm: productState.cpm,
+
     proposalHTML: el("proposalTable")?.innerHTML || null
   };
 
-  await addDoc(collection(db,"users",CURRENT_USER.uid,"uploads"),{
-    type:"snapshot",
+  await addDoc(collection(db, "users", CURRENT_USER.uid, "uploads"), {
+    type: "snapshot",
     name,
     payload,
     createdAt: serverTimestamp()
   });
 
-  el("uploadStatus").textContent="Saved!";
-  setTimeout(()=>el("uploadStatus").textContent="",1500);
+  const status = el("uploadStatus");
+  if (status){
+    status.textContent = "Saved!";
+    setTimeout(() => (status.textContent = ""), 1500);
+  }
 
   await renderMyUploads();
-  if(currentRole()==="admin") await renderAdminUsers();
+  if (currentRole() === "admin") await renderAdminUsers();
 }
 
-async function renderMyUploads(){
-  const {db,collection,getDocs,query,orderBy}=window.fb;
-  const root=el("uploadsList");
-  if(root) root.innerHTML="";
+async function renderMyUploads() {
+  const { db, collection, getDocs, query, orderBy } = window.fb;
+  const root = el("uploadsList");
+  if (!root) return;
+  root.innerHTML = "";
 
-  if(!CURRENT_USER || !root) return;
+  if (!CURRENT_USER) return;
 
-  const uq=query(
-    collection(db,"users",CURRENT_USER.uid,"uploads"),
-    orderBy("createdAt","desc")
+  const uq = query(
+    collection(db, "users", CURRENT_USER.uid, "uploads"),
+    orderBy("createdAt", "desc")
   );
-  const snaps=await getDocs(uq);
 
-  MY_UPLOADS_CACHE = snaps.docs.map(d=>({id:d.id,...d.data()}));
+  const snaps = await getDocs(uq);
+
+  MY_UPLOADS_CACHE = snaps.docs.map(d => ({
+    id: d.id,
+    ...d.data()
+  }));
+
   const filtered = applyUploadsFilters(MY_UPLOADS_CACHE);
 
-  if(!filtered.length){
-    root.innerHTML=`<div class="placeholder">No snapshots found for those filters.</div>`;
+  if (!filtered.length) {
+    root.innerHTML = `<div class="placeholder">No snapshots found for those filters.</div>`;
     return;
   }
 
-  filtered.forEach(d=>{
-    const when=d.createdAt?.toDate? d.createdAt.toDate():null;
-    const label=when? when.toLocaleString():"(pending)";
+  filtered.forEach(d => {
+    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+    const label = when ? when.toLocaleString() : "(pending)";
 
-    const row=document.createElement("div");
-    row.className="el";
-    row.innerHTML=`
-      <div style="display:flex;flex-direction:column;gap:4px;">
-        <strong>${d.name||"Untitled Snapshot"}</strong>
+    const row = document.createElement("div");
+    row.className = "el";
+    row.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <strong>${d.name || "Untitled Snapshot"}</strong>
         <div class="muted" style="font-size:11px">${label}</div>
-        ${d.payload?.parent? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>`:""}
-        ${d.payload?.pricingType? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>`:""}
+        ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+        ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
       </div>
       <button class="btn">Load</button>
     `;
-    row.querySelector("button").onclick=()=>loadSnapshot(d.payload);
+    row.querySelector("button").onclick = () => loadSnapshot(d.payload);
     root.appendChild(row);
   });
 }
 
-function applyUploadsFilters(list){
-  const nameQ=(el("uploadsSearchName")?.value||"").trim().toLowerCase();
-  const parentQ=(el("uploadsSearchParent")?.value||"").trim().toLowerCase();
-  const prodQ=(el("uploadsSearchProduct")?.value||"").trim().toLowerCase();
-  const pType=(el("uploadsPricingType")?.value||"").trim().toLowerCase();
-  const sortBy=(el("uploadsSortBy")?.value||"newest");
+function applyUploadsFilters(list) {
+  const nameQ   = (el("uploadsSearchName")?.value || "").trim().toLowerCase();
+  const parentQ = (el("uploadsSearchParent")?.value || "").trim().toLowerCase();
+  const prodQ   = (el("uploadsSearchProduct")?.value || "").trim().toLowerCase();
+  const pType   = (el("uploadsPricingType")?.value || "").trim().toLowerCase();
+  const sortBy  = (el("uploadsSortBy")?.value || "newest");
 
-  const fromStr=el("uploadsDateFrom")?.value||"";
-  const toStr=el("uploadsDateTo")?.value||"";
-  const fromDate=fromStr? new Date(fromStr+"T00:00:00"):null;
-  const toDate=toStr? new Date(toStr+"T23:59:59"):null;
+  const fromStr = el("uploadsDateFrom")?.value || "";
+  const toStr   = el("uploadsDateTo")?.value || "";
 
-  let out=list.filter(snap=>{
-    const name=(snap.name||"").toLowerCase();
-    const parent=(snap.payload?.parent||"").toLowerCase();
-    const pricingType=(snap.payload?.pricingType||"").toLowerCase();
+  const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
+  const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
 
-    const productIds=Array.isArray(snap.payload?.products)? snap.payload.products:[];
-    const productNames=productIds
-      .map(pid=>(PRODUCTS.find(p=>p.id===pid)?.name||pid))
-      .join(" ").toLowerCase();
+  let out = list.filter(snap => {
+    const name   = (snap.name || "").toLowerCase();
+    const parent = (snap.payload?.parent || "").toLowerCase();
+    const pricingType = (snap.payload?.pricingType || "").toLowerCase();
 
-    const created=snap.createdAt?.toDate? snap.createdAt.toDate():null;
+    const productIds = Array.isArray(snap.payload?.products) ? snap.payload.products : [];
+    const productNames = productIds
+      .map(pid => (PRODUCTS.find(p => p.id === pid)?.name || pid))
+      .join(" ")
+      .toLowerCase();
 
-    if(nameQ && !name.includes(nameQ)) return false;
-    if(parentQ && !parent.includes(parentQ)) return false;
-    if(pType && pricingType!==pType) return false;
-    if(prodQ && !productNames.includes(prodQ)) return false;
+    const created = snap.createdAt?.toDate ? snap.createdAt.toDate() : null;
 
-    if(fromDate && created && created<fromDate) return false;
-    if(toDate && created && created>toDate) return false;
+    if (nameQ && !name.includes(nameQ)) return false;
+    if (parentQ && !parent.includes(parentQ)) return false;
+    if (pType && pricingType !== pType) return false;
+    if (prodQ && !productNames.includes(prodQ)) return false;
+
+    if (fromDate && created && created < fromDate) return false;
+    if (toDate && created && created > toDate) return false;
 
     return true;
   });
 
-  if(sortBy==="oldest"){
+  if (sortBy === "oldest") {
     out.sort((a,b)=>{
       const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
       const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
       return ad-bd;
     });
-  } else if(sortBy==="name"){
-    out.sort((a,b)=>(a.name||"").localeCompare(b.name||""));
+  } else if (sortBy === "name") {
+    out.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
   } else {
     out.sort((a,b)=>{
       const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
@@ -710,6 +815,7 @@ function applyUploadsFilters(list){
       return bd-ad;
     });
   }
+
   return out;
 }
 
@@ -717,50 +823,55 @@ function applyUploadsFilters(list){
    Admin: Users + Uploads
    ------------------------- */
 async function renderAdminUsers(){
-  if(!can("view_all_uploads")) return;
+  if (!can("view_all_uploads")) return;
 
-  const {db,collection,getDocs,query,orderBy,doc,updateDoc}=window.fb;
-  const userQ=query(collection(db,"users"),orderBy("createdAt","desc"));
-  const usersSnap=await getDocs(userQ);
+  const {
+    db, collection, getDocs, query, orderBy,
+    doc, updateDoc
+  } = window.fb;
 
-  const root=el("adminUsersList");
-  root.innerHTML="";
-  if(usersSnap.empty){
-    root.innerHTML=`<div class="placeholder">No users yet.</div>`;
+  const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
+  const usersSnap = await getDocs(userQ);
+
+  const root = el("adminUsersList");
+  root.innerHTML = "";
+  if (usersSnap.empty){
+    root.innerHTML = `<div class="placeholder">No users yet.</div>`;
     return;
   }
 
-  for(const udocSnap of usersSnap.docs){
-    const u=udocSnap.data();
-    const uid=udocSnap.id;
+  for (const udocSnap of usersSnap.docs){
+    const u = udocSnap.data();
+    const uid = udocSnap.id;
 
-    const card=document.createElement("div");
-    card.className="user-card";
+    const card = document.createElement("div");
+    card.className = "user-card";
 
-    const header=document.createElement("div");
-    header.className="rowline";
-    header.innerHTML=`
+    const header = document.createElement("div");
+    header.className = "rowline";
+    header.innerHTML = `
       <div>
-        <strong>${u.name||"(no name)"}</strong><br>
+        <strong>${u.name || "(no name)"}</strong><br>
         <span class="muted" style="font-size:12px">${u.email}</span>
       </div>
     `;
 
-    const roleWrap=document.createElement("div");
-    roleWrap.style.minWidth="160px";
-    roleWrap.innerHTML=`
+    const roleWrap = document.createElement("div");
+    roleWrap.style.minWidth = "160px";
+    roleWrap.innerHTML = `
       <select data-uid="${uid}">
         <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
         <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
         <option value="view"  ${u.role==="view" ?"selected":""}>View Only</option>
       </select>
     `;
-    roleWrap.querySelector("select").onchange=async(e)=>{
-      if(!can("manage_roles")) return alert("You cannot change roles.");
-      const newRole=e.target.value;
-      await updateDoc(doc(db,"users",uid),{role:newRole});
-      if(uid===CURRENT_UID){
-        CURRENT_ROLE=newRole;
+
+    roleWrap.querySelector("select").onchange = async (e) => {
+      if (!can("manage_roles")) return alert("You cannot change roles.");
+      const newRole = e.target.value;
+      await updateDoc(doc(db, "users", uid), { role: newRole });
+      if (uid === CURRENT_UID){
+        CURRENT_ROLE = newRole;
         applyRoleUI();
         renderProducts();
         updateProductSummary();
@@ -770,30 +881,33 @@ async function renderAdminUsers(){
     header.appendChild(roleWrap);
     card.appendChild(header);
 
-    const uploadsBox=document.createElement("div");
-    uploadsBox.className="list";
+    const uploadsBox = document.createElement("div");
+    uploadsBox.className = "list";
 
-    const uq=query(collection(db,"users",uid,"uploads"),orderBy("createdAt","desc"));
-    const usnaps=await getDocs(uq);
+    const uq = query(
+      collection(db, "users", uid, "uploads"),
+      orderBy("createdAt","desc")
+    );
+    const usnaps = await getDocs(uq);
 
-    if(usnaps.empty){
-      uploadsBox.innerHTML=`<div class="placeholder">No uploads</div>`;
+    if (usnaps.empty){
+      uploadsBox.innerHTML = `<div class="placeholder">No uploads</div>`;
     } else {
-      usnaps.forEach(snap=>{
-        const d=snap.data();
-        const when=d.createdAt?.toDate? d.createdAt.toDate():null;
-        const label=when? when.toLocaleString():"(pending)";
+      usnaps.forEach(snap => {
+        const d = snap.data();
+        const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+        const label = when ? when.toLocaleString() : "(pending)";
 
-        const row=document.createElement("div");
-        row.className="el";
-        row.innerHTML=`
+        const row = document.createElement("div");
+        row.className = "el";
+        row.innerHTML = `
           <div>
-            <strong>${d.name||d.type||"Snapshot"}</strong>
+            <strong>${d.name || d.type || "Snapshot"}</strong>
             <div class="muted" style="font-size:11px">${label}</div>
           </div>
           <button class="btn">Load</button>
         `;
-        row.querySelector("button").onclick=()=>loadSnapshot(d.payload);
+        row.querySelector("button").onclick = () => loadSnapshot(d.payload);
         uploadsBox.appendChild(row);
       });
     }
@@ -804,91 +918,99 @@ async function renderAdminUsers(){
 }
 
 function isFuturiEmail(user){
-  const email=(user?.email||"").toLowerCase().trim();
+  const email = (user?.email || "").toLowerCase().trim();
   return email.endsWith("@futurimedia.com");
 }
 
 /* -------------------------
    Google-only Login wiring
    ------------------------- */
-document.addEventListener("DOMContentLoaded",()=>{
-  const {auth,onAuthStateChanged,GoogleAuthProvider,signInWithPopup,signOut}=window.fb;
+document.addEventListener("DOMContentLoaded", () => {
+  const {
+    auth, onAuthStateChanged,
+    GoogleAuthProvider, signInWithPopup,
+    signOut
+  } = window.fb;
 
-  const provider=new GoogleAuthProvider();
-  provider.setCustomParameters({prompt:"select_account",hd:"futurimedia.com"});
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({
+    prompt: "select_account",
+    hd: "futurimedia.com"
+  });
 
-  el("btnGoogleLogin").onclick=async()=>{
-    const btn=el("btnGoogleLogin");
-    const err=el("googleLoginError");
-    err.style.display="none";
+  el("btnGoogleLogin").onclick = async () => {
+    const btn = el("btnGoogleLogin");
+    const err = el("googleLoginError");
+    err.style.display = "none";
 
-    if(btn.dataset.busy==="1") return;
-    btn.dataset.busy="1"; btn.disabled=true;
+    if (btn.dataset.busy === "1") return;
+    btn.dataset.busy = "1";
+    btn.disabled = true;
 
-    try{
-      await signInWithPopup(auth,provider);
-    } catch(e){
-      if(e.code==="auth/cancelled-popup-request") return;
-      if(e.code==="auth/popup-closed-by-user") return;
-      err.textContent="Sign-in failed. Please try again.";
-      err.style.display="block";
-      console.warn("Google sign-in error:",e.code,e.message);
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      if (e.code === "auth/cancelled-popup-request") return;
+      if (e.code === "auth/popup-closed-by-user") return;
+
+      err.textContent = "Sign-in failed. Please try again.";
+      err.style.display = "block";
+      console.warn("Google sign-in error:", e.code, e.message);
     } finally {
-      btn.dataset.busy="0"; btn.disabled=false;
+      btn.dataset.busy = "0";
+      btn.disabled = false;
     }
   };
 
-  el("btnLogout").onclick=async()=>{
+  el("btnLogout").onclick = async () => {
     await signOut(auth);
     location.reload();
   };
 
-  el("btnUpload").onclick=async()=>{ await saveSnapshot(); };
+  el("btnUpload").onclick = async () => {
+    await saveSnapshot();
+  };
 
-  onAuthStateChanged(auth,async(user)=>{
-    if(!user){
-      el("btnLogout").style.display="none";
+  onAuthStateChanged(auth, async (user) => {
+    if (!user){
+      el("btnLogout").style.display = "none";
       showGoogleLogin();
       return;
     }
 
-    if(!isFuturiEmail(user)){
+    if (!isFuturiEmail(user)) {
       await signOut(auth);
       showGoogleLogin();
-      const err=el("googleLoginError");
-      err.textContent="Please sign in with your Futuri Media Google account (@futurimedia.com).";
-      err.style.display="block";
+      const err = el("googleLoginError");
+      err.textContent =
+        "Please sign in with your Futuri Media Google account (@futurimedia.com).";
+      err.style.display = "block";
       return;
     }
 
     hideGoogleLogin();
-    el("btnLogout").style.display="";
+    el("btnLogout").style.display = "";
 
-    CURRENT_UID=user.uid;
-    CURRENT_USER=await ensureUserDoc(user);
+    CURRENT_UID = user.uid;
+    CURRENT_USER = await ensureUserDoc(user);
 
-    const email=(user.email||"").toLowerCase();
-    CURRENT_ROLE=CURRENT_USER.role || (ADMIN_EMAILS.has(email)?"admin":"staff");
+    const email = (user.email || "").toLowerCase();
+    CURRENT_ROLE = CURRENT_USER.role || (ADMIN_EMAILS.has(email) ? "admin" : "staff");
 
     applyRoleUI();
     initApp();
     renderMyUploads();
-    if(CURRENT_ROLE==="admin") renderAdminUsers();
+    if (CURRENT_ROLE === "admin") renderAdminUsers();
   });
 
-  el("btnOpenRadio").onclick=()=>{
-    el("landing").classList.add("hidden");
-    el("radioView").classList.remove("hidden");
-    window.scrollTo(0,0);
-  };
+  // Navigation
+  el("btnOpenRadio").onclick = openRadioView;
+  el("btnBack").onclick = openLanding;
 
-  el("btnBack").onclick=()=>{
-    el("radioView").classList.add("hidden");
-    el("landing").classList.remove("hidden");
-    window.scrollTo(0,0);
-  };
+  el("btnOpenSnapshots").onclick = openSnapshotsView;
+  el("btnBackFromSnapshots").onclick = openLanding;
 
-  // Rich snapshot filters: re-render on any change
+  // Rich snapshot filters
   [
     "uploadsSearchName",
     "uploadsSearchParent",
@@ -897,21 +1019,21 @@ document.addEventListener("DOMContentLoaded",()=>{
     "uploadsSortBy",
     "uploadsDateFrom",
     "uploadsDateTo"
-  ].forEach(id=>{
-    const node=el(id);
-    if(!node) return;
-    node.addEventListener("input",()=>renderMyUploads());
-    node.addEventListener("change",()=>renderMyUploads());
+  ].forEach(id => {
+    const node = el(id);
+    if (!node) return;
+    node.addEventListener("input", () => renderMyUploads());
+    node.addEventListener("change", () => renderMyUploads());
   });
 
-  el("btnClearUploadsFilters").onclick=()=>{
-    el("uploadsSearchName").value="";
-    el("uploadsSearchParent").value="";
-    el("uploadsSearchProduct").value="";
-    el("uploadsPricingType").value="";
-    el("uploadsSortBy").value="newest";
-    el("uploadsDateFrom").value="";
-    el("uploadsDateTo").value="";
+  el("btnClearUploadsFilters").onclick = () => {
+    el("uploadsSearchName").value = "";
+    el("uploadsSearchParent").value = "";
+    el("uploadsSearchProduct").value = "";
+    el("uploadsPricingType").value = "";
+    el("uploadsSortBy").value = "newest";
+    el("uploadsDateFrom").value = "";
+    el("uploadsDateTo").value = "";
     renderMyUploads();
   };
 });
@@ -920,145 +1042,157 @@ document.addEventListener("DOMContentLoaded",()=>{
 <script>
 /** =======================
  *  Deal Calc — UserData (Static Option A)
+ *  Keeps your Nielsen JSON read-only, and lets users add their own companies.
+ *  Data is saved in localStorage and can be exported/imported as JSON.
  * ======================= */
-window.UserData=(function(){
-  const USER_KEY='dealcalc_user_data_v1';
-  const norm=s=>(s??'').toString().trim().replace(/\s+/g,' ').toLowerCase();
-  const clone=o=>JSON.parse(JSON.stringify(o));
+window.UserData = (function () {
+  const USER_KEY = 'dealcalc_user_data_v1';
+  const norm = s => (s ?? '').toString().trim().replace(/\s+/g,' ').toLowerCase();
+  const clone = o => JSON.parse(JSON.stringify(o));
 
   function normalizeSchema(any){
-    if(any && Array.isArray(any.parents)){
+    if (any && Array.isArray(any.parents)) {
       return {
-        parents:any.parents.map(p=>({
-          name:String(p.name??''),
-          country:p.country??null,
-          markets:Array.isArray(p.markets)? p.markets.map(m=>({
-            name:String(m.name??''),
-            stations:Array.isArray(m.stations)? m.stations.map(String):[]
-          })):[]
+        parents: any.parents.map(p => ({
+          name: String(p.name ?? ''),
+          country: p.country ?? null,
+          markets: Array.isArray(p.markets) ? p.markets.map(m => ({
+            name: String(m.name ?? ''),
+            stations: Array.isArray(m.stations) ? m.stations.map(String) : []
+          })) : []
         }))
       };
     }
-    if(any && typeof any==='object' && !Array.isArray(any)){
-      const parents=[];
-      for(const [parentName,marketsObj] of Object.entries(any)){
-        const markets=[];
-        if(marketsObj && typeof marketsObj==='object'){
-          for(const [marketName,stations] of Object.entries(marketsObj)){
-            markets.push({name:String(marketName),stations:Array.isArray(stations)? stations.map(String):[]});
+    if (any && typeof any === 'object' && !Array.isArray(any)) {
+      const parents = [];
+      for (const [parentName, marketsObj] of Object.entries(any)) {
+        const markets = [];
+        if (marketsObj && typeof marketsObj === 'object') {
+          for (const [marketName, stations] of Object.entries(marketsObj)) {
+            markets.push({ name: String(marketName), stations: Array.isArray(stations) ? stations.map(String) : [] });
           }
         }
-        parents.push({name:String(parentName),country:null,markets});
+        parents.push({ name: String(parentName), country: null, markets });
       }
-      return {parents};
+      return { parents };
     }
-    return {parents:[]};
+    return { parents: [] };
   }
 
   function readUser(){
-    try{return normalizeSchema(JSON.parse(localStorage.getItem(USER_KEY)||''));}
-    catch{return {parents:[]};}
+    try { return normalizeSchema(JSON.parse(localStorage.getItem(USER_KEY) || '')); }
+    catch { return { parents: [] }; }
   }
-  function writeUser(data){ localStorage.setItem(USER_KEY,JSON.stringify(data)); }
+  function writeUser(data){ localStorage.setItem(USER_KEY, JSON.stringify(data)); }
 
-  function mergeBaseAndUser(base,user){
-    const out=clone(base);
-    for(const up of user.parents){
-      let p=out.parents.find(pp=>norm(pp.name)===norm(up.name));
-      if(!p){ out.parents.push(clone(up)); continue; }
-      if(!p.country && up.country) p.country=up.country;
-      for(const um of up.markets){
-        let m=p.markets.find(mm=>norm(mm.name)===norm(um.name));
-        if(!m){ p.markets.push(clone(um)); continue; }
-        const set=new Set(m.stations.map(norm));
-        for(const st of um.stations){ if(!set.has(norm(st))) m.stations.push(st); }
+  function mergeBaseAndUser(base, user){
+    const out = clone(base);
+    for (const up of user.parents){
+      let p = out.parents.find(pp => norm(pp.name) === norm(up.name));
+      if (!p){ out.parents.push(clone(up)); continue; }
+      if (!p.country && up.country) p.country = up.country;
+      for (const um of up.markets){
+        let m = p.markets.find(mm => norm(mm.name) === norm(um.name));
+        if (!m){ p.markets.push(clone(um)); continue; }
+        const set = new Set(m.stations.map(norm));
+        for (const st of um.stations){ if (!set.has(norm(st))) m.stations.push(st); }
       }
     }
     out.parents.sort((a,b)=>a.name.localeCompare(b.name));
-    out.parents.forEach(p=>{
+    out.parents.forEach(p => {
       p.markets.sort((a,b)=>a.name.localeCompare(b.name));
-      p.markets.forEach(m=>m.stations.sort());
+      p.markets.forEach(m => m.stations.sort());
     });
     return out;
   }
 
-  let baseData={parents:[]};
+  let baseData = { parents: [] };
   async function init(baseUrl){
-    try{
-      const res=await fetch(baseUrl||'radio_data.json',{cache:'no-store'});
-      baseData=normalizeSchema(await res.json());
-    }catch(e){
-      console.warn('Could not load base radio_data.json; using empty base.',e);
-      baseData={parents:[]};
+    try {
+      const res = await fetch(baseUrl || 'radio_data.json', { cache: 'no-store' });
+      baseData = normalizeSchema(await res.json());
+    } catch (e){
+      console.warn('Could not load base radio_data.json; using empty base.', e);
+      baseData = { parents: [] };
     }
   }
 
-  function getMerged(){ return mergeBaseAndUser(baseData,readUser()); }
+  function getMerged(){ return mergeBaseAndUser(baseData, readUser()); }
 
-  function addEntry({parent,country,market,station}){
-    const u=readUser();
-    if(!parent?.trim() || !market?.trim() || !station?.trim()) return false;
-    const pKey=norm(parent),mKey=norm(market),sKey=norm(station);
+  function addEntry({ parent, country, market, station }){
+    const u = readUser();
+    if (!parent?.trim() || !market?.trim() || !station?.trim()) return false;
+    const pKey = norm(parent), mKey = norm(market), sKey = norm(station);
 
-    let p=u.parents.find(pp=>norm(pp.name)===pKey);
-    if(!p){ p={name:parent.trim(),country:country?.trim()||null,markets:[]}; u.parents.push(p); }
-    else if(!p.country && country?.trim()) p.country=country.trim();
+    let p = u.parents.find(pp => norm(pp.name) === pKey);
+    if (!p){ p = { name: parent.trim(), country: country?.trim() || null, markets: [] }; u.parents.push(p); }
+    else if (!p.country && country?.trim()) p.country = country.trim();
 
-    let m=p.markets.find(mm=>norm(mm.name)===mKey);
-    if(!m){ m={name:market.trim(),stations:[]}; p.markets.push(m); }
+    let m = p.markets.find(mm => norm(mm.name) === mKey);
+    if (!m){ m = { name: market.trim(), stations: [] }; p.markets.push(m); }
 
-    if(!m.stations.map(norm).includes(sKey)) m.stations.push(station.trim());
+    if (!m.stations.map(norm).includes(sKey)) m.stations.push(station.trim());
 
     writeUser(u);
     return true;
   }
 
-  function removeParent(parentName){
-    const u=readUser();
-    const key=norm(parentName);
-    const before=u.parents.length;
-    u.parents=u.parents.filter(p=>norm(p.name)!==key);
+  function removeParent(parentName) {
+    const u = readUser();
+    const key = norm(parentName);
+    const before = u.parents.length;
+    u.parents = u.parents.filter(p => norm(p.name) !== key);
     writeUser(u);
-    return u.parents.length!==before;
+    return u.parents.length !== before;
   }
 
-  return {init,getMerged,addEntry,removeParent};
+  return {
+    init,
+    getMerged,
+    addEntry,
+    removeParent
+  };
 })();
 </script>
 
 <script>
 /* =======================
    MAIN CALCULATOR JS
+   (your logic unchanged)
    ======================= */
 
-let BASE_DS={parents:[],markets:[],stations:[]};
+let BASE_DS = { parents: [], markets: [], stations: [] };
 
-function mergeUserIntoDataset(baseDS,userMerged){
-  const out=JSON.parse(JSON.stringify(baseDS||{parents:[],markets:[],stations:[]}));
-  const norm=s=>(s||'').trim().toLowerCase();
+function mergeUserIntoDataset(baseDS, userMerged){
+  const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
+  const norm = s => (s||'').trim().toLowerCase();
 
-  const parentSet=new Set((out.parents||[]).map(norm));
-  const marketSet=new Set((out.markets||[]).map(norm));
-  const stationKeySet=new Set((out.stations||[]).map(s=>`${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`));
+  const parentSet = new Set((out.parents||[]).map(norm));
+  const marketSet = new Set((out.markets||[]).map(norm));
+  const stationKeySet = new Set((out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`));
 
-  (userMerged?.parents||[]).forEach(p=>{
-    const parentName=(p.name||'').trim();
-    if(!parentName) return;
-    if(!parentSet.has(norm(parentName))){ out.parents.push(parentName); parentSet.add(norm(parentName)); }
+  (userMerged?.parents || []).forEach(p => {
+    const parentName = (p.name || '').trim();
+    if (!parentName) return;
+    if (!parentSet.has(norm(parentName))) { out.parents.push(parentName); parentSet.add(norm(parentName)); }
 
-    (p.markets||[]).forEach(m=>{
-      const marketName=(m.name||'').trim();
-      if(!marketName) return;
-      if(!marketSet.has(norm(marketName))){ out.markets.push(marketName); marketSet.add(norm(marketName)); }
+    (p.markets || []).forEach(m => {
+      const marketName = (m.name || '').trim();
+      if (!marketName) return;
+      if (!marketSet.has(norm(marketName))) { out.markets.push(marketName); marketSet.add(norm(marketName)); }
 
-      (m.stations||[]).forEach(st=>{
-        const stationName=(st||'').trim();
-        if(!stationName) return;
-        const key=`${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
-        if(!stationKeySet.has(key)){
+      (m.stations || []).forEach(st => {
+        const stationName = (st || '').trim();
+        if (!stationName) return;
+        const key = `${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
+        if (!stationKeySet.has(key)) {
           out.stations.push({
-            parent:parentName,market:marketName,station:stationName,
-            primeAQH:0,rosAQH:0,format:''
+            parent: parentName,
+            market: marketName,
+            station: stationName,
+            primeAQH: 0,
+            rosAQH: 0,
+            format: ''
           });
           stationKeySet.add(key);
         }
@@ -1068,105 +1202,106 @@ function mergeUserIntoDataset(baseDS,userMerged){
 
   out.parents.sort((a,b)=>a.localeCompare(b));
   out.markets.sort((a,b)=>a.localeCompare(b));
-  out.stations.sort((a,b)=>a.station.localeCompare(b.station)||a.market.localeCompare(b.market));
+  out.stations.sort((a,b)=> a.station.localeCompare(b.station) || a.market.localeCompare(b.market));
+
   return out;
 }
 
-// CONFIG
-const DATA_URL='./radio_data.json';
+const DATA_URL = './radio_data.json';
 
 // Dataset + Index
-let DS={parents:[],markets:[],stations:[]};
-const IDX={
-  parentSet:new Set(),
-  marketSet:new Set(),
-  stations:[],
-  stationsByParent:new Map(),
-  stationsByParentMarket:new Map(),
+let DS = { parents: [], markets: [], stations: [] };
+const IDX = {
+  parentSet: new Set(),
+  marketSet: new Set(),
+  stations: [],
+  stationsByParent: new Map(),
+  stationsByParentMarket: new Map(),
 };
-const state={parent:'',markets:new Set(),stations:new Set()};
+const state = { parent: '', markets: new Set(), stations: new Set() };
 
 // Products configuration
-const PRODUCTS=[
-  {id:'topicpulse',name:'TopicPulse',cash:1500,barter:2040},
-  {id:'topicpulse_iv',name:'TopicPulse w/ Instant Video',cash:2000,barter:2720},
-  {id:'topline_podcast',name:'TopLine - Podcast',cash:2500,barter:3400},
-  {id:'topline_agency',name:'TopLine - Agency',cash:2500,barter:3400},
-  {id:'post',name:'POST',cash:1000,barter:1360},
-  {id:'mobile',name:'Mobile',cash:750,barter:1020},
-  {id:'streaming',name:'Streaming',cash:500,barter:680},
-  {id:'ldr',name:'LDR',cash:750,barter:1020},
-  {id:'prep_plus',name:'Prep+',cash:500,barter:680},
-  {id:'instant_video',name:'Instant Video add-on',cash:500,barter:680},
-  {id:'faai_nights',name:'FAAI - Nights/Overnights/Weekends',cash:1500,barter:2040},
-  {id:'faai_247',name:'FAAI - 24/7',cash:5000,barter:6800},
-  {id:'faai_daily',name:'FAAI - Daily Weather/News',cash:1000,barter:1360},
-  {id:'spoton_audio',name:'SpotOn - Audio',cash:750,barter:1020},
-  {id:'spoton_video',name:'SpotOn Video',cash:null,barter:null},
-  {id:'topline',name:'TopLine',cash:null,barter:null}
+const PRODUCTS = [
+  { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
+  { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
+  { id: 'topline_podcast', name: 'TopLine - Podcast', cash: 2500, barter: 3400 },
+  { id: 'topline_agency', name: 'TopLine - Agency', cash: 2500, barter: 3400 },
+  { id: 'post', name: 'POST', cash: 1000, barter: 1360 },
+  { id: 'mobile', name: 'Mobile', cash: 750, barter: 1020 },
+  { id: 'streaming', name: 'Streaming', cash: 500, barter: 680 },
+  { id: 'ldr', name: 'LDR', cash: 750, barter: 1020 },
+  { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680 },
+  { id: 'instant_video', name: 'Instant Video add-on', cash: 500, barter: 680 },
+  { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040 },
+  { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800 },
+  { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360 },
+  { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020 },
+  { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null },
+  { id: 'topline', name: 'TopLine', cash: null, barter: null }
 ];
 
-const productState={
-  selectedProducts:new Set(),
-  pricingType:'cash',
-  customPrices:new Map(),
-  cpm:2.00,
-  manualMinutes:new Map(),
-  stationCashValues:new Map()
+const productState = {
+  selectedProducts: new Set(),
+  pricingType: 'cash',
+  customPrices: new Map(),
+  cpm: 2.00,
+  manualMinutes: new Map(),
+  stationCashValues: new Map()
 };
 
 // Load dataset
-async function loadDataset(){
-  try{
-    const response=await fetch(DATA_URL,{cache:'no-store'});
-    if(!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    const data=await response.json();
-    console.log(`Loaded ${data.stations?.length||0} stations`);
+async function loadDataset() {
+  try {
+    const response = await fetch(DATA_URL, { cache:'no-store' });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
+    console.log(`Loaded ${data.stations?.length || 0} stations`);
     return data;
-  }catch(error){
-    console.error('Failed to load dataset:',error);
+  } catch (error) {
+    console.error('Failed to load dataset:', error);
     alert('Failed to load radio station data. Make sure radio_data.json is deployed next to index.html.');
-    return {parents:[],markets:[],stations:[]};
+    return { parents: [], markets: [], stations: [] };
   }
 }
 
 function rebuildIndex(){
-  IDX.parentSet=new Set(DS.parents||[]);
-  IDX.marketSet=new Set(DS.markets||[]);
-  IDX.stations=DS.stations||[];
+  IDX.parentSet = new Set(DS.parents || []);
+  IDX.marketSet = new Set(DS.markets || []);
+  IDX.stations = DS.stations || [];
   IDX.stationsByParent.clear();
   IDX.stationsByParentMarket.clear();
-  (IDX.stations||[]).forEach(s=>{
-    const p=s.parent||'', m=s.market||'';
-    if(!IDX.stationsByParent.has(p)) IDX.stationsByParent.set(p,[]);
+  (IDX.stations || []).forEach(s => {
+    const p = s.parent || ''; const m = s.market || '';
+    if (!IDX.stationsByParent.has(p)) IDX.stationsByParent.set(p, []);
     IDX.stationsByParent.get(p).push(s);
-    const key=p+'||'+m;
-    if(!IDX.stationsByParentMarket.has(key)) IDX.stationsByParentMarket.set(key,[]);
+    const key = p + '||' + m;
+    if (!IDX.stationsByParentMarket.has(key)) IDX.stationsByParentMarket.set(key, []);
     IDX.stationsByParentMarket.get(key).push(s);
   });
 }
 
-// UI enable/disable helpers
-function setMarketsEnabled(enabled){
-  const sel=el('btnSelAllMarkets'), clr=el('btnClrAllMarkets');
-  if(sel) sel.disabled=!enabled; if(clr) clr.disabled=!enabled;
-  const ph=el('marketsPlaceholder'); if(ph) ph.style.display=enabled?'none':'';
-  const list=el('marketsList'); if(list && !enabled) list.innerHTML='';
+function setMarketsEnabled(enabled) {
+  const sel = el('btnSelAllMarkets'); const clr = el('btnClrAllMarkets');
+  if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
+  const ph = el('marketsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
+  const list = el('marketsList'); if (list && !enabled) list.innerHTML = '';
 }
-function setStationsEnabled(enabled){
-  const sel=el('btnSelAllStations'), clr=el('btnClrAllStations');
-  if(sel) sel.disabled=!enabled; if(clr) clr.disabled=!enabled;
-  const ph=el('stationsPlaceholder'); if(ph) ph.style.display=enabled?'none':'';
-  const list=el('stationsList'); if(list && !enabled) list.innerHTML='';
+function setStationsEnabled(enabled) {
+  const sel = el('btnSelAllStations'); const clr = el('btnClrAllStations');
+  if (sel) sel.disabled = !enabled; if (clr) clr.disabled = !enabled;
+  const ph = el('stationsPlaceholder'); if (ph) ph.style.display = enabled ? 'none' : '';
+  const list = el('stationsList'); if (list && !enabled) list.innerHTML = '';
 }
 
-// ===== initApp() CALLED AFTER LOGIN =====
-async function initApp(){
-  if(initApp._ran) return; initApp._ran=true;
+// initApp AFTER LOGIN
+async function initApp() {
+  if (initApp._ran) return;
+  initApp._ran = true;
 
   await UserData.init(DATA_URL);
-  BASE_DS=await loadDataset();
-  DS=mergeUserIntoDataset(BASE_DS,UserData.getMerged());
+
+  BASE_DS = await loadDataset();
+  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
   rebuildIndex();
 
   setupEventListeners();
@@ -1175,93 +1310,104 @@ async function initApp(){
 }
 
 // Event listeners
-function setupEventListeners(){
+function setupEventListeners() {
   setMarketsEnabled(false);
   setStationsEnabled(false);
 
-  const ps=el('parentSearch');
-  ps.addEventListener('input',()=>renderParents(ps.value));
+  const ps = el('parentSearch');
+  ps.addEventListener('input', () => renderParents(ps.value));
   renderParents('');
 
-  el('marketSearch').addEventListener('input',renderMarkets);
-  el('stationSearch').addEventListener('input',renderStations);
+  el('marketSearch').addEventListener('input', renderMarkets);
+  el('stationSearch').addEventListener('input', renderStations);
 
-  el('btnSelAllMarkets').onclick=()=>{
-    (IDX.stationsByParent.get(state.parent)||[]).forEach(s=>state.markets.add(s.market));
+  el('btnSelAllMarkets').onclick = () => {
+    (IDX.stationsByParent.get(state.parent) || []).forEach(s => state.markets.add(s.market));
     renderMarkets(); renderStations(); updatePreview();
   };
-  el('btnClrAllMarkets').onclick=()=>{
+  el('btnClrAllMarkets').onclick = () => {
     state.markets.clear(); renderMarkets(); renderStations(); updatePreview();
   };
 
-  el('btnSelAllStations').onclick=()=>{
-    document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb=>{
-      cb.checked=true; state.stations.add(cb.value);
+  el('btnSelAllStations').onclick = () => {
+    document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
+      cb.checked = true; state.stations.add(cb.value);
     });
     updatePreview();
   };
-  el('btnClrAllStations').onclick=()=>{
-    document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb=>{
-      cb.checked=false; state.stations.delete(cb.value);
+  el('btnClrAllStations').onclick = () => {
+    document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
+      cb.checked = false; state.stations.delete(cb.value);
     });
     updatePreview();
   };
 
   // OPEN MODAL
-  el('btnAddCompany').onclick=()=>{
-    const modal=el('addCompanyModal');
-    modal.style.display='flex';
-    el('ac_parent').value=''; el('ac_country').value=''; el('ac_market').value=''; el('ac_station').value='';
-    const err=el('ac_error'); err.style.display='none'; err.textContent='';
+  el('btnAddCompany').onclick = () => {
+    const modal = el('addCompanyModal');
+    modal.style.display = 'flex';
+
+    el('ac_parent').value  = '';
+    el('ac_country').value = '';
+    el('ac_market').value  = '';
+    el('ac_station').value = '';
+
+    const err = el('ac_error');
+    err.style.display = 'none';
+    err.textContent = '';
+
     el('ac_parent').focus();
   };
 
   // CANCEL / CLOSE
-  el('ac_cancel').onclick=()=>{
-    el('addCompanyModal').style.display='none';
-    const err=el('ac_error'); err.style.display='none'; err.textContent='';
+  el('ac_cancel').onclick = () => {
+    el('addCompanyModal').style.display = 'none';
+    const err = el('ac_error');
+    err.style.display = 'none';
+    err.textContent = '';
   };
 
   // SAVE
-  el('ac_save').onclick=()=>{
-    if(!can('manage_custom_parents')){
-      const err=el('ac_error');
-      err.textContent='Your role does not permit adding companies.';
-      err.style.display='block';
+  el('ac_save').onclick = () => {
+    if (!can('manage_custom_parents')) {
+      const err = el('ac_error');
+      err.textContent = 'Your role does not permit adding companies.';
+      err.style.display = 'block';
       return;
     }
 
-    const P=(el('ac_parent').value||'').trim();
-    const C=(el('ac_country').value||'').trim();
-    const M=(el('ac_market').value||'').trim();
-    const S=(el('ac_station').value||'').trim();
+    const P = (el('ac_parent').value  || '').trim();
+    const C = (el('ac_country').value || '').trim();
+    const M = (el('ac_market').value  || '').trim();
+    const S = (el('ac_station').value || '').trim();
 
-    const err=el('ac_error');
-    if(!P || !M || !S){
-      err.textContent='Parent, Market, and Station are required.';
-      err.style.display='block';
+    const err = el('ac_error');
+    if (!P || !M || !S) {
+      err.textContent = 'Parent, Market, and Station are required.';
+      err.style.display = 'block';
       return;
     }
 
-    err.style.display='none'; err.textContent='';
-    UserData.addEntry({parent:P,country:C,market:M,station:S});
-    el('addCompanyModal').style.display='none';
+    err.style.display = 'none';
+    err.textContent = '';
 
-    DS=mergeUserIntoDataset(BASE_DS,UserData.getMerged());
+    UserData.addEntry({ parent: P, country: C, market: M, station: S });
+
+    el('addCompanyModal').style.display = 'none';
+
+    DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
     rebuildIndex();
-    el('parentSearch').value=P;
+    el('parentSearch').value = P;
     renderParents(P);
     setParent(P);
   };
 
-  // click backdrop to close
-  el('addCompanyModal').addEventListener('click',(e)=>{
-    if(e.target.id==='addCompanyModal') el('ac_cancel').click();
+  el('addCompanyModal').addEventListener('click', (e) => {
+    if (e.target.id === 'addCompanyModal') el('ac_cancel').click();
   });
 
-  // esc to close
-  document.addEventListener('keydown',(e)=>{
-    if(e.key==='Escape' && el('addCompanyModal').style.display==='flex'){
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && el('addCompanyModal').style.display === 'flex') {
       el('ac_cancel').click();
     }
   });
