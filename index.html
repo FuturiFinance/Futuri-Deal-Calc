@@ -812,6 +812,11 @@ async function renderAdminUsers(){
   }
 }
 
+ function isFuturiEmail(user){
+  const email = (user?.email || "").toLowerCase().trim();
+  return email.endsWith("@futurimedia.com");
+}
+
 /* -------------------------
    Google-only Login wiring
    ------------------------- */
@@ -823,7 +828,10 @@ document.addEventListener("DOMContentLoaded", () => {
   } = window.fb;
 
   const provider = new GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: "select_account" });
+  provider.setCustomParameters({
+    prompt: "select_account",
+    hd: "futurimedia.com"   // hosted domain hint (UX only)
+  });
 
   el("btnGoogleLogin").onclick = async () => {
     const err = el("googleLoginError");
@@ -852,18 +860,28 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // ✅ ENFORCE DOMAIN
+    if (!isFuturiEmail(user)) {
+      await signOut(auth);
+      showGoogleLogin();
+      const err = el("googleLoginError");
+      err.textContent =
+        "Please sign in with your Futuri Media Google account (@futurimedia.com).";
+      err.style.display = "block";
+      return;
+    }
+
     hideGoogleLogin();
     el("btnLogout").style.display = "";
 
-    CURRENT_UID = user.uid; // ✅ auth uid first
+    CURRENT_UID = user.uid;
     CURRENT_USER = await ensureUserDoc(user);
 
-    const email = (user.email||"").toLowerCase();
+    const email = (user.email || "").toLowerCase();
     CURRENT_ROLE = CURRENT_USER.role || (ADMIN_EMAILS.has(email) ? "admin" : "staff");
 
     applyRoleUI();
-
-    initApp();              // app after role set
+    initApp();
     renderMyUploads();
     if (CURRENT_ROLE === "admin") renderAdminUsers();
   });
@@ -873,13 +891,13 @@ document.addEventListener("DOMContentLoaded", () => {
     el("radioView").classList.remove("hidden");
     window.scrollTo(0,0);
   };
+
   el("btnBack").onclick = () => {
     el("radioView").classList.add("hidden");
     el("landing").classList.remove("hidden");
     window.scrollTo(0,0);
   };
 });
-</script>
 
 <script>
 /** =======================
