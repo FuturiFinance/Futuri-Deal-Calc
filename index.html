@@ -41,7 +41,6 @@
     /* Prevent padding/border from increasing element width */
     *, *::before, *::after { box-sizing: border-box; }
 
-
     /* Google-only login overlay */
     #googleLoginScreen {
       position: fixed; inset: 0;
@@ -81,116 +80,114 @@
     a { color: #7fc1ff; text-decoration: none; }
     a:hover { text-decoration: underline; }
 
-  /* ===== Modal styling ===== */
-.modal {
-  position: fixed;
-  inset: 0;
-  display: flex;           /* stays flex when visible */
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,.55);
-  z-index: 9999;
-}
+    /* ===== Modal styling ===== */
+    .modal {
+      position: fixed;
+      inset: 0;
+      display: flex;           /* stays flex when visible */
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.55);
+      z-index: 9999;
+    }
 
-.modal-card {
-  width: min(560px, 95vw);
-  background: var(--card);
-  border: 1px solid var(--edge);
-  border-radius: 14px;
-  padding: 16px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.35);
-  display: grid;
-  gap: 12px;
-}
+    .modal-card {
+      width: min(560px, 95vw);
+      background: var(--card);
+      border: 1px solid var(--edge);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      display: grid;
+      gap: 12px;
+    }
 
-.modal-header {
-  display:flex;
-  justify-content: space-between;
-  align-items:center;
-}
+    .modal-header {
+      display:flex;
+      justify-content: space-between;
+      align-items:center;
+    }
 
-.modal-close {
-  padding: 4px 8px;
-  font-size: 14px;
-  line-height: 1;
-}
+    .modal-close {
+      padding: 4px 8px;
+      font-size: 14px;
+      line-height: 1;
+    }
 
-.modal-grid {
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
+    .modal-grid {
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
 
-@media (max-width: 640px) {
-  .modal-grid { grid-template-columns: 1fr; }
-}
+    @media (max-width: 640px) {
+      .modal-grid { grid-template-columns: 1fr; }
+    }
 
-.field label {
-  display:block;
-  font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 6px;
-}
+    .field label {
+      display:block;
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
 
-.field input {
-  width:100%;
-  height:40px;
-  background:#0c131b;
-  border:1px solid var(--edge);
-  color:var(--text);
-  border-radius:10px;
-  padding:8px 10px;
-  font-size:14px;
-}
+    .field input {
+      width:100%;
+      height:40px;
+      background:#0c131b;
+      border:1px solid var(--edge);
+      color:var(--text);
+      border-radius:10px;
+      padding:8px 10px;
+      font-size:14px;
+    }
 
-.field input:focus {
-  outline:none;
-  border-color:#2a4a66;
-}
+    .field input:focus {
+      outline:none;
+      border-color:#2a4a66;
+    }
 
-.req { color:#ff8a8a; font-weight:600; margin-left:4px; }
+    .req { color:#ff8a8a; font-weight:600; margin-left:4px; }
 
-.modal-actions {
-  display:flex;
-  justify-content:flex-end;
-  gap:8px;
-  margin-top: 4px;
-}
+    .modal-actions {
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top: 4px;
+    }
 
-.modal-error {
-  margin: 0;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255, 80, 80, .08);
-  border: 1px solid rgba(255, 80, 80, .25);
-  color: #ff9a9a;
-  font-size: 12px;
-}
+    .modal-error {
+      margin: 0;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(255, 80, 80, .08);
+      border: 1px solid rgba(255, 80, 80, .25);
+      color: #ff9a9a;
+      font-size: 12px;
+    }
 
-  /* Any direct form control inside .row should flex and shrink nicely */
-.row > input,
-.row > select,
-.row > textarea {
-  flex: 1 1 auto;
-  min-width: 0;   /* allows shrinking inside flex */
-  width: auto;    /* overrides width:100% */
-}
+    /* Any direct form control inside .row should flex and shrink nicely */
+    .row > input,
+    .row > select,
+    .row > textarea {
+      flex: 1 1 auto;
+      min-width: 0;   /* allows shrinking inside flex */
+      width: auto;    /* overrides width:100% */
+    }
 
-/* If you wrap inputs in a div inside .row, make the wrapper flex too */
-.row > .field,
-.row > .grow {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.row > .field > input,
-.row > .field > select,
-.row > .grow > input,
-.row > .grow > select {
-  width: 100%;
-  min-width: 0;
-}
-
-
+    /* If you wrap inputs in a div inside .row, make the wrapper flex too */
+    .row > .field,
+    .row > .grow {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .row > .field > input,
+    .row > .field > select,
+    .row > .grow > input,
+    .row > .grow > select {
+      width: 100%;
+      min-width: 0;
+    }
   </style>
 </head>
 <body>
@@ -267,50 +264,50 @@
       <input id="parentSearch" type="text" placeholder="Search parent companies..." />
 
       <div class="row" style="gap:8px; align-items:center; margin-top:8px;">
-  <button class="btn" id="btnAddCompany">Add Company</button>
-  <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
-</div>
+        <button class="btn" id="btnAddCompany">Add Company</button>
+        <span id="userDataStatus" style="font-size:12px; color:#9bb3c7;"></span>
+      </div>
 
       <div id="parentResults" class="list"></div>
     </section>
 
     <!-- Add Company Modal (clean layout, same IDs) -->
-<div id="addCompanyModal" class="modal" style="display:none;">
-  <div class="modal-card">
-    <div class="modal-header">
-      <div class="title">Add Company (Custom)</div>
-      <button class="btn modal-close" id="ac_cancel" type="button">✕</button>
+    <div id="addCompanyModal" class="modal" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <div class="title">Add Company (Custom)</div>
+          <button class="btn modal-close" id="ac_cancel" type="button">✕</button>
+        </div>
+
+        <div class="modal-grid">
+          <div class="field">
+            <label for="ac_parent">Parent <span class="req">*</span></label>
+            <input id="ac_parent" type="text" placeholder="PARENT"/>
+          </div>
+
+          <div class="field">
+            <label for="ac_country">Country</label>
+            <input id="ac_country" type="text" placeholder="COUNTRY"/>
+          </div>
+
+          <div class="field">
+            <label for="ac_market">Market <span class="req">*</span></label>
+            <input id="ac_market" type="text" placeholder="MARKET"/>
+          </div>
+
+          <div class="field">
+            <label for="ac_station">Station <span class="req">*</span></label>
+            <input id="ac_station" type="text" placeholder="STATION"/>
+          </div>
+        </div>
+
+        <p id="ac_error" class="modal-error" style="display:none;"></p>
+
+        <div class="modal-actions">
+          <button class="btn" id="ac_save" type="button">Save</button>
+        </div>
+      </div>
     </div>
-
-    <div class="modal-grid">
-      <div class="field">
-        <label for="ac_parent">Parent <span class="req">*</span></label>
-        <input id="ac_parent" type="text" placeholder="PARENT"/>
-      </div>
-
-      <div class="field">
-        <label for="ac_country">Country</label>
-        <input id="ac_country" type="text" placeholder="COUNTRY"/>
-      </div>
-
-      <div class="field">
-        <label for="ac_market">Market <span class="req">*</span></label>
-        <input id="ac_market" type="text" placeholder="MARKET"/>
-      </div>
-
-      <div class="field">
-        <label for="ac_station">Station <span class="req">*</span></label>
-        <input id="ac_station" type="text" placeholder="STATION"/>
-      </div>
-    </div>
-
-    <p id="ac_error" class="modal-error" style="display:none;"></p>
-
-    <div class="modal-actions">
-      <button class="btn" id="ac_save" type="button">Save</button>
-    </div>
-  </div>
-</div>
 
     <section class="card">
       <div class="title">Step 2: Select Markets (Optional)</div>
@@ -425,12 +422,73 @@
     <!-- Upload section -->
     <section class="card" id="uploadsPanel">
       <div class="title">My Uploads (Firestore Snapshots)</div>
+
       <div class="row">
         <button class="btn" id="btnUpload">Save Snapshot</button>
         <span class="muted" id="uploadHint">Staff/Admin only</span>
         <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
       </div>
-      <div id="uploadsList" class="list" style="margin-top:8px;"></div>
+
+      <!-- RICH SEARCH / FILTERS -->
+      <div class="card" style="margin-top:10px; background:#0b121a;">
+        <div class="title" style="margin-bottom:6px;">Search Snapshots</div>
+
+        <div class="row" style="margin-bottom:8px;">
+          <div class="field grow">
+            <label for="uploadsSearchName">Name</label>
+            <input id="uploadsSearchName" type="text" placeholder="Search by snapshot name..." />
+          </div>
+
+          <div class="field grow">
+            <label for="uploadsSearchParent">Parent Company</label>
+            <input id="uploadsSearchParent" type="text" placeholder="Search by parent company..." />
+          </div>
+        </div>
+
+        <div class="row" style="margin-bottom:8px;">
+          <div class="field" style="min-width:160px;">
+            <label for="uploadsPricingType">Pricing Type</label>
+            <select id="uploadsPricingType">
+              <option value="">Any</option>
+              <option value="cash">Cash</option>
+              <option value="barter">Barter</option>
+              <option value="mixed">Mixed</option>
+            </select>
+          </div>
+
+          <div class="field grow">
+            <label for="uploadsSearchProduct">Has Product</label>
+            <input id="uploadsSearchProduct" type="text" placeholder='e.g. "TopicPulse" (matches selected products)' />
+          </div>
+
+          <div class="field" style="min-width:160px;">
+            <label for="uploadsSortBy">Sort</label>
+            <select id="uploadsSortBy">
+              <option value="newest" selected>Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A → Z</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="field" style="min-width:160px;">
+            <label for="uploadsDateFrom">Date From</label>
+            <input id="uploadsDateFrom" type="date" />
+          </div>
+
+          <div class="field" style="min-width:160px;">
+            <label for="uploadsDateTo">Date To</label>
+            <input id="uploadsDateTo" type="date" />
+          </div>
+
+          <div class="row" style="align-self:flex-end; margin-left:auto;">
+            <button class="btn" id="btnClearUploadsFilters" type="button">Clear Filters</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="uploadsList" class="list" style="margin-top:10px;"></div>
     </section>
 
     <!-- Admin-only panel -->
@@ -506,11 +564,13 @@ const PERMS = {
 let CURRENT_USER = null;   // Firestore user doc data
 let CURRENT_UID  = null;   // Auth uid (always reliable)
 let CURRENT_ROLE = "staff";
+// Cache of my snapshots for client-side search
+let MY_UPLOADS_CACHE = [];
 
 function currentRole(){ return CURRENT_ROLE; }
 function can(action){ return !!PERMS[currentRole()]?.[action]; }
 
-// Login overlay helpers (previously missing)
+// Login overlay helpers
 function showGoogleLogin(){ el("googleLoginScreen").style.display = "flex"; }
 function hideGoogleLogin(){ el("googleLoginScreen").style.display = "none"; }
 
@@ -554,34 +614,6 @@ function applyRoleUI(){
   // Admin panel visibility
   if (CURRENT_ROLE === "admin") el("adminPanel").classList.remove("hidden");
   else el("adminPanel").classList.add("hidden");
-
-  // Pricing override visibility handled in renderProducts()
-}
-
-// Snapshot serializer (missing previously)
-function serializeSnapshotPayload(){
-  const pick = (s) => Array.from(s || []);
-  const mapToObj = (m) => {
-    const out = {};
-    (m || new Map()).forEach((v,k)=> out[k]=v);
-    return out;
-  };
-
-  return {
-    parent: state.parent || "",
-    markets: pick(state.markets),
-    stations: pick(state.stations),
-
-    pricingType: productState.pricingType,
-    products: pick(productState.selectedProducts),
-
-    customPrices: mapToObj(productState.customPrices),
-    manualMinutes: mapToObj(productState.manualMinutes),
-    stationCashValues: mapToObj(productState.stationCashValues),
-    cpm: productState.cpm,
-
-    proposalHTML: el("proposalTable")?.innerHTML || ""
-  };
 }
 
 // Load a snapshot into app
@@ -621,7 +653,7 @@ function loadSnapshot(payload){
   alert("Snapshot loaded.");
 }
 
-// Save snapshot (FIXED to use CURRENT_UID)
+// Save snapshot
 async function saveSnapshot() {
   if (!CURRENT_USER) return alert("Not signed in.");
 
@@ -638,27 +670,25 @@ async function saveSnapshot() {
     name = `Snapshot ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
   }
 
-  // --- build payload ---
-  const payload = buildSnapshotPayload(); // ✅ helper below
-
   function buildSnapshotPayload() {
-  return {
-    parent: state.parent,
-    markets: Array.from(state.markets),
-    stations: Array.from(state.stations),
+    return {
+      parent: state.parent,
+      markets: Array.from(state.markets),
+      stations: Array.from(state.stations),
 
-    pricingType: productState.pricingType,
-    products: Array.from(productState.selectedProducts),
-    customPrices: Object.fromEntries(productState.customPrices),
-    manualMinutes: Object.fromEntries(productState.manualMinutes),
-    stationCashValues: Object.fromEntries(productState.stationCashValues),
-    cpm: productState.cpm,
+      pricingType: productState.pricingType,
+      products: Array.from(productState.selectedProducts),
+      customPrices: Object.fromEntries(productState.customPrices),
+      manualMinutes: Object.fromEntries(productState.manualMinutes),
+      stationCashValues: Object.fromEntries(productState.stationCashValues),
+      cpm: productState.cpm,
 
-    // store proposal if already generated
-    proposalHTML: el("proposalTable")?.innerHTML || null
-  };
-}
+      // store proposal if already generated
+      proposalHTML: el("proposalTable")?.innerHTML || null
+    };
+  }
 
+  const payload = buildSnapshotPayload();
 
   // --- write ---
   await addDoc(collection(db, "users", CURRENT_USER.uid, "uploads"), {
@@ -671,46 +701,129 @@ async function saveSnapshot() {
   el("uploadStatus").textContent = "Saved!";
   setTimeout(() => (el("uploadStatus").textContent = ""), 1500);
 
-  await renderMyUploads();
+  // force refresh after saving
+  await renderMyUploads(true);
+
   if (currentRole() === "admin") await renderAdminUsers();
 }
 
-async function renderMyUploads() {
-  const { db, collection, getDocs, query, orderBy } = window.fb;
+/* ===========================
+   SNAPSHOT RENDERING (CACHED)
+   =========================== */
+
+// Fetch + render (only hits Firestore if needed or forced)
+async function renderMyUploads(forceFetch = false) {
+  if (!CURRENT_USER) return;
+
+  if (!MY_UPLOADS_CACHE.length || forceFetch) {
+    const { db, collection, getDocs, query, orderBy } = window.fb;
+    const uq = query(
+      collection(db, "users", CURRENT_USER.uid, "uploads"),
+      orderBy("createdAt", "desc")
+    );
+
+    const snaps = await getDocs(uq);
+
+    // Cache everything once
+    MY_UPLOADS_CACHE = snaps.docs.map(d => ({
+      id: d.id,
+      ...d.data()
+    }));
+  }
+
+  renderMyUploadsFromCache();
+}
+
+// Render from cache only (no Firestore reads)
+function renderMyUploadsFromCache() {
   const root = el("uploadsList");
   root.innerHTML = "";
 
   if (!CURRENT_USER) return;
 
-  const uq = query(
-    collection(db, "users", CURRENT_USER.uid, "uploads"),
-    orderBy("createdAt", "desc")
-  );
+  const filtered = applyUploadsFilters(MY_UPLOADS_CACHE);
 
-  const snaps = await getDocs(uq);
-
-  if (snaps.empty) {
-    root.innerHTML = `<div class="placeholder">No snapshots yet.</div>`;
+  if (!filtered.length) {
+    root.innerHTML = `<div class="placeholder">No snapshots found for those filters.</div>`;
     return;
   }
 
-  snaps.forEach(docSnap => {
-    const d = docSnap.data();
+  filtered.forEach(d => {
     const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
     const label = when ? when.toLocaleString() : "(pending)";
 
     const row = document.createElement("div");
     row.className = "el";
     row.innerHTML = `
-      <div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
         <strong>${d.name || "Untitled Snapshot"}</strong>
         <div class="muted" style="font-size:11px">${label}</div>
+        ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+        ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
       </div>
       <button class="btn">Load</button>
     `;
     row.querySelector("button").onclick = () => loadSnapshot(d.payload);
     root.appendChild(row);
   });
+}
+
+function applyUploadsFilters(list) {
+  const nameQ   = (el("uploadsSearchName")?.value || "").trim().toLowerCase();
+  const parentQ = (el("uploadsSearchParent")?.value || "").trim().toLowerCase();
+  const prodQ   = (el("uploadsSearchProduct")?.value || "").trim().toLowerCase();
+  const pType   = (el("uploadsPricingType")?.value || "").trim().toLowerCase();
+  const sortBy  = (el("uploadsSortBy")?.value || "newest");
+
+  const fromStr = el("uploadsDateFrom")?.value || "";
+  const toStr   = el("uploadsDateTo")?.value || "";
+
+  const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
+  const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
+
+  let out = list.filter(snap => {
+    const name   = (snap.name || "").toLowerCase();
+    const parent = (snap.payload?.parent || "").toLowerCase();
+    const pricingType = (snap.payload?.pricingType || "").toLowerCase();
+
+    const productIds = Array.isArray(snap.payload?.products) ? snap.payload.products : [];
+    const productNames = productIds
+      .map(pid => (PRODUCTS.find(p => p.id === pid)?.name || pid))
+      .join(" ")
+      .toLowerCase();
+
+    const created = snap.createdAt?.toDate ? snap.createdAt.toDate() : null;
+
+    if (nameQ && !name.includes(nameQ)) return false;
+    if (parentQ && !parent.includes(parentQ)) return false;
+    if (pType && pricingType !== pType) return false;
+    if (prodQ && !productNames.includes(prodQ)) return false;
+
+    if (fromDate && created && created < fromDate) return false;
+    if (toDate && created && created > toDate) return false;
+
+    return true;
+  });
+
+  // Sorting
+  if (sortBy === "oldest") {
+    out.sort((a,b)=>{
+      const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+      const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+      return ad-bd;
+    });
+  } else if (sortBy === "name") {
+    out.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+  } else {
+    // newest default
+    out.sort((a,b)=>{
+      const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+      const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+      return bd-ad;
+    });
+  }
+
+  return out;
 }
 
 
@@ -812,7 +925,7 @@ async function renderAdminUsers(){
   }
 }
 
- function isFuturiEmail(user){
+function isFuturiEmail(user){
   const email = (user?.email || "").toLowerCase().trim();
   return email.endsWith("@futurimedia.com");
 }
@@ -834,13 +947,31 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   el("btnGoogleLogin").onclick = async () => {
+    const btn = el("btnGoogleLogin");
     const err = el("googleLoginError");
     err.style.display = "none";
+
+    // ✅ prevent double-popup
+    if (btn.dataset.busy === "1") return;
+    btn.dataset.busy = "1";
+    btn.disabled = true;
+
     try {
       await signInWithPopup(auth, provider);
-    } catch(e){
-      err.textContent = e.message;
+    } catch (e) {
+      // ✅ silently ignore noisy popup errors
+      if (e.code === "auth/cancelled-popup-request") return;
+      if (e.code === "auth/popup-closed-by-user") return;
+
+      // show a clean message to the user
+      err.textContent = "Sign-in failed. Please try again.";
       err.style.display = "block";
+
+      // keep details out of UI, but available to you
+      console.warn("Google sign-in error:", e.code, e.message);
+    } finally {
+      btn.dataset.busy = "0";
+      btn.disabled = false;
     }
   };
 
@@ -882,7 +1013,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     applyRoleUI();
     initApp();
-    renderMyUploads();
+
+    // initial snapshot fetch
+    renderMyUploads(true);
+
     if (CURRENT_ROLE === "admin") renderAdminUsers();
   });
 
@@ -896,6 +1030,33 @@ document.addEventListener("DOMContentLoaded", () => {
     el("radioView").classList.add("hidden");
     el("landing").classList.remove("hidden");
     window.scrollTo(0,0);
+  };
+
+  // Rich snapshot filters: render from cache only on any change
+  [
+    "uploadsSearchName",
+    "uploadsSearchParent",
+    "uploadsSearchProduct",
+    "uploadsPricingType",
+    "uploadsSortBy",
+    "uploadsDateFrom",
+    "uploadsDateTo"
+  ].forEach(id => {
+    const node = el(id);
+    if (!node) return;
+    node.addEventListener("input", renderMyUploadsFromCache);
+    node.addEventListener("change", renderMyUploadsFromCache);
+  });
+
+  el("btnClearUploadsFilters").onclick = () => {
+    el("uploadsSearchName").value = "";
+    el("uploadsSearchParent").value = "";
+    el("uploadsSearchProduct").value = "";
+    el("uploadsPricingType").value = "";
+    el("uploadsSortBy").value = "newest";
+    el("uploadsDateFrom").value = "";
+    el("uploadsDateTo").value = "";
+    renderMyUploadsFromCache();
   };
 });
 </script>
@@ -1008,12 +1169,11 @@ window.UserData = (function () {
   }
 
   return {
-  init,
-  getMerged,
-  addEntry,
-  removeParent
-};
-
+    init,
+    getMerged,
+    addEntry,
+    removeParent
+  };
 })();
 </script>
 
@@ -1205,79 +1365,77 @@ function setupEventListeners() {
     updatePreview();
   };
 
-  // UserData toolbar — OPEN MODAL (ONLY ONCE)
-el('btnAddCompany').onclick = () => {
-  const modal = el('addCompanyModal');
-  modal.style.display = 'flex';
+  // UserData toolbar — OPEN MODAL
+  el('btnAddCompany').onclick = () => {
+    const modal = el('addCompanyModal');
+    modal.style.display = 'flex';
 
-  el('ac_parent').value  = '';
-  el('ac_country').value = '';
-  el('ac_market').value  = '';
-  el('ac_station').value = '';
+    el('ac_parent').value  = '';
+    el('ac_country').value = '';
+    el('ac_market').value  = '';
+    el('ac_station').value = '';
 
-  const err = el('ac_error');
-  err.style.display = 'none';
-  err.textContent = '';
-
-  el('ac_parent').focus();
-};
-
-// CANCEL / CLOSE
-el('ac_cancel').onclick = () => {
-  el('addCompanyModal').style.display = 'none';
-  const err = el('ac_error');
-  err.style.display = 'none';
-  err.textContent = '';
-};
-
-// SAVE
-el('ac_save').onclick = () => {
-  if (!can('manage_custom_parents')) {
     const err = el('ac_error');
-    err.textContent = 'Your role does not permit adding companies.';
-    err.style.display = 'block';
-    return;
-  }
+    err.style.display = 'none';
+    err.textContent = '';
 
-  const P = (el('ac_parent').value  || '').trim();
-  const C = (el('ac_country').value || '').trim();
-  const M = (el('ac_market').value  || '').trim();
-  const S = (el('ac_station').value || '').trim();
+    el('ac_parent').focus();
+  };
 
-  const err = el('ac_error');
-  if (!P || !M || !S) {
-    err.textContent = 'Parent, Market, and Station are required.';
-    err.style.display = 'block';
-    return;
-  }
+  // CANCEL / CLOSE
+  el('ac_cancel').onclick = () => {
+    el('addCompanyModal').style.display = 'none';
+    const err = el('ac_error');
+    err.style.display = 'none';
+    err.textContent = '';
+  };
 
-  err.style.display = 'none';
-  err.textContent = '';
+  // SAVE
+  el('ac_save').onclick = () => {
+    if (!can('manage_custom_parents')) {
+      const err = el('ac_error');
+      err.textContent = 'Your role does not permit adding companies.';
+      err.style.display = 'block';
+      return;
+    }
 
-  // your existing add logic
-  UserData.addEntry({ parent: P, country: C, market: M, station: S });
+    const P = (el('ac_parent').value  || '').trim();
+    const C = (el('ac_country').value || '').trim();
+    const M = (el('ac_market').value  || '').trim();
+    const S = (el('ac_station').value || '').trim();
 
-  el('addCompanyModal').style.display = 'none';
+    const err = el('ac_error');
+    if (!P || !M || !S) {
+      err.textContent = 'Parent, Market, and Station are required.';
+      err.style.display = 'block';
+      return;
+    }
 
-  DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
-  rebuildIndex();
-  el('parentSearch').value = P;
-  renderParents(P);
-  setParent(P);
-};
+    err.style.display = 'none';
+    err.textContent = '';
+
+    UserData.addEntry({ parent: P, country: C, market: M, station: S });
+
+    el('addCompanyModal').style.display = 'none';
+
+    DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+    rebuildIndex();
+    el('parentSearch').value = P;
+    renderParents(P);
+    setParent(P);
+  };
 
   // click backdrop to close
-el('addCompanyModal').addEventListener('click', (e) => {
-  if (e.target.id === 'addCompanyModal') el('ac_cancel').click();
-});
+  el('addCompanyModal').addEventListener('click', (e) => {
+    if (e.target.id === 'addCompanyModal') el('ac_cancel').click();
+  });
 
-// esc to close
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && el('addCompanyModal').style.display === 'flex') {
-    el('ac_cancel').click();
-  }
-});
-
+  // esc to close
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && el('addCompanyModal').style.display === 'flex') {
+      el('ac_cancel').click();
+    }
+  });
 
   attachProductEventListeners();
 }
