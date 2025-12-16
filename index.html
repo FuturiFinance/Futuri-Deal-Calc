@@ -41,14 +41,12 @@
     a:hover{text-decoration:underline}
     .role-badge{background:#132437;border:1px solid #223244;border-radius:999px;padding:4px 10px;font-size:12px}
 
-    /* Google-only login overlay */
     #googleLoginScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:99999}
     .login-card{width:min(440px,92vw);background:#0f1823;color:var(--text);border:1px solid var(--edge);border-radius:14px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:grid;gap:12px;text-align:center}
     .google-btn{background:#fff;color:#111;border:1px solid #d0d7de;padding:10px 12px;border-radius:10px;font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px}
     .google-btn:hover{background:#f6f8fa}
     .google-logo{width:18px;height:18px;display:inline-block}
 
-    /* Modal */
     .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);z-index:9999}
     .modal-card{width:min(560px,95vw);background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:16px;box-shadow:0 10px 30px rgba(0,0,0,.35);display:grid;gap:12px}
     .modal-header{display:flex;justify-content:space-between;align-items:center}
@@ -62,12 +60,10 @@
     .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
     .modal-error{margin:0;padding:8px 10px;border-radius:8px;background:rgba(255,80,80,.08);border:1px solid rgba(255,80,80,.25);color:#ff9a9a;font-size:12px}
 
-    /* Flex row input shrink */
     .row>input,.row>select,.row>textarea{flex:1 1 auto;min-width:0;width:auto}
     .row>.field,.row>.grow{flex:1 1 auto;min-width:0}
     .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0}
 
-    /* Permissions UI bits */
     #permissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     @media (max-width:820px){#permissionsCard .perm-grid{grid-template-columns:1fr}}
     .perm-item{display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--edge);border-radius:12px;background:#0b121a}
@@ -76,7 +72,6 @@
     .perm-item .meta .desc{font-size:12px;color:var(--muted)}
     .subtle-divider{height:1px;background:rgba(34,50,68,.6);margin:12px 0}
 
-    /* Small hardening helpers */
     details{border:1px solid rgba(34,50,68,.55);border-radius:12px;padding:10px;background:#0b121a}
     details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
     details>summary::-webkit-details-marker{display:none}
@@ -158,7 +153,7 @@
       <section class="card">
         <div class="title">Permissions & Access</div>
         <div class="row">
-          <div class="muted">Your permissions + (admin) manage user roles</div>
+          <div class="muted">Your permissions + (superadmin) manage user roles</div>
           <button class="btn" id="btnOpenPermissions" type="button">Go to Permissions</button>
         </div>
       </section>
@@ -243,7 +238,7 @@
         </div>
 
         <div class="row" style="margin-top:10px;">
-          <span class="muted" id="uploadHint" style="font-size:12px;">Staff/Admin only</span>
+          <span class="muted" id="uploadHint" style="font-size:12px;">Staff/Admin/SuperAdmin</span>
           <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
         </div>
 
@@ -273,9 +268,9 @@
         <div class="subtle-divider"></div>
 
         <div id="userAccessCard" class="hidden">
-          <div class="title">Admin: User Access</div>
+          <div class="title">SuperAdmin: User Access</div>
           <div class="muted" style="font-size:12px;margin-bottom:8px;">
-            Change roles (Admin / Staff / View Only). This controls access.
+            Change roles (SuperAdmin / Admin / Staff). This controls access.
           </div>
           <div id="adminAccessUsersList" class="list"></div>
         </div>
@@ -597,41 +592,41 @@
      ****************************/
     const el = (id) => document.getElementById(id);
 
+    // IMPORTANT: Sabrina is always SuperAdmin
     const SUPERADMIN_EMAILS = new Set([
-  "sabrinacarlo@futurimedia.com"
-]);
+      "sabrinacarlo@futurimedia.com"
+    ]);
 
-
-   const PERMS_BASE = {
-  superadmin: {
-    manage_custom_parents:true,
-    import_export:true,
-    pricing_override:true,
-    generate_proposal:true,
-    upload_files:true,
-    view_all_uploads:true,
-    manage_roles:true   // only superadmin gets role mgmt
-  },
-  admin: {
-    manage_custom_parents:true,
-    import_export:true,
-    pricing_override:true,
-    generate_proposal:true,
-    upload_files:true,
-    view_all_uploads:true,
-    manage_roles:false  // admin cannot change roles
-  },
-  staff: {
-    manage_custom_parents:true,
-    import_export:true,
-    pricing_override:true,
-    generate_proposal:true,
-    upload_files:true,
-    view_all_uploads:false,
-    manage_roles:false
-  }
-};
-
+    // Base permissions by role
+    const PERMS_BASE = {
+      superadmin: {
+        manage_custom_parents:true,
+        import_export:true,
+        pricing_override:true,
+        generate_proposal:true,
+        upload_files:true,
+        view_all_uploads:true,
+        manage_roles:true
+      },
+      admin: {
+        manage_custom_parents:true,
+        import_export:true,
+        pricing_override:true,
+        generate_proposal:true,
+        upload_files:true,
+        view_all_uploads:true,
+        manage_roles:false
+      },
+      staff: {
+        manage_custom_parents:true,
+        import_export:true,
+        pricing_override:true,
+        generate_proposal:true,
+        upload_files:true,
+        view_all_uploads:false,
+        manage_roles:false
+      }
+    };
 
     const PERM_META = [
       { key:"manage_custom_parents", name:"Manage Custom Companies", desc:"Add/remove custom parent + market + station entries." },
@@ -640,7 +635,7 @@
       { key:"generate_proposal",     name:"Generate Proposal",      desc:"Generate + copy proposal output tables." },
       { key:"upload_files",          name:"Save Snapshots",         desc:"Create snapshot records in Firestore." },
       { key:"view_all_uploads",      name:"View All Uploads",       desc:"Admin view: browse other users’ uploads." },
-      { key:"manage_roles",          name:"Manage Roles",           desc:"Admin: change user role selection." }
+      { key:"manage_roles",          name:"Manage Roles",           desc:"SuperAdmin: change user role selection." }
     ];
 
     let CURRENT_USER = null;   // Firestore user doc data
@@ -650,17 +645,14 @@
     // cache of my snapshots for client-side search
     let MY_UPLOADS_CACHE = [];
 
-    function currentRole(){ return CURRENT_ROLE; }
-
     function getOverrides(){
       return (CURRENT_USER && CURRENT_USER.permOverrides && typeof CURRENT_USER.permOverrides === "object")
         ? CURRENT_USER.permOverrides
         : {};
     }
 
-    // base + overrides
     function can(action){
-      const base = !!PERMS_BASE[currentRole()]?.[action];
+      const base = !!PERMS_BASE[CURRENT_ROLE]?.[action];
       const ov = getOverrides();
       if (Object.prototype.hasOwnProperty.call(ov, action)) return !!ov[action];
       return base;
@@ -674,48 +666,48 @@
       return email.endsWith("@futurimedia.com");
     }
 
-   async function ensureUserDoc(authUser){
-  const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
-  const ref = doc(db, "users", authUser.uid);
-  const snap = await getDoc(ref);
+    // Ensure Firestore user doc exists + enforce roles
+    async function ensureUserDoc(user){
+      const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
 
-  const email = (authUser.email || "").toLowerCase();
+      const email = (user.email || "").toLowerCase().trim();
+      const isSuper = SUPERADMIN_EMAILS.has(email);
 
-  // First login: create doc
-  if (!snap.exists()){
-    const role = SUPERADMIN_EMAILS.has(email) ? "superadmin" : "staff";
+      // First login: create doc
+      if (!snap.exists()){
+        const payload = {
+          uid: user.uid,
+          email: user.email || "",
+          name: user.displayName || "",
+          role: isSuper ? "superadmin" : "staff",
+          permOverrides: {},
+          createdAt: serverTimestamp()
+        };
+        await setDoc(ref, payload);
+        return payload;
+      }
 
-    const payload = {
-      uid: authUser.uid,
-      email: authUser.email || "",
-      name: authUser.displayName || "",
-      role,
-      permOverrides: {},
-      createdAt: serverTimestamp()
-    };
+      // Existing doc: patch/migrate
+      const data = snap.data() || {};
+      const patch = {};
 
-    await setDoc(ref, payload);
-    return payload;
-  }
+      if (!data.uid) patch.uid = user.uid;
+      if (!data.email) patch.email = user.email || "";
+      if (!data.name) patch.name = user.displayName || "";
+      if (!data.permOverrides) patch.permOverrides = {};
 
-  // Existing doc: patch/migrate
-  const data = snap.data() || {};
-  const patch = {};
+      // migrate legacy role "view" -> "staff"
+      if (data.role === "view") patch.role = "staff";
 
-  if (!data.uid) patch.uid = authUser.uid;
-  if (!data.permOverrides) patch.permOverrides = {};
+      // enforce Sabrina superadmin always
+      if (isSuper && data.role !== "superadmin") patch.role = "superadmin";
 
-  // MIGRATE old role "view" -> "staff"
-  if (data.role === "view") patch.role = "staff";
+      if (Object.keys(patch).length) await setDoc(ref, patch, { merge:true });
 
-  // ENFORCE Sabrina as superadmin even if doc already exists
-  if (SUPERADMIN_EMAILS.has(email)) patch.role = "superadmin";
-
-  if (Object.keys(patch).length) await setDoc(ref, patch, { merge:true });
-
-  return { ...data, ...patch };
-}
-
+      return { ...data, ...patch };
+    }
 
     function showView(viewId){
       ["landing","radioView","snapshotsView","permissionsView","adminUploadsView"].forEach(id=>{
@@ -731,15 +723,14 @@
 
       // snapshots hint + save snapshot button
       el("uploadHint").textContent = can("upload_files") ? "Staff/Admin/SuperAdmin" : "No upload access";
-const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
-
+      el("btnUpload").disabled = !can("upload_files");
 
       // landing nav buttons (soft-gate)
       const adminBtn = el("btnOpenAdminUploads");
       if (adminBtn) adminBtn.disabled = !can("view_all_uploads");
 
       // permissions mode badge
-      const editable = (CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+      const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
       el("permModeBadge").textContent = `Mode: ${editable ? "Editable" : "View"}`;
       el("permModeHelp").textContent =
         editable ? "Changes are saved to your user record (permOverrides)." : "Your role is view-only.";
@@ -760,33 +751,33 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     }
 
     function renderPermissionsCard(){
-  const grid = el("permissionsGrid");
-  if (!grid) return;
-  grid.innerHTML = "";
+      const grid = el("permissionsGrid");
+      if (!grid) return;
+      grid.innerHTML = "";
 
-  const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
-  const overrides = getOverrides();
+      const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+      const overrides = getOverrides();
 
-  PERM_META.forEach(meta => {
-    const baseVal = !!PERMS_BASE[CURRENT_ROLE]?.[meta.key];
-    const effective = can(meta.key);
-    const overridden = Object.prototype.hasOwnProperty.call(overrides, meta.key);
+      PERM_META.forEach(meta => {
+        const baseVal = !!PERMS_BASE[CURRENT_ROLE]?.[meta.key];
+        const effective = can(meta.key);
+        const overridden = Object.prototype.hasOwnProperty.call(overrides, meta.key);
 
-    const item = document.createElement("div");
-    item.className = "perm-item";
+        const item = document.createElement("div");
+        item.className = "perm-item";
 
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = effective;
-    cb.disabled = !editable;
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = effective;
+        cb.disabled = !editable;
+        cb.title = editable ? "Toggle permission" : "View only";
 
         cb.onchange = async () => {
           try{
             await saveMyPermissionOverride(meta.key, cb.checked);
             applyRoleUI();
-            // These are defined later in Part 3 (calculator)
-            if (typeof renderProducts === "function") renderProducts();
-            if (typeof updateProductSummary === "function") updateProductSummary();
+            if (typeof window.renderProducts === "function") window.renderProducts();
+            if (typeof window.updateProductSummary === "function") window.updateProductSummary();
           }catch(e){
             console.warn("Failed saving perm override", e);
             cb.checked = effective;
@@ -818,17 +809,14 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     }
 
     async function renderAdminAccessUsers(){
-  const isSuperAdmin = (CURRENT_ROLE === "superadmin");
-
-  if (!isSuperAdmin) {
-    el("userAccessCard").classList.add("hidden");
-    return;
-  }
-
-  el("userAccessCard").classList.remove("hidden");
+      // only superadmin can manage roles
+      if (CURRENT_ROLE !== "superadmin") {
+        el("userAccessCard").classList.add("hidden");
+        return;
+      }
+      el("userAccessCard").classList.remove("hidden");
 
       const { db, collection, getDocs, query, orderBy, doc, updateDoc } = window.fb;
-
       const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
       const usersSnap = await getDocs(userQ);
 
@@ -849,21 +837,29 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         row.style.alignItems = "center";
 
         row.innerHTML = `
-  <div style="display:flex;flex-direction:column;gap:2px;">
-    <strong>${u.name || "(no name)"}</strong>
-    <span class="muted" style="font-size:11px">${u.email || ""}</span>
-  </div>
-  <select style="max-width:180px;">
-    <option value="superadmin" ${u.role==="superadmin"?"selected":""}>SuperAdmin</option>
-    <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
-    <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
-  </select>
-`;
-
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <strong>${u.name || "(no name)"}</strong>
+            <span class="muted" style="font-size:11px">${u.email || ""}</span>
+          </div>
+          <select style="max-width:180px;">
+            <option value="superadmin" ${u.role==="superadmin"?"selected":""}>SuperAdmin</option>
+            <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
+            <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
+          </select>
+        `;
 
         const sel = row.querySelector("select");
         sel.onchange = async (e) => {
           const newRole = e.target.value;
+
+          // hard rule: Sabrina cannot be downgraded
+          const email = (u.email || "").toLowerCase().trim();
+          if (SUPERADMIN_EMAILS.has(email) && newRole !== "superadmin") {
+            alert("This account is locked as SuperAdmin.");
+            sel.value = "superadmin";
+            return;
+          }
+
           try{
             await updateDoc(doc(db, "users", uid), { role: newRole });
 
@@ -872,8 +868,8 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
               if (CURRENT_USER) CURRENT_USER.role = newRole;
               applyRoleUI();
               renderPermissionsCard();
-              if (typeof renderProducts === "function") renderProducts();
-              if (typeof updateProductSummary === "function") updateProductSummary();
+              if (typeof window.renderProducts === "function") window.renderProducts();
+              if (typeof window.updateProductSummary === "function") window.updateProductSummary();
             }
           }catch(err){
             console.warn("Failed updating role", err);
@@ -885,7 +881,8 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         root.appendChild(row);
       });
     }
-
+  </script>
+  <script>
     /**********************
      * Deal meta state (term, auto-renew, nielsen)
      **********************/
@@ -899,6 +896,9 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       nielsenYear: 2024,
       approvalEmail: "sabrinacarlo@futurimedia.com"
     };
+
+    // IMPORTANT: proposal code reads window.dealMetaState — export it
+    window.dealMetaState = dealMetaState;
 
     function parsePositiveInt(v){
       const n = Math.floor(parseFloat(v));
@@ -921,12 +921,16 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       if (!el("dealTermSelect")) return;
       dealMetaState.termMonths = getEffectiveTermMonths();
       dealMetaState.termCustomMonths = parsePositiveInt(el("dealTermCustomMonths")?.value);
+
       dealMetaState.autoRenewEnabled = !!el("autoRenewEnabled")?.checked;
       dealMetaState.autoRenewMonths = getEffectiveAutoRenewMonths();
       dealMetaState.autoRenewCustomMonths = parsePositiveInt(el("autoRenewCustomMonths")?.value);
+
       dealMetaState.nielsenSeason = el("nielsenSeason")?.value || dealMetaState.nielsenSeason;
       dealMetaState.nielsenYear = parsePositiveInt(el("nielsenYear")?.value) || dealMetaState.nielsenYear;
       dealMetaState.approvalEmail = (el("approvalEmailText")?.textContent || dealMetaState.approvalEmail);
+
+      window.dealMetaState = dealMetaState; // keep exported copy up to date
     }
 
     function applyDealMetaToUI(){
@@ -987,6 +991,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
 
       el("btnCopyApprovalEmail").addEventListener("click", async () => {
         try{
+          syncDealMetaFromUI();
           await navigator.clipboard.writeText(dealMetaState.approvalEmail);
           const b = el("btnCopyApprovalEmail");
           const t = b.textContent;
@@ -1063,6 +1068,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       // restore deal meta
       if (payload.dealMeta && typeof payload.dealMeta === "object") {
         Object.assign(dealMetaState, payload.dealMeta);
+        window.dealMetaState = dealMetaState;
       }
       setTimeout(() => { applyDealMetaToUI(); syncDealMetaFromUI(); }, 0);
 
@@ -1071,15 +1077,15 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         r.checked = (r.value === window.productState.pricingType);
       });
 
-      // re-render everything (calculator functions exist in Part 3)
-      if (typeof setMarketsEnabled === "function") setMarketsEnabled(!!window.state.parent);
-      if (typeof setStationsEnabled === "function") setStationsEnabled(!!window.state.parent);
-      if (typeof renderParents === "function") renderParents(el("parentSearch")?.value || "");
-      if (typeof renderMarkets === "function") renderMarkets();
-      if (typeof renderStations === "function") renderStations();
-      if (typeof renderProducts === "function") renderProducts();
-      if (typeof updatePreview === "function") updatePreview();
-      if (typeof updateProductSummary === "function") updateProductSummary();
+      // re-render everything (calculator functions exist in Chunk 5)
+      if (typeof window.setMarketsEnabled === "function") window.setMarketsEnabled(!!window.state.parent);
+      if (typeof window.setStationsEnabled === "function") window.setStationsEnabled(!!window.state.parent);
+      if (typeof window.renderParents === "function") window.renderParents(el("parentSearch")?.value || "");
+      if (typeof window.renderMarkets === "function") window.renderMarkets();
+      if (typeof window.renderStations === "function") window.renderStations();
+      if (typeof window.renderProducts === "function") window.renderProducts();
+      if (typeof window.updatePreview === "function") window.updatePreview();
+      if (typeof window.updateProductSummary === "function") window.updateProductSummary();
 
       // restore proposal HTML if present
       if (payload.proposalHTML){
@@ -1421,25 +1427,24 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         hideGoogleLogin();
         el("btnLogout").style.display = "";
 
+        // FIX: use `user` (not authUser)
         CURRENT_UID = user.uid;
         CURRENT_USER = await ensureUserDoc(user);
-
-        const email = (authUser.email || "").toLowerCase();
-        const role = SUPERADMIN_EMAILS.has(email) ? "superadmin" : "staff";
+        CURRENT_ROLE = CURRENT_USER.role || "staff";
 
         applyRoleUI();
         renderPermissionsCard();
 
-        // init calculator app (defined in Part 3)
+        // init calculator (defined in Chunk 5)
         await window.initApp();
-        showView("landing");
 
         // wire deal meta after calculator init (elements exist)
         wireDealMetaUI();
+
+        showView("landing");
       });
     });
   </script>
-
   <script>
     /** =======================
      *  Deal Calc — UserData (Static Option A)
@@ -1451,6 +1456,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       const clone = o => JSON.parse(JSON.stringify(o));
 
       function normalizeSchema(any){
+        // If already v1 schema
         if (any && Array.isArray(any.parents)) {
           return {
             parents: any.parents.map(p => ({
@@ -1463,27 +1469,41 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
             }))
           };
         }
+
+        // Legacy object schema: { Parent: { Market: [stations] } }
         if (any && typeof any === 'object' && !Array.isArray(any)) {
           const parents = [];
           for (const [parentName, marketsObj] of Object.entries(any)) {
             const markets = [];
             if (marketsObj && typeof marketsObj === 'object') {
               for (const [marketName, stations] of Object.entries(marketsObj)) {
-                markets.push({ name: String(marketName), stations: Array.isArray(stations) ? stations.map(String) : [] });
+                markets.push({
+                  name: String(marketName),
+                  stations: Array.isArray(stations) ? stations.map(String) : []
+                });
               }
             }
             parents.push({ name: String(parentName), country: null, markets });
           }
           return { parents };
         }
+
         return { parents: [] };
       }
 
       function readUser(){
-        try { return normalizeSchema(JSON.parse(localStorage.getItem(USER_KEY) || '')); }
-        catch { return { parents: [] }; }
+        try {
+          const raw = localStorage.getItem(USER_KEY);
+          if (!raw) return { parents: [] };
+          return normalizeSchema(JSON.parse(raw));
+        } catch {
+          return { parents: [] };
+        }
       }
-      function writeUser(data){ localStorage.setItem(USER_KEY, JSON.stringify(data)); }
+
+      function writeUser(data){
+        localStorage.setItem(USER_KEY, JSON.stringify(data));
+      }
 
       function mergeBaseAndUser(base, user){
         const out = clone(base);
@@ -1491,22 +1511,30 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
           let p = out.parents.find(pp => norm(pp.name) === norm(up.name));
           if (!p){ out.parents.push(clone(up)); continue; }
           if (!p.country && up.country) p.country = up.country;
+
           for (const um of up.markets){
             let m = p.markets.find(mm => norm(mm.name) === norm(um.name));
             if (!m){ p.markets.push(clone(um)); continue; }
+
             const set = new Set(m.stations.map(norm));
-            for (const st of um.stations){ if (!set.has(norm(st))) m.stations.push(st); }
+            for (const st of um.stations){
+              if (!set.has(norm(st))) m.stations.push(st);
+            }
           }
         }
+
+        // keep tidy
         out.parents.sort((a,b)=>a.name.localeCompare(b.name));
         out.parents.forEach(p => {
           p.markets.sort((a,b)=>a.name.localeCompare(b.name));
           p.markets.forEach(m => m.stations.sort());
         });
+
         return out;
       }
 
       let baseData = { parents: [] };
+
       async function init(baseUrl){
         try {
           const res = await fetch(baseUrl || 'radio_data.json', { cache: 'no-store' });
@@ -1517,19 +1545,29 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         }
       }
 
-      function getMerged(){ return mergeBaseAndUser(baseData, readUser()); }
+      function getMerged(){
+        return mergeBaseAndUser(baseData, readUser());
+      }
 
       function addEntry({ parent, country, market, station }){
         const u = readUser();
         if (!parent?.trim() || !market?.trim() || !station?.trim()) return false;
+
         const pKey = norm(parent), mKey = norm(market), sKey = norm(station);
 
         let p = u.parents.find(pp => norm(pp.name) === pKey);
-        if (!p){ p = { name: parent.trim(), country: country?.trim() || null, markets: [] }; u.parents.push(p); }
-        else if (!p.country && country?.trim()) p.country = country.trim();
+        if (!p){
+          p = { name: parent.trim(), country: country?.trim() || null, markets: [] };
+          u.parents.push(p);
+        } else if (!p.country && country?.trim()){
+          p.country = country.trim();
+        }
 
         let m = p.markets.find(mm => norm(mm.name) === mKey);
-        if (!m){ m = { name: market.trim(), stations: [] }; p.markets.push(m); }
+        if (!m){
+          m = { name: market.trim(), stations: [] };
+          p.markets.push(m);
+        }
 
         if (!m.stations.map(norm).includes(sKey)) m.stations.push(station.trim());
 
@@ -1537,7 +1575,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         return true;
       }
 
-      function removeParent(parentName) {
+      function removeParent(parentName){
         const u = readUser();
         const key = norm(parentName);
         const before = u.parents.length;
@@ -1549,47 +1587,55 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       return { init, getMerged, addEntry, removeParent };
     })();
   </script>
+
   <script>
     /**************************************
-     * MAIN CALCULATOR JS (radio + products)
+     * Merge user custom companies into base dataset
      **************************************/
-
-    // Expose some state globally for other scripts (deal meta / snapshots)
-    window.BASE_DS = { parents: [], markets: [], stations: [] };
-
     function mergeUserIntoDataset(baseDS, userMerged){
       const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
       const norm = s => (s||'').trim().toLowerCase();
 
       const parentSet = new Set((out.parents||[]).map(norm));
       const marketSet = new Set((out.markets||[]).map(norm));
-      const stationKeySet = new Set((out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`));
+      const stationKeySet = new Set(
+        (out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`)
+      );
 
       (userMerged?.parents || []).forEach(p => {
         const parentName = (p.name || '').trim();
         if (!parentName) return;
-        if (!parentSet.has(norm(parentName))) { out.parents.push(parentName); parentSet.add(norm(parentName)); }
+
+        if (!parentSet.has(norm(parentName))){
+          out.parents.push(parentName);
+          parentSet.add(norm(parentName));
+        }
 
         (p.markets || []).forEach(m => {
           const marketName = (m.name || '').trim();
           if (!marketName) return;
-          if (!marketSet.has(norm(marketName))) { out.markets.push(marketName); marketSet.add(norm(marketName)); }
+
+          if (!marketSet.has(norm(marketName))){
+            out.markets.push(marketName);
+            marketSet.add(norm(marketName));
+          }
 
           (m.stations || []).forEach(st => {
             const stationName = (st || '').trim();
             if (!stationName) return;
+
             const key = `${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
-            if (!stationKeySet.has(key)) {
-              out.stations.push({
-                parent: parentName,
-                market: marketName,
-                station: stationName,
-                primeAQH: 0,
-                rosAQH: 0,
-                format: ''
-              });
-              stationKeySet.add(key);
-            }
+            if (stationKeySet.has(key)) return;
+
+            out.stations.push({
+              parent: parentName,
+              market: marketName,
+              station: stationName,
+              primeAQH: 0,
+              rosAQH: 0,
+              format: ''
+            });
+            stationKeySet.add(key);
           });
         });
       });
@@ -1600,6 +1646,14 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
 
       return out;
     }
+  </script>
+  <script>
+    /**************************************
+     * MAIN CALCULATOR JS (radio + products)
+     **************************************/
+
+    // Expose some state globally for other scripts (deal meta / snapshots)
+    window.BASE_DS = { parents: [], markets: [], stations: [] };
 
     const DATA_URL = './radio_data.json';
 
@@ -1638,11 +1692,11 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
 
     window.productState = {
       selectedProducts: new Set(),
-      pricingType: 'cash', // cash | barter | mixed
-      customPrices: new Map(), // productId -> number
-      cpm: 2.00,              // dollars per 30 seconds per 1,000 AQH? (kept as legacy)
-      manualMinutes: new Map(), // stationKey -> {prime:number, ros:number}
-      stationCashValues: new Map() // stationKey -> number monthly cash
+      pricingType: 'cash',        // cash | barter | mixed
+      customPrices: new Map(),     // productId -> number
+      cpm: 2.00,
+      manualMinutes: new Map(),    // stationKey -> {prime, ros}
+      stationCashValues: new Map() // stationKey -> number
     };
 
     async function loadDataset() {
@@ -1701,7 +1755,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       if (list && !enabled) list.innerHTML = '';
     };
 
-    // initApp() called after login (Part 2)
+    // initApp() called after login
     window.initApp = async function initApp() {
       if (window.initApp._ran) return;
       window.initApp._ran = true;
@@ -1713,40 +1767,40 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       rebuildIndex();
 
       setupEventListeners();
-      renderProducts();
-      updateProductSummary();
+      window.renderProducts();
+      window.updateProductSummary();
     };
 
     function setupEventListeners() {
-      setMarketsEnabled(false);
-      setStationsEnabled(false);
+      window.setMarketsEnabled(false);
+      window.setStationsEnabled(false);
 
       const ps = el('parentSearch');
-      ps.addEventListener('input', () => renderParents(ps.value));
-      renderParents('');
+      ps.addEventListener('input', () => window.renderParents(ps.value));
+      window.renderParents('');
 
-      el('marketSearch').addEventListener('input', renderMarkets);
-      el('stationSearch').addEventListener('input', renderStations);
+      el('marketSearch').addEventListener('input', window.renderMarkets);
+      el('stationSearch').addEventListener('input', window.renderStations);
 
       el('btnSelAllMarkets').onclick = () => {
         (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => window.state.markets.add(s.market));
-        renderMarkets(); renderStations(); updatePreview();
+        window.renderMarkets(); window.renderStations(); window.updatePreview();
       };
       el('btnClrAllMarkets').onclick = () => {
-        window.state.markets.clear(); renderMarkets(); renderStations(); updatePreview();
+        window.state.markets.clear(); window.renderMarkets(); window.renderStations(); window.updatePreview();
       };
 
       el('btnSelAllStations').onclick = () => {
         document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
           cb.checked = true; window.state.stations.add(cb.value);
         });
-        updatePreview();
+        window.updatePreview();
       };
       el('btnClrAllStations').onclick = () => {
         document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
           cb.checked = false; window.state.stations.delete(cb.value);
         });
-        updatePreview();
+        window.updatePreview();
       };
 
       // Add company modal open
@@ -1805,7 +1859,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
         rebuildIndex();
         el('parentSearch').value = P;
-        renderParents(P);
+        window.renderParents(P);
         setParent(P);
       };
 
@@ -1889,11 +1943,11 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
                 rebuildIndex();
                 if (window.state.parent === p) {
                   window.state.parent = '';
-                  setMarketsEnabled(false);
-                  setStationsEnabled(false);
+                  window.setMarketsEnabled(false);
+                  window.setStationsEnabled(false);
                 }
-                renderParents(el('parentSearch').value || '');
-                updatePreview();
+                window.renderParents(el('parentSearch').value || '');
+                window.updatePreview();
                 const s = el('userDataStatus');
                 if (s) { s.textContent = 'Removed custom parent'; setTimeout(() => s.textContent = '', 1800); }
               }
@@ -1910,16 +1964,16 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       window.state.parent = p;
       window.state.markets.clear();
       window.state.stations.clear();
-      setMarketsEnabled(!!window.state.parent);
-      setStationsEnabled(!!window.state.parent);
-      renderMarkets();
-      renderStations();
-      updatePreview();
+      window.setMarketsEnabled(!!window.state.parent);
+      window.setStationsEnabled(!!window.state.parent);
+      window.renderMarkets();
+      window.renderStations();
+      window.updatePreview();
     }
 
     window.renderMarkets = function renderMarkets() {
-      if (!window.state.parent) { setMarketsEnabled(false); return; }
-      setMarketsEnabled(true);
+      if (!window.state.parent) { window.setMarketsEnabled(false); return; }
+      window.setMarketsEnabled(true);
 
       const list = el('marketsList');
       list.innerHTML = '';
@@ -1939,8 +1993,8 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         cb.onchange = () => {
           if (cb.checked) window.state.markets.add(m);
           else window.state.markets.delete(m);
-          renderStations();
-          updatePreview();
+          window.renderStations();
+          window.updatePreview();
         };
 
         const name = document.createElement('span');
@@ -1953,8 +2007,8 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     };
 
     window.renderStations = function renderStations() {
-      if (!window.state.parent) { setStationsEnabled(false); return; }
-      setStationsEnabled(true);
+      if (!window.state.parent) { window.setStationsEnabled(false); return; }
+      window.setStationsEnabled(true);
 
       const list = el('stationsList');
       list.innerHTML = '';
@@ -1987,7 +2041,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
           cb.onchange = () => {
             if (cb.checked) window.state.stations.add(key);
             else window.state.stations.delete(key);
-            updatePreview();
+            window.updatePreview();
           };
 
           const name = document.createElement('span');
@@ -2067,14 +2121,13 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
           cb.type = 'checkbox';
           cb.checked = window.productState.selectedProducts.has(product.id);
           cb.onchange = () => {
-            if (cb.checked) {
-              window.productState.selectedProducts.add(product.id);
-            } else {
+            if (cb.checked) window.productState.selectedProducts.add(product.id);
+            else {
               window.productState.selectedProducts.delete(product.id);
               window.productState.customPrices.delete(product.id);
             }
-            renderProducts();
-            updateProductSummary();
+            window.renderProducts();
+            window.updateProductSummary();
           };
 
           const name = document.createElement('span');
@@ -2136,7 +2189,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
               const val = parseFloat(input.value);
               if (Number.isFinite(val) && val >= 0) {
                 window.productState.customPrices.set(product.id, val);
-                updateProductSummary();
+                window.updateProductSummary();
               }
             };
 
@@ -2180,28 +2233,25 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       // CPM visible for barter/mixed only
       el('cpmDisplay').classList.toggle('hidden', !(pricingType === 'barter' || pricingType === 'mixed'));
 
-      // Reset proposal output whenever pricing changes/selection changes (clean)
+      // Clear proposal output whenever pricing changes/selection changes
       el("proposalOutput").classList.add("hidden");
       el("proposalTable").innerHTML = "";
 
       if (pricingType === 'barter') {
         el('cashValuesSection').classList.add('hidden');
-        // barter minutes computed from annual
         const annualBarterValue = totalMonthlyAllStations * 12;
         calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
       } else if (pricingType === 'mixed') {
         el('cashValuesSection').classList.remove('hidden');
         renderCashValues(totalMonthlyAllStations);
       } else {
-        // cash summary only (no barter)
         el('cashValuesSection').classList.add('hidden');
         showCashSummary(totalMonthlyAllStations);
       }
     };
 
     function updateProductCalculations(){
-      // called after station selection changes
-      updateProductSummary();
+      window.updateProductSummary();
     }
 
     function attachProductEventListeners() {
@@ -2210,50 +2260,44 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         r.addEventListener('change', () => {
           window.productState.pricingType = r.value;
 
-          // Clear station cash allocations when leaving mixed
           if (window.productState.pricingType !== 'mixed') {
             window.productState.stationCashValues.clear();
           }
 
-          // show/hide cash section
           if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
           else el('cashValuesSection').classList.add('hidden');
 
-          renderProducts();
-          updateProductSummary();
+          window.renderProducts();
+          window.updateProductSummary();
         });
       });
 
-      // Product search
-      el('productSearch').addEventListener('input', renderProducts);
+      el('productSearch').addEventListener('input', window.renderProducts);
 
-      // select/clear all products
       el('btnSelAllProducts').onclick = () => {
         window.PRODUCTS.forEach(p => window.productState.selectedProducts.add(p.id));
-        renderProducts();
-        updateProductSummary();
+        window.renderProducts();
+        window.updateProductSummary();
       };
+
       el('btnClrAllProducts').onclick = () => {
         window.productState.selectedProducts.clear();
         window.productState.customPrices.clear();
-        renderProducts();
-        updateProductSummary();
+        window.renderProducts();
+        window.updateProductSummary();
       };
 
-      // reset pricing overrides to rate card
       el('btnResetPricing').onclick = () => {
         window.productState.customPrices.clear();
-        renderProducts();
-        updateProductSummary();
+        window.renderProducts();
+        window.updateProductSummary();
       };
 
-      // reset barter minutes to auto
       el('btnResetMinutes').onclick = () => {
         window.productState.manualMinutes.clear();
-        updateProductSummary();
+        window.updateProductSummary();
       };
 
-      // proposal buttons
       el('btnGenerateProposal').onclick = () => {
         if (!can('generate_proposal')) return alert("Your permissions do not allow proposal generation.");
         generateProposal();
@@ -2319,7 +2363,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     }
 
     /**********************
-     * Cash-only summary block (uses barter section as a clean summary list)
+     * Cash-only summary block
      **********************/
     function showCashSummary(totalMonthlyAllStations) {
       const barterSection = el('barterMinutesSection');
@@ -2451,15 +2495,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     }
 
     /**********************
-     * Barter minutes calculator
-     *
-     * We compute required :30 spots per station per month based on:
-     * - remaining value (monthly)
-     * - CPM (productState.cpm)
-     * - each station’s PrimeAQH + ROSAQH share
-     *
-     * Formula (simple): spots/month = (monthly_value * 1000) / (cpm * total_aqh)
-     * Then distribute spots proportional to station aqh share.
+     * Barter spots calculator
      **********************/
     function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue){
       const section = el('barterMinutesSection');
@@ -2480,7 +2516,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       if (barterControls) barterControls.classList.remove('hidden');
       if (barterTotals) barterTotals.classList.remove('hidden');
 
-      // total AQH across selected stations
       let totalPrime = 0;
       let totalRos = 0;
       stations.forEach(s => {
@@ -2488,20 +2523,16 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         totalRos   += (Number(s.rosAQH) || 0);
       });
 
-      // guard: if AQH is zero, distribute evenly
       const hasAQH = (totalPrime + totalRos) > 0;
-
       const cpm = Number(window.productState.cpm || 2.0);
-      // spots/month (all stations) based on total AQH
+
       let totalSpotsPerMonth = 0;
       if (hasAQH && cpm > 0) {
         totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
       } else {
-        // fallback: arbitrary safe default (1 spot per station) when AQH missing
-        totalSpotsPerMonth = stations.length;
+        totalSpotsPerMonth = stations.length; // fallback
       }
 
-      // split prime vs ros by share of AQH (or 50/50 if no AQH)
       let primeShare = 0.5;
       if (hasAQH) {
         const denom = (totalPrime + totalRos);
@@ -2551,7 +2582,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         primeInput.step = '0.1';
         primeInput.value = String(Math.round(primeSpots * 10) / 10);
         primeInput.style.width = '84px';
-        primeInput.title = 'Prime spots per month';
 
         const rosInput = document.createElement('input');
         rosInput.type = 'number';
@@ -2559,7 +2589,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         rosInput.step = '0.1';
         rosInput.value = String(Math.round(rosSpots * 10) / 10);
         rosInput.style.width = '84px';
-        rosInput.title = 'ROS spots per month';
 
         const primeLbl = document.createElement('span');
         primeLbl.className = 'muted';
@@ -2578,7 +2607,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
             prime: Number.isFinite(p) && p >= 0 ? p : 0,
             ros: Number.isFinite(r) && r >= 0 ? r : 0
           });
-          // recompute totals display
           calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
         };
 
@@ -2598,7 +2626,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       el('totalPrimeMinutes').textContent = String(Math.round(sumPrime * 10) / 10);
       el('totalROSMinutes').textContent = String(Math.round(sumRos * 10) / 10);
 
-      // footer summary
       const footer = document.createElement('div');
       footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-direction:column; gap:10px; background: rgba(15, 24, 35, 0.5);';
       footer.innerHTML = `
@@ -2622,7 +2649,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     }
 
     /**********************
-     * Proposal generation (HTML table + text copy)
+     * Proposal generation
      **********************/
     function generateProposal(){
       if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
@@ -2639,6 +2666,13 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       const monthlyAllStations = monthlyPerStation * stations.length;
       const annualAllStations  = monthlyAllStations * 12;
 
+      // use the real global dealMetaState (from Chunk 3)
+      const termMonths = dealMetaState.termMonths || 36;
+      const arEnabled  = !!dealMetaState.autoRenewEnabled;
+      const arMonths   = dealMetaState.autoRenewMonths || 12;
+      const nSeason    = dealMetaState.nielsenSeason || "—";
+      const nYear      = dealMetaState.nielsenYear || "—";
+
       const lines = [];
       lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
       lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
@@ -2647,13 +2681,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       lines.push(`<span class="pill">Monthly Total: <span>${money(monthlyAllStations)}</span></span>`);
       lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStations)}</span></span>`);
       lines.push(`</div>`);
-
-      // deal meta (from Part 2 state)
-      const termMonths = (window.dealMetaState?.termMonths) || (typeof getEffectiveTermMonths === "function" ? getEffectiveTermMonths() : 36);
-      const arEnabled = !!(window.dealMetaState?.autoRenewEnabled);
-      const arMonths  = (window.dealMetaState?.autoRenewMonths) || (typeof getEffectiveAutoRenewMonths === "function" ? getEffectiveAutoRenewMonths() : 12);
-      const nSeason = window.dealMetaState?.nielsenSeason || "—";
-      const nYear   = window.dealMetaState?.nielsenYear || "—";
 
       lines.push(`<div class="subtle-divider"></div>`);
       lines.push(`<div class="card" style="background:#0b121a;">`);
@@ -2666,7 +2693,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       lines.push(`</div>`);
       lines.push(`</div>`);
 
-      // Products table
       lines.push(`<div class="subtle-divider"></div>`);
       lines.push(`<div class="title" style="margin-bottom:6px;">Products</div>`);
       lines.push(`<div style="overflow-x:auto;">`);
@@ -2701,7 +2727,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       lines.push(`</table>`);
       lines.push(`</div>`);
 
-      // Stations table
       lines.push(`<div class="subtle-divider"></div>`);
       lines.push(`<div class="title" style="margin-bottom:6px;">Stations Included</div>`);
       lines.push(`<div style="overflow-x:auto;">`);
@@ -2725,7 +2750,6 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
         });
       lines.push(`</tbody></table></div>`);
 
-      // Pricing mode badge
       const modeBadge = el('proposalMode');
       if (modeBadge){
         modeBadge.textContent =
@@ -2734,11 +2758,8 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
           "Mixed Deal";
       }
 
-      // Show output
       el('proposalOutput').classList.remove('hidden');
       el('proposalTable').innerHTML = lines.join("\n");
-
-      // ensure section visible
       el('proposalSection').classList.remove('hidden');
     }
 
@@ -2752,11 +2773,11 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
       const monthlyPerStation = computeMonthlyValuePerStation();
       const monthlyAllStations = monthlyPerStation * stations.length;
 
-      const termMonths = (window.dealMetaState?.termMonths) || (typeof getEffectiveTermMonths === "function" ? getEffectiveTermMonths() : 36);
-      const arEnabled = !!(window.dealMetaState?.autoRenewEnabled);
-      const arMonths  = (window.dealMetaState?.autoRenewMonths) || (typeof getEffectiveAutoRenewMonths === "function" ? getEffectiveAutoRenewMonths() : 12);
-      const nSeason = window.dealMetaState?.nielsenSeason || "—";
-      const nYear   = window.dealMetaState?.nielsenYear || "—";
+      const termMonths = dealMetaState.termMonths || 36;
+      const arEnabled  = !!dealMetaState.autoRenewEnabled;
+      const arMonths   = dealMetaState.autoRenewMonths || 12;
+      const nSeason    = dealMetaState.nielsenSeason || "—";
+      const nYear      = dealMetaState.nielsenYear || "—";
 
       const lines = [];
       lines.push(`Futuri Media Deal Calc — Proposal`);
@@ -2790,8 +2811,7 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
 
       return lines.join("\n");
     }
-
   </script>
 
-</body>
+  </body>
 </html>
