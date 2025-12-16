@@ -67,9 +67,9 @@
     .row>.field,.row>.grow{flex:1 1 auto;min-width:0}
     .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0}
 
-    /* Admin panel UI bits */
-    #adminPermissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-    @media (max-width:820px){#adminPermissionsCard .perm-grid{grid-template-columns:1fr}}
+    /* Permissions grid (new card id) */
+    #permissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    @media (max-width:820px){#permissionsCard .perm-grid{grid-template-columns:1fr}}
     .perm-item{display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--edge);border-radius:12px;background:#0b121a}
     .perm-item .meta{display:flex;flex-direction:column;gap:3px}
     .perm-item .meta .name{font-weight:600}
@@ -215,11 +215,11 @@
         <div id="uploadsList" class="list" style="margin-top:10px;"></div>
       </section>
 
-      <!-- Admin & Permissions (combined card, standalone from snapshots) -->
-      <section class="card" style="grid-column:1 / -1;" id="adminPermissionsCard">
-        <div class="title">Admin & Permissions</div>
+      <!-- Permissions (separate card) -->
+      <section class="card" style="grid-column:1 / -1;" id="permissionsCard">
+        <div class="title">Permissions</div>
         <div class="muted" style="font-size:12px;margin-bottom:10px;">
-          Toggle what <strong>you</strong> can do. Admins can also manage users below.
+          Toggle what <strong>you</strong> can do. Saved to your user record (permOverrides).
         </div>
 
         <div class="row" style="margin-bottom:8px;">
@@ -228,16 +228,15 @@
         </div>
 
         <div class="perm-grid" id="permissionsGrid"></div>
+      </section>
 
-        <div class="subtle-divider"></div>
-
-        <div id="adminPanelInner" class="hidden">
-          <div class="title" style="margin-bottom:8px;">Admin: Users & Uploads</div>
-          <div class="muted" style="font-size:12px;margin-bottom:8px;">
-            Promote roles + browse each user’s upload folder.
-          </div>
-          <div id="adminUsersList" class="list"></div>
+      <!-- Admin: Users & Uploads (admin-only; separate from permissions) -->
+      <section class="card hidden" style="grid-column:1 / -1;" id="adminUsersUploadsCard">
+        <div class="title">Admin: Users & Uploads</div>
+        <div class="muted" style="font-size:12px;margin-bottom:8px;">
+          Promote roles + browse each user’s upload folder.
         </div>
+        <div id="adminUsersList" class="list"></div>
       </section>
     </div>
 
@@ -504,8 +503,8 @@
       { key:"manage_roles",          name:"Manage Roles",           desc:"Admin: change user role selection." }
     ];
 
-    let CURRENT_USER = null;   // Firestore user doc data
-    let CURRENT_UID  = null;   // Auth uid
+    let CURRENT_USER = null;
+    let CURRENT_UID  = null;
     let CURRENT_ROLE = "staff";
 
     // Cache of my snapshots for client-side search
@@ -573,15 +572,15 @@
       // radio snapshot button
       el("btnUpload").disabled = !can("upload_files");
 
-      // combined card: admin section toggle
-      if (CURRENT_ROLE === "admin") el("adminPanelInner").classList.remove("hidden");
-      else el("adminPanelInner").classList.add("hidden");
-
       // permissions mode badge
       const editable = (CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
       el("permModeBadge").textContent = `Mode: ${editable ? "Editable" : "View"}`;
       el("permModeHelp").textContent =
         editable ? "Changes are saved to your user record (permOverrides)." : "Your role is view-only.";
+
+      // admin users/uploads card toggle (SEPARATE from permissions)
+      if (can("view_all_uploads")) el("adminUsersUploadsCard").classList.remove("hidden");
+      else el("adminUsersUploadsCard").classList.add("hidden");
     }
 
     async function saveMyPermissionOverride(key, value){
@@ -616,14 +615,11 @@
         cb.title = editable ? "Toggle permission" : "View only";
 
         cb.onchange = async () => {
-          // store override explicitly to match the new value
           try{
             await saveMyPermissionOverride(meta.key, cb.checked);
-            // re-apply UI that depends on can()
             applyRoleUI();
             renderProducts();
             updateProductSummary();
-            // if they turned off snapshot saving, disable button immediately
           }catch(e){
             console.warn("Failed saving perm override", e);
             cb.checked = effective; // revert
@@ -739,7 +735,7 @@
       setTimeout(() => (el("uploadStatus").textContent = ""), 1500);
 
       await renderMyUploads();
-      if (currentRole() === "admin") await renderAdminUsers();
+      if (can("view_all_uploads")) await renderAdminUsers();
     }
 
     function applyUploadsFilters(list){
@@ -844,7 +840,7 @@
     }
 
     /* -------------------------
-       Admin: Users + Uploads (admin-only view inside combined card)
+       Admin: Users + Uploads (admin-only view in separate card)
        ------------------------- */
     async function renderAdminUsers(){
       if (!can("view_all_uploads")) return;
@@ -1032,7 +1028,7 @@
         await initApp();
         await renderMyUploads();
 
-        if (CURRENT_ROLE === "admin") await renderAdminUsers();
+        if (can("view_all_uploads")) await renderAdminUsers();
       });
 
       el("btnOpenRadio").onclick = () => {
@@ -1735,7 +1731,7 @@
           topRow.appendChild(priceContainer);
           row.appendChild(topRow);
 
-          // pricing override: permission-gated (and now can be toggled in My Permissions)
+          // pricing override: permission-gated
           if (productState.selectedProducts.has(product.id) && rateCardValue !== null && can('pricing_override')) {
             const overrideRow = document.createElement('div');
             overrideRow.style.display = 'flex';
@@ -2215,8 +2211,6 @@
       else if (pricingType === 'barter') { proposalMode.textContent = 'Barter Deal'; proposalMode.style.background = '#3a2d0b'; }
       else { proposalMode.textContent = 'Mixed Deal'; proposalMode.style.background = '#2d1a3a'; }
 
-      // keep your existing table generators if you want full formatting;
-      // here we store a simpler but still copyable table to keep file size sane.
       const perStationMonthly = selectedProducts.reduce((s,p)=>s+p.monthlyValue,0);
       const totalMonthly = perStationMonthly * selectedStations.length;
       const totalAnnual = totalMonthly * 12;
@@ -2331,3 +2325,4 @@
   </script>
 </body>
 </html>
+
