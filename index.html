@@ -597,9 +597,10 @@
      ****************************/
     const el = (id) => document.getElementById(id);
 
-    const ADMIN_EMAILS = new Set([
-      "sabrinacarlo@futurimedia.com"
-    ]);
+    const SUPERADMIN_EMAILS = new Set([
+  "sabrinacarlo@futurimedia.com"
+]);
+
 
     const PERMS_BASE = {
       admin: {
@@ -677,20 +678,22 @@
       const ref = doc(db, "users", authUser.uid);
       const snap = await getDoc(ref);
 
-      if (!snap.exists()){
-        const email = (authUser.email || "").toLowerCase();
-        const role = ADMIN_EMAILS.has(email) ? "admin" : "staff";
-        const payload = {
-          uid: authUser.uid,
-          email: authUser.email || "",
-          name: authUser.displayName || "",
-          role,
-          permOverrides: {},
-          createdAt: serverTimestamp()
-        };
-        await setDoc(ref, payload);
-        return payload;
-      }
+     if (!snap.exists()){
+  const email = (authUser.email || "").toLowerCase();
+  const role = SUPERADMIN_EMAILS.has(email) ? "superadmin" : "staff";
+
+  const payload = {
+    uid: authUser.uid,
+    email: authUser.email || "",
+    name: authUser.displayName || "",
+    role,
+    permOverrides: {},
+    createdAt: serverTimestamp()
+  };
+
+  await setDoc(ref, payload);
+  return payload;
+}
 
       const data = snap.data() || {};
       const patch = {};
@@ -1407,8 +1410,8 @@
         CURRENT_UID = user.uid;
         CURRENT_USER = await ensureUserDoc(user);
 
-        const email = (user.email || "").toLowerCase();
-        CURRENT_ROLE = CURRENT_USER.role || (ADMIN_EMAILS.has(email) ? "admin" : "staff");
+        const email = (authUser.email || "").toLowerCase();
+        const role = SUPERADMIN_EMAILS.has(email) ? "superadmin" : "staff";
 
         applyRoleUI();
         renderPermissionsCard();
