@@ -75,6 +75,12 @@
     .perm-item .meta .name{font-weight:600}
     .perm-item .meta .desc{font-size:12px;color:var(--muted)}
     .subtle-divider{height:1px;background:rgba(34,50,68,.6);margin:12px 0}
+
+    /* Small hardening helpers */
+    details{border:1px solid rgba(34,50,68,.55);border-radius:12px;padding:10px;background:#0b121a}
+    details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:8px}
+    details>summary::-webkit-details-marker{display:none}
+    .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;font-size:11px;padding:2px 6px;border-radius:6px;border:1px solid rgba(34,50,68,.7);background:#0c131b;color:#cfe3f7}
   </style>
 </head>
 
@@ -109,7 +115,7 @@
       <div class="muted" style="font-size:11px;">
         <span style="opacity:.7;">v3.2 (Google-only)</span>
         <span style="margin:0 8px;">•</span>
-        <span style="opacity:.7;">20,981 stations • 5,186 parent companies</span>
+        <span style="opacity:.7;">Radio dataset loaded from <span class="kbd">radio_data.json</span></span>
       </div>
     </div>
   </header>
@@ -395,7 +401,7 @@
         <div id="cpmDisplay" class="hidden" style="margin-bottom:12px;">
           <div class="row">
             <span class="muted">CPM:</span>
-            <span class="badge">$2.00 (approval required to change)</span>
+            <span class="badge">$2.00</span>
           </div>
         </div>
 
@@ -438,6 +444,89 @@
 
       <section class="card hidden" id="proposalSection">
         <div class="title">Step 6: Generate Proposal</div>
+
+        <details id="dealMetaDetails" style="margin-bottom:12px;">
+          <summary>
+            <span class="badge">Deal Terms + Nielsen</span>
+            <span class="muted" style="font-size:12px;">(kept out of the way)</span>
+          </summary>
+
+          <div style="height:10px"></div>
+
+          <div class="row">
+            <div class="field grow">
+              <label for="dealTermSelect">Term</label>
+              <select id="dealTermSelect">
+                <option value="12">12</option>
+                <option value="24">24</option>
+                <option value="36" selected>36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+                <option value="custom">Fill-in</option>
+              </select>
+            </div>
+
+            <div class="field grow" id="dealTermCustomWrap" style="display:none;">
+              <label for="dealTermCustomMonths">Custom Term (months)</label>
+              <input id="dealTermCustomMonths" type="number" min="1" step="1" placeholder="e.g. 18" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="autoRenewEnabled">
+              <span>Auto Renewal</span>
+            </label>
+
+            <div class="field grow">
+              <label for="autoRenewTermSelect">Auto-Renew Term (months)</label>
+              <select id="autoRenewTermSelect">
+                <option value="12" selected>12</option>
+                <option value="24">24</option>
+                <option value="36">36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+                <option value="custom">Fill-in</option>
+              </select>
+            </div>
+
+            <div class="field grow" id="autoRenewCustomWrap" style="display:none;">
+              <label for="autoRenewCustomMonths">Custom Auto-Renew (months)</label>
+              <input id="autoRenewCustomMonths" type="number" min="1" step="1" placeholder="e.g. 12" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <div class="field grow">
+              <label for="nielsenSeason">Nielsen Book (Season)</label>
+              <select id="nielsenSeason">
+                <option value="Winter">Winter</option>
+                <option value="Spring">Spring</option>
+                <option value="Summer">Summer</option>
+                <option value="Fall" selected>Fall</option>
+              </select>
+            </div>
+            <div class="field grow">
+              <label for="nielsenYear">Nielsen Book (Year)</label>
+              <input id="nielsenYear" type="number" min="2000" step="1" value="2024" />
+            </div>
+          </div>
+
+          <div class="subtle-divider"></div>
+
+          <div class="row">
+            <div class="muted" style="font-size:12px;">
+              Approval email: <span class="kbd" id="approvalEmailText">sabrinacarlo@futurimedia.com</span>
+            </div>
+            <button class="btn" id="btnCopyApprovalEmail" type="button">Copy Email</button>
+            <button class="btn" id="btnOpenApprovalDraft" type="button">Open Email Draft</button>
+          </div>
+
+          <div class="muted" style="font-size:11px;margin-top:8px;">
+            Note: This tool does not send email; it prepares a draft (mailto) or copies text for you.
+          </div>
+        </details>
+
         <div class="row" style="margin-bottom:12px;">
           <button class="btn" id="btnGenerateProposal" style="background:#0d4a2e;border-color:#1a6b45;" type="button">Generate Proposal</button>
           <button class="btn" id="btnCopyProposal" type="button">Copy to Clipboard</button>
@@ -452,7 +541,6 @@
         </div>
       </section>
 
-      <!-- Save Snapshot button stays on Radio page (create here, view on Snapshots page) -->
       <section class="card">
         <div class="title">Snapshot</div>
         <div class="row">
@@ -462,7 +550,6 @@
       </section>
     </div>
   </main>
-
   <!-- ===========================
        FIREBASE (Modules)
        =========================== -->
@@ -492,6 +579,7 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // Expose minimal Firebase handles to non-module scripts
     window.fb = {
       app, auth, db,
       onAuthStateChanged,
@@ -504,11 +592,10 @@
   </script>
 
   <script>
-    /* =========================
-       AUTH + ROLES + SNAPSHOTS + PERMISSIONS
-       ========================= */
+    /****************************
+     * Core helpers + Permissions
+     ****************************/
     const el = (id) => document.getElementById(id);
-    const $ = el;
 
     const ADMIN_EMAILS = new Set([
       "sabrinacarlo@futurimedia.com"
@@ -558,19 +645,18 @@
     let CURRENT_UID  = null;   // Auth uid
     let CURRENT_ROLE = "staff";
 
-    // Cache of my snapshots for client-side search
+    // cache of my snapshots for client-side search
     let MY_UPLOADS_CACHE = [];
 
     function currentRole(){ return CURRENT_ROLE; }
 
-    // read overrides from CURRENT_USER.permOverrides { key: true/false }
     function getOverrides(){
       return (CURRENT_USER && CURRENT_USER.permOverrides && typeof CURRENT_USER.permOverrides === "object")
         ? CURRENT_USER.permOverrides
         : {};
     }
 
-    // base + overrides (override wins)
+    // base + overrides
     function can(action){
       const base = !!PERMS_BASE[currentRole()]?.[action];
       const ov = getOverrides();
@@ -599,7 +685,7 @@
           email: authUser.email || "",
           name: authUser.displayName || "",
           role,
-          permOverrides: {},           // NEW
+          permOverrides: {},
           createdAt: serverTimestamp()
         };
         await setDoc(ref, payload);
@@ -658,6 +744,7 @@
 
     function renderPermissionsCard(){
       const grid = el("permissionsGrid");
+      if (!grid) return;
       grid.innerHTML = "";
 
       const editable = (CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
@@ -681,8 +768,9 @@
           try{
             await saveMyPermissionOverride(meta.key, cb.checked);
             applyRoleUI();
-            renderProducts();
-            updateProductSummary();
+            // These are defined later in Part 3 (calculator)
+            if (typeof renderProducts === "function") renderProducts();
+            if (typeof updateProductSummary === "function") updateProductSummary();
           }catch(e){
             console.warn("Failed saving perm override", e);
             cb.checked = effective;
@@ -695,7 +783,10 @@
 
         const line1 = document.createElement("div");
         line1.className = "name";
-        line1.innerHTML = `${meta.name} ${overridden ? `<span class="badge" style="margin-left:6px;">Override</span>` : ""} ${baseVal ? `<span class="badge" style="margin-left:6px;">Role</span>` : ""}`;
+        line1.innerHTML =
+          `${meta.name}
+           ${overridden ? `<span class="badge" style="margin-left:6px;">Override</span>` : ""}
+           ${baseVal ? `<span class="badge" style="margin-left:6px;">Role</span>` : ""}`;
 
         const line2 = document.createElement("div");
         line2.className = "desc";
@@ -761,8 +852,8 @@
               if (CURRENT_USER) CURRENT_USER.role = newRole;
               applyRoleUI();
               renderPermissionsCard();
-              renderProducts();
-              updateProductSummary();
+              if (typeof renderProducts === "function") renderProducts();
+              if (typeof updateProductSummary === "function") updateProductSummary();
             }
           }catch(err){
             console.warn("Failed updating role", err);
@@ -775,21 +866,157 @@
       });
     }
 
-    /* -------------------------
-       Snapshots: save + render list (Snapshots page)
-       ------------------------- */
-    function buildSnapshotPayload(){
-      return {
-        parent: state.parent,
-        markets: Array.from(state.markets),
-        stations: Array.from(state.stations),
+    /**********************
+     * Deal meta state (term, auto-renew, nielsen)
+     **********************/
+    const dealMetaState = {
+      termMonths: 36,
+      termCustomMonths: null,
+      autoRenewEnabled: false,
+      autoRenewMonths: 12,
+      autoRenewCustomMonths: null,
+      nielsenSeason: "Fall",
+      nielsenYear: 2024,
+      approvalEmail: "sabrinacarlo@futurimedia.com"
+    };
 
-        pricingType: productState.pricingType,
-        products: Array.from(productState.selectedProducts),
-        customPrices: Object.fromEntries(productState.customPrices),
-        manualMinutes: Object.fromEntries(productState.manualMinutes),
-        stationCashValues: Object.fromEntries(productState.stationCashValues),
-        cpm: productState.cpm,
+    function parsePositiveInt(v){
+      const n = Math.floor(parseFloat(v));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    function getEffectiveTermMonths(){
+      const sel = el("dealTermSelect")?.value || "36";
+      if (sel === "custom") return parsePositiveInt(el("dealTermCustomMonths")?.value) || dealMetaState.termMonths;
+      return parsePositiveInt(sel) || dealMetaState.termMonths;
+    }
+
+    function getEffectiveAutoRenewMonths(){
+      const sel = el("autoRenewTermSelect")?.value || "12";
+      if (sel === "custom") return parsePositiveInt(el("autoRenewCustomMonths")?.value) || dealMetaState.autoRenewMonths;
+      return parsePositiveInt(sel) || dealMetaState.autoRenewMonths;
+    }
+
+    function syncDealMetaFromUI(){
+      if (!el("dealTermSelect")) return;
+      dealMetaState.termMonths = getEffectiveTermMonths();
+      dealMetaState.termCustomMonths = parsePositiveInt(el("dealTermCustomMonths")?.value);
+      dealMetaState.autoRenewEnabled = !!el("autoRenewEnabled")?.checked;
+      dealMetaState.autoRenewMonths = getEffectiveAutoRenewMonths();
+      dealMetaState.autoRenewCustomMonths = parsePositiveInt(el("autoRenewCustomMonths")?.value);
+      dealMetaState.nielsenSeason = el("nielsenSeason")?.value || dealMetaState.nielsenSeason;
+      dealMetaState.nielsenYear = parsePositiveInt(el("nielsenYear")?.value) || dealMetaState.nielsenYear;
+      dealMetaState.approvalEmail = (el("approvalEmailText")?.textContent || dealMetaState.approvalEmail);
+    }
+
+    function applyDealMetaToUI(){
+      if (!el("dealTermSelect")) return;
+
+      const preset = new Set(["12","24","36","48","60"]);
+
+      if (preset.has(String(dealMetaState.termMonths))) {
+        el("dealTermSelect").value = String(dealMetaState.termMonths);
+        el("dealTermCustomWrap").style.display = "none";
+      } else {
+        el("dealTermSelect").value = "custom";
+        el("dealTermCustomWrap").style.display = "";
+        el("dealTermCustomMonths").value = String(dealMetaState.termMonths || "");
+      }
+
+      el("autoRenewEnabled").checked = !!dealMetaState.autoRenewEnabled;
+
+      if (preset.has(String(dealMetaState.autoRenewMonths))) {
+        el("autoRenewTermSelect").value = String(dealMetaState.autoRenewMonths);
+        el("autoRenewCustomWrap").style.display = "none";
+      } else {
+        el("autoRenewTermSelect").value = "custom";
+        el("autoRenewCustomWrap").style.display = "";
+        el("autoRenewCustomMonths").value = String(dealMetaState.autoRenewMonths || "");
+      }
+
+      el("nielsenSeason").value = dealMetaState.nielsenSeason || "Fall";
+      el("nielsenYear").value = String(dealMetaState.nielsenYear || 2024);
+      if (el("approvalEmailText")) el("approvalEmailText").textContent = dealMetaState.approvalEmail;
+    }
+
+    function wireDealMetaUI(){
+      const termSel = el("dealTermSelect");
+      const termCustomWrap = el("dealTermCustomWrap");
+      const termCustom = el("dealTermCustomMonths");
+
+      const arSel = el("autoRenewTermSelect");
+      const arCustomWrap = el("autoRenewCustomWrap");
+      const arCustom = el("autoRenewCustomMonths");
+
+      if (!termSel) return;
+
+      const toggleWraps = () => {
+        termCustomWrap.style.display = (termSel.value === "custom") ? "" : "none";
+        arCustomWrap.style.display = (arSel.value === "custom") ? "" : "none";
+      };
+
+      termSel.addEventListener("change", () => { toggleWraps(); syncDealMetaFromUI(); });
+      termCustom.addEventListener("input", () => syncDealMetaFromUI());
+
+      el("autoRenewEnabled").addEventListener("change", () => syncDealMetaFromUI());
+      arSel.addEventListener("change", () => { toggleWraps(); syncDealMetaFromUI(); });
+      arCustom.addEventListener("input", () => syncDealMetaFromUI());
+
+      el("nielsenSeason").addEventListener("change", () => syncDealMetaFromUI());
+      el("nielsenYear").addEventListener("input", () => syncDealMetaFromUI());
+
+      el("btnCopyApprovalEmail").addEventListener("click", async () => {
+        try{
+          await navigator.clipboard.writeText(dealMetaState.approvalEmail);
+          const b = el("btnCopyApprovalEmail");
+          const t = b.textContent;
+          b.textContent = "✓ Copied";
+          setTimeout(()=>b.textContent=t,1200);
+        }catch{
+          alert("Could not copy. Email is: " + dealMetaState.approvalEmail);
+        }
+      });
+
+      el("btnOpenApprovalDraft").addEventListener("click", () => {
+        syncDealMetaFromUI();
+        const subject = encodeURIComponent("Deal Calc approval request");
+        const body = encodeURIComponent(
+          `Hi,\n\nPlease approve this deal.\n\n` +
+          `Parent: ${(window.state?.parent) || "—"}\n` +
+          `Pricing: ${(window.productState?.pricingType) || "—"}\n` +
+          `Term (months): ${dealMetaState.termMonths || "—"}\n` +
+          `Auto Renew: ${dealMetaState.autoRenewEnabled ? "Yes" : "No"}\n` +
+          `Auto Renew Term (months): ${dealMetaState.autoRenewEnabled ? dealMetaState.autoRenewMonths : "—"}\n` +
+          `Nielsen Book: ${dealMetaState.nielsenSeason || "—"} ${dealMetaState.nielsenYear || "—"}\n\n` +
+          `Thanks.`
+        );
+        const href = `mailto:${dealMetaState.approvalEmail}?subject=${subject}&body=${body}`;
+        window.location.href = href;
+      });
+
+      toggleWraps();
+      applyDealMetaToUI();
+      syncDealMetaFromUI();
+    }
+
+    /**********************
+     * Snapshots (save + load + list)
+     **********************/
+    function buildSnapshotPayload(){
+      syncDealMetaFromUI();
+      return {
+        parent: window.state?.parent || "",
+        markets: Array.from(window.state?.markets || []),
+        stations: Array.from(window.state?.stations || []),
+
+        pricingType: window.productState?.pricingType || "cash",
+        products: Array.from(window.productState?.selectedProducts || []),
+        customPrices: Object.fromEntries(window.productState?.customPrices || []),
+        manualMinutes: Object.fromEntries(window.productState?.manualMinutes || []),
+        stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
+        cpm: window.productState?.cpm ?? 2.0,
+
+        dealMeta: { ...dealMetaState },
 
         proposalHTML: el("proposalTable")?.innerHTML || null
       };
@@ -801,34 +1028,44 @@
       showView("radioView");
       window.scrollTo(0,0);
 
-      state.parent = payload.parent || "";
-      state.markets = new Set(payload.markets || []);
-      state.stations = new Set(payload.stations || []);
+      // restore selection state
+      window.state.parent = payload.parent || "";
+      window.state.markets = new Set(payload.markets || []);
+      window.state.stations = new Set(payload.stations || []);
 
-      productState.pricingType = payload.pricingType || "cash";
-      productState.selectedProducts = new Set(payload.products || []);
-      productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
-      productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
-      productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
-      productState.cpm = payload.cpm ?? 2.0;
+      window.productState.pricingType = payload.pricingType || "cash";
+      window.productState.selectedProducts = new Set(payload.products || []);
+      window.productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
+      window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
+      window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
+      window.productState.cpm = payload.cpm ?? 2.0;
 
+      // restore deal meta
+      if (payload.dealMeta && typeof payload.dealMeta === "object") {
+        Object.assign(dealMetaState, payload.dealMeta);
+      }
+      setTimeout(() => { applyDealMetaToUI(); syncDealMetaFromUI(); }, 0);
+
+      // set pricing radios
       document.querySelectorAll('input[name="pricingType"]').forEach(r => {
-        r.checked = (r.value === productState.pricingType);
+        r.checked = (r.value === window.productState.pricingType);
       });
 
-      setMarketsEnabled(!!state.parent);
-      setStationsEnabled(!!state.parent);
-      renderParents(el("parentSearch").value || "");
-      renderMarkets();
-      renderStations();
-      renderProducts();
-      updatePreview();
-      updateProductSummary();
+      // re-render everything (calculator functions exist in Part 3)
+      if (typeof setMarketsEnabled === "function") setMarketsEnabled(!!window.state.parent);
+      if (typeof setStationsEnabled === "function") setStationsEnabled(!!window.state.parent);
+      if (typeof renderParents === "function") renderParents(el("parentSearch")?.value || "");
+      if (typeof renderMarkets === "function") renderMarkets();
+      if (typeof renderStations === "function") renderStations();
+      if (typeof renderProducts === "function") renderProducts();
+      if (typeof updatePreview === "function") updatePreview();
+      if (typeof updateProductSummary === "function") updateProductSummary();
 
+      // restore proposal HTML if present
       if (payload.proposalHTML){
-        el("proposalSection").classList.remove("hidden");
-        el("proposalOutput").classList.remove("hidden");
-        el("proposalTable").innerHTML = payload.proposalHTML;
+        el("proposalSection")?.classList.remove("hidden");
+        el("proposalOutput")?.classList.remove("hidden");
+        if (el("proposalTable")) el("proposalTable").innerHTML = payload.proposalHTML;
       }
 
       alert("Snapshot loaded (Radio view).");
@@ -860,14 +1097,8 @@
       el("uploadStatus").textContent = "Saved!";
       setTimeout(() => (el("uploadStatus").textContent = ""), 1500);
 
-      // refresh snapshots list if on snapshots page
-      if (!el("snapshotsView").classList.contains("hidden")) {
-        await renderMyUploads();
-      }
-      // refresh admin uploads page if open
-      if (!el("adminUploadsView").classList.contains("hidden") && can("view_all_uploads")) {
-        await renderAdminUsers();
-      }
+      if (!el("snapshotsView").classList.contains("hidden")) await renderMyUploads();
+      if (!el("adminUploadsView").classList.contains("hidden") && can("view_all_uploads")) await renderAdminUsers();
     }
 
     function applyUploadsFilters(list){
@@ -890,7 +1121,7 @@
 
         const productIds = Array.isArray(snap.payload?.products) ? snap.payload.products : [];
         const productNames = productIds
-          .map(pid => (PRODUCTS.find(p => p.id === pid)?.name || pid))
+          .map(pid => (window.PRODUCTS?.find(p => p.id === pid)?.name || pid))
           .join(" ")
           .toLowerCase();
 
@@ -971,9 +1202,6 @@
       });
     }
 
-    /* -------------------------
-       Admin Uploads: Users + Uploads (NO role toggles here)
-       ------------------------- */
     async function renderAdminUsers(){
       if (!can("view_all_uploads")) return;
 
@@ -1024,12 +1252,11 @@
         const uploadsBox = document.createElement("div");
         uploadsBox.className = "list";
 
-        const { collection:col, getDocs:getD, query:q, orderBy:ob } = window.fb;
-        const uq = q(
-          col(db, "users", uid, "uploads"),
-          ob("createdAt","desc")
+        const uq = query(
+          collection(db, "users", uid, "uploads"),
+          orderBy("createdAt","desc")
         );
-        const usnaps = await getD(uq);
+        const usnaps = await getDocs(uq);
 
         if (usnaps.empty){
           uploadsBox.innerHTML = `<div class="placeholder">No uploads</div>`;
@@ -1058,9 +1285,9 @@
       }
     }
 
-    /* -------------------------
-       Google-only Login wiring + Nav
-       ------------------------- */
+    /**********************
+     * Google-only Login wiring + Nav
+     **********************/
     document.addEventListener("DOMContentLoaded", () => {
       const { auth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = window.fb;
 
@@ -1128,6 +1355,33 @@
       el("btnBackFromPermissions").onclick = () => showView("landing");
       el("btnBackFromAdminUploads").onclick = () => showView("landing");
 
+      // Snapshots filters: re-render on change
+      [
+        "uploadsSearchName",
+        "uploadsSearchParent",
+        "uploadsSearchProduct",
+        "uploadsPricingType",
+        "uploadsSortBy",
+        "uploadsDateFrom",
+        "uploadsDateTo"
+      ].forEach(id => {
+        const node = el(id);
+        if (!node) return;
+        node.addEventListener("input", () => renderMyUploads());
+        node.addEventListener("change", () => renderMyUploads());
+      });
+
+      el("btnClearUploadsFilters").onclick = () => {
+        el("uploadsSearchName").value = "";
+        el("uploadsSearchParent").value = "";
+        el("uploadsSearchProduct").value = "";
+        el("uploadsPricingType").value = "";
+        el("uploadsSortBy").value = "newest";
+        el("uploadsDateFrom").value = "";
+        el("uploadsDateTo").value = "";
+        renderMyUploads();
+      };
+
       onAuthStateChanged(auth, async (user) => {
         if (!user){
           el("btnLogout").style.display = "none";
@@ -1156,42 +1410,20 @@
         applyRoleUI();
         renderPermissionsCard();
 
-        await initApp();
+        // init calculator app (defined in Part 3)
+        await window.initApp();
         showView("landing");
-      });
 
-      // Snapshots filters: re-render on change
-      [
-        "uploadsSearchName",
-        "uploadsSearchParent",
-        "uploadsSearchProduct",
-        "uploadsPricingType",
-        "uploadsSortBy",
-        "uploadsDateFrom",
-        "uploadsDateTo"
-      ].forEach(id => {
-        const node = el(id);
-        if (!node) return;
-        node.addEventListener("input", () => renderMyUploads());
-        node.addEventListener("change", () => renderMyUploads());
+        // wire deal meta after calculator init (elements exist)
+        wireDealMetaUI();
       });
-
-      el("btnClearUploadsFilters").onclick = () => {
-        el("uploadsSearchName").value = "";
-        el("uploadsSearchParent").value = "";
-        el("uploadsSearchProduct").value = "";
-        el("uploadsPricingType").value = "";
-        el("uploadsSortBy").value = "newest";
-        el("uploadsDateFrom").value = "";
-        el("uploadsDateTo").value = "";
-        renderMyUploads();
-      };
     });
   </script>
 
   <script>
     /** =======================
      *  Deal Calc — UserData (Static Option A)
+     *  Stores custom parent/market/station entries in localStorage.
      * ======================= */
     window.UserData = (function () {
       const USER_KEY = 'dealcalc_user_data_v1';
@@ -1297,13 +1529,13 @@
       return { init, getMerged, addEntry, removeParent };
     })();
   </script>
-
   <script>
-    /* =======================
-       MAIN CALCULATOR JS
-       ======================= */
+    /**************************************
+     * MAIN CALCULATOR JS (radio + products)
+     **************************************/
 
-    let BASE_DS = { parents: [], markets: [], stations: [] };
+    // Expose some state globally for other scripts (deal meta / snapshots)
+    window.BASE_DS = { parents: [], markets: [], stations: [] };
 
     function mergeUserIntoDataset(baseDS, userMerged){
       const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
@@ -1352,8 +1584,8 @@
     const DATA_URL = './radio_data.json';
 
     // Dataset + Index
-    let DS = { parents: [], markets: [], stations: [] };
-    const IDX = {
+    window.DS = { parents: [], markets: [], stations: [] };
+    window.IDX = {
       parentSet: new Set(),
       marketSet: new Set(),
       stations: [],
@@ -1361,10 +1593,11 @@
       stationsByParentMarket: new Map(),
     };
 
-    const state = { parent: '', markets: new Set(), stations: new Set() };
+    // Selection state
+    window.state = { parent: '', markets: new Set(), stations: new Set() };
 
     // Products configuration
-    const PRODUCTS = [
+    window.PRODUCTS = [
       { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
       { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
       { id: 'topline_podcast', name: 'TopLine - Podcast', cash: 2500, barter: 3400 },
@@ -1383,13 +1616,13 @@
       { id: 'topline', name: 'TopLine', cash: null, barter: null }
     ];
 
-    const productState = {
+    window.productState = {
       selectedProducts: new Set(),
-      pricingType: 'cash',
-      customPrices: new Map(),
-      cpm: 2.00,
-      manualMinutes: new Map(),
-      stationCashValues: new Map()
+      pricingType: 'cash', // cash | barter | mixed
+      customPrices: new Map(), // productId -> number
+      cpm: 2.00,              // dollars per 30 seconds per 1,000 AQH? (kept as legacy)
+      manualMinutes: new Map(), // stationKey -> {prime:number, ros:number}
+      stationCashValues: new Map() // stationKey -> number monthly cash
     };
 
     async function loadDataset() {
@@ -1407,26 +1640,26 @@
     }
 
     function rebuildIndex(){
-      IDX.parentSet = new Set(DS.parents || []);
-      IDX.marketSet = new Set(DS.markets || []);
-      IDX.stations = DS.stations || [];
-      IDX.stationsByParent.clear();
-      IDX.stationsByParentMarket.clear();
+      window.IDX.parentSet = new Set(window.DS.parents || []);
+      window.IDX.marketSet = new Set(window.DS.markets || []);
+      window.IDX.stations = window.DS.stations || [];
+      window.IDX.stationsByParent.clear();
+      window.IDX.stationsByParentMarket.clear();
 
-      (IDX.stations || []).forEach(s => {
+      (window.IDX.stations || []).forEach(s => {
         const p = s.parent || '';
         const m = s.market || '';
-        if (!IDX.stationsByParent.has(p)) IDX.stationsByParent.set(p, []);
-        IDX.stationsByParent.get(p).push(s);
+        if (!window.IDX.stationsByParent.has(p)) window.IDX.stationsByParent.set(p, []);
+        window.IDX.stationsByParent.get(p).push(s);
 
         const key = p + '||' + m;
-        if (!IDX.stationsByParentMarket.has(key)) IDX.stationsByParentMarket.set(key, []);
-        IDX.stationsByParentMarket.get(key).push(s);
+        if (!window.IDX.stationsByParentMarket.has(key)) window.IDX.stationsByParentMarket.set(key, []);
+        window.IDX.stationsByParentMarket.get(key).push(s);
       });
     }
 
     // UI enable/disable helpers
-    function setMarketsEnabled(enabled) {
+    window.setMarketsEnabled = function(enabled) {
       const sel = el('btnSelAllMarkets');
       const clr = el('btnClrAllMarkets');
       if (sel) sel.disabled = !enabled;
@@ -1435,9 +1668,9 @@
       if (ph) ph.style.display = enabled ? 'none' : '';
       const list = el('marketsList');
       if (list && !enabled) list.innerHTML = '';
-    }
+    };
 
-    function setStationsEnabled(enabled) {
+    window.setStationsEnabled = function(enabled) {
       const sel = el('btnSelAllStations');
       const clr = el('btnClrAllStations');
       if (sel) sel.disabled = !enabled;
@@ -1446,23 +1679,23 @@
       if (ph) ph.style.display = enabled ? 'none' : '';
       const list = el('stationsList');
       if (list && !enabled) list.innerHTML = '';
-    }
+    };
 
-    // initApp() called after login
-    async function initApp() {
-      if (initApp._ran) return;
-      initApp._ran = true;
+    // initApp() called after login (Part 2)
+    window.initApp = async function initApp() {
+      if (window.initApp._ran) return;
+      window.initApp._ran = true;
 
-      await UserData.init(DATA_URL);
+      await window.UserData.init(DATA_URL);
 
-      BASE_DS = await loadDataset();
-      DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+      window.BASE_DS = await loadDataset();
+      window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
       rebuildIndex();
 
       setupEventListeners();
       renderProducts();
       updateProductSummary();
-    }
+    };
 
     function setupEventListeners() {
       setMarketsEnabled(false);
@@ -1476,22 +1709,22 @@
       el('stationSearch').addEventListener('input', renderStations);
 
       el('btnSelAllMarkets').onclick = () => {
-        (IDX.stationsByParent.get(state.parent) || []).forEach(s => state.markets.add(s.market));
+        (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => window.state.markets.add(s.market));
         renderMarkets(); renderStations(); updatePreview();
       };
       el('btnClrAllMarkets').onclick = () => {
-        state.markets.clear(); renderMarkets(); renderStations(); updatePreview();
+        window.state.markets.clear(); renderMarkets(); renderStations(); updatePreview();
       };
 
       el('btnSelAllStations').onclick = () => {
         document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
-          cb.checked = true; state.stations.add(cb.value);
+          cb.checked = true; window.state.stations.add(cb.value);
         });
         updatePreview();
       };
       el('btnClrAllStations').onclick = () => {
         document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
-          cb.checked = false; state.stations.delete(cb.value);
+          cb.checked = false; window.state.stations.delete(cb.value);
         });
         updatePreview();
       };
@@ -1545,11 +1778,11 @@
         err.style.display = 'none';
         err.textContent = '';
 
-        UserData.addEntry({ parent: P, country: C, market: M, station: S });
+        window.UserData.addEntry({ parent: P, country: C, market: M, station: S });
 
         el('addCompanyModal').style.display = 'none';
 
-        DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+        window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
         rebuildIndex();
         el('parentSearch').value = P;
         renderParents(P);
@@ -1571,13 +1804,16 @@
       attachProductEventListeners();
     }
 
-    function renderParents(q='') {
+    /**********************
+     * Parent / Market / Station
+     **********************/
+    window.renderParents = function renderParents(q='') {
       const list = el('parentResults');
       list.innerHTML = '';
       const qn = q.trim().toLowerCase();
 
-      const baseNames = (BASE_DS.parents || []).map(p => (p || '').toLowerCase());
-      const parents = Array.from(IDX.parentSet)
+      const baseNames = (window.BASE_DS.parents || []).map(p => (p || '').toLowerCase());
+      const parents = Array.from(window.IDX.parentSet)
         .filter(p => p.toLowerCase().includes(qn))
         .sort();
 
@@ -1601,7 +1837,7 @@
         radio.type = 'radio';
         radio.name = 'parentSelect';
         radio.value = p;
-        radio.checked = (state.parent === p);
+        radio.checked = (window.state.parent === p);
         radio.onchange = () => setParent(p);
 
         const name = document.createElement('span');
@@ -1627,12 +1863,12 @@
             del.style.borderColor = '#5a1e1e';
             del.onclick = () => {
               if (!confirm(`Remove "${p}" from your custom companies?`)) return;
-              const removed = UserData.removeParent(p);
+              const removed = window.UserData.removeParent(p);
               if (removed) {
-                DS = mergeUserIntoDataset(BASE_DS, UserData.getMerged());
+                window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
                 rebuildIndex();
-                if (state.parent === p) {
-                  state.parent = '';
+                if (window.state.parent === p) {
+                  window.state.parent = '';
                   setMarketsEnabled(false);
                   setStationsEnabled(false);
                 }
@@ -1648,28 +1884,28 @@
 
         list.appendChild(row);
       });
-    }
+    };
 
     function setParent(p) {
-      state.parent = p;
-      state.markets.clear();
-      state.stations.clear();
-      setMarketsEnabled(!!state.parent);
-      setStationsEnabled(!!state.parent);
+      window.state.parent = p;
+      window.state.markets.clear();
+      window.state.stations.clear();
+      setMarketsEnabled(!!window.state.parent);
+      setStationsEnabled(!!window.state.parent);
       renderMarkets();
       renderStations();
       updatePreview();
     }
 
-    function renderMarkets() {
-      if (!state.parent) { setMarketsEnabled(false); return; }
+    window.renderMarkets = function renderMarkets() {
+      if (!window.state.parent) { setMarketsEnabled(false); return; }
       setMarketsEnabled(true);
 
       const list = el('marketsList');
       list.innerHTML = '';
       const q = el('marketSearch').value.trim().toLowerCase();
 
-      const all = (IDX.stationsByParent.get(state.parent) || []).map(s => s.market);
+      const all = (window.IDX.stationsByParent.get(window.state.parent) || []).map(s => s.market);
       const uniq = Array.from(new Set(all)).filter(m => m.toLowerCase().includes(q)).sort();
 
       uniq.forEach(m => {
@@ -1679,10 +1915,10 @@
         const cb = document.createElement('input');
         cb.type='checkbox';
         cb.value=m;
-        cb.checked = state.markets.has(m);
+        cb.checked = window.state.markets.has(m);
         cb.onchange = () => {
-          if (cb.checked) state.markets.add(m);
-          else state.markets.delete(m);
+          if (cb.checked) window.state.markets.add(m);
+          else window.state.markets.delete(m);
           renderStations();
           updatePreview();
         };
@@ -1694,24 +1930,24 @@
         row.appendChild(name);
         list.appendChild(row);
       });
-    }
+    };
 
-    function renderStations() {
-      if (!state.parent) { setStationsEnabled(false); return; }
+    window.renderStations = function renderStations() {
+      if (!window.state.parent) { setStationsEnabled(false); return; }
       setStationsEnabled(true);
 
       const list = el('stationsList');
       list.innerHTML = '';
       const q = el('stationSearch').value.trim().toLowerCase();
 
-      const markets = Array.from(state.markets);
+      const markets = Array.from(window.state.markets);
       let pool = [];
       if (markets.length === 0) {
-        pool = IDX.stationsByParent.get(state.parent) || [];
+        pool = window.IDX.stationsByParent.get(window.state.parent) || [];
       } else {
         markets.forEach(m => {
-          const key = state.parent + '||' + m;
-          (IDX.stationsByParentMarket.get(key) || []).forEach(s => pool.push(s));
+          const key = window.state.parent + '||' + m;
+          (window.IDX.stationsByParentMarket.get(key) || []).forEach(s => pool.push(s));
         });
       }
 
@@ -1727,10 +1963,10 @@
           const cb = document.createElement('input');
           cb.type='checkbox';
           cb.value=key;
-          cb.checked = state.stations.has(key);
+          cb.checked = window.state.stations.has(key);
           cb.onchange = () => {
-            if (cb.checked) state.stations.add(key);
-            else state.stations.delete(key);
+            if (cb.checked) window.state.stations.add(key);
+            else window.state.stations.delete(key);
             updatePreview();
           };
 
@@ -1746,15 +1982,15 @@
           row.appendChild(aqh);
           list.appendChild(row);
         });
-    }
+    };
 
-    function updatePreview() {
+    window.updatePreview = function updatePreview() {
       const list = el('selectedPreview');
       list.innerHTML='';
       let count = 0, prime = 0, ros = 0;
 
-      const keyset = new Set(Array.from(state.stations));
-      (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
+      const keyset = new Set(Array.from(window.state.stations));
+      (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
         const key = s.parent + '|' + s.market + '|' + s.station;
         if (keyset.has(key)) {
           count++;
@@ -1773,19 +2009,22 @@
       el('selCount').textContent = String(count);
       el('primeSum').textContent = String(Math.round(prime));
       el('rosSum').textContent = String(Math.round(ros));
+
       updateProductCalculations();
-    }
+    };
 
-    /* ================= PRODUCTS ================= */
-
-    function renderProducts() {
+    /**********************
+     * Products + Pricing
+     **********************/
+    window.renderProducts = function renderProducts() {
       const list = el('productsList');
       list.innerHTML = '';
       const q = el('productSearch').value.trim().toLowerCase();
-      const pricingType = productState.pricingType;
+      const pricingType = window.productState.pricingType;
 
-      PRODUCTS
-        .filter(p => p.name.toLowerCase().includes(q))
+      window.PRODUCTS
+        .filter(p => (p.name || '').toLowerCase().includes(q))
+        .sort((a,b)=>a.name.localeCompare(b.name))
         .forEach(product => {
           const row = document.createElement('div');
           row.className = 'el';
@@ -1806,13 +2045,13 @@
 
           const cb = document.createElement('input');
           cb.type = 'checkbox';
-          cb.checked = productState.selectedProducts.has(product.id);
+          cb.checked = window.productState.selectedProducts.has(product.id);
           cb.onchange = () => {
             if (cb.checked) {
-              productState.selectedProducts.add(product.id);
+              window.productState.selectedProducts.add(product.id);
             } else {
-              productState.selectedProducts.delete(product.id);
-              productState.customPrices.delete(product.id);
+              window.productState.selectedProducts.delete(product.id);
+              window.productState.customPrices.delete(product.id);
             }
             renderProducts();
             updateProductSummary();
@@ -1829,10 +2068,10 @@
           priceContainer.style.alignItems = 'center';
           priceContainer.style.gap = '8px';
 
-          const rateCardValue = pricingType === 'cash' ? product.cash : product.barter;
-          const currentValue = productState.customPrices.get(product.id) ?? rateCardValue;
+          const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+          const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
 
-          if (rateCardValue === null) {
+          if (rateCardValue === null || rateCardValue === undefined) {
             const tbdBadge = document.createElement('span');
             tbdBadge.className = 'badge';
             tbdBadge.textContent = 'TBD';
@@ -1840,7 +2079,7 @@
           } else {
             const rateCardBadge = document.createElement('span');
             rateCardBadge.className = 'badge';
-            rateCardBadge.textContent = `Rate Card: $${rateCardValue.toLocaleString()}`;
+            rateCardBadge.textContent = `Rate Card: $${Number(rateCardValue).toLocaleString()}`;
             priceContainer.appendChild(rateCardBadge);
           }
 
@@ -1848,8 +2087,13 @@
           topRow.appendChild(priceContainer);
           row.appendChild(topRow);
 
-          // pricing override: permission-gated (toggled in Permissions)
-          if (productState.selectedProducts.has(product.id) && rateCardValue !== null && can('pricing_override')) {
+          // pricing override: permission-gated
+          if (
+            window.productState.selectedProducts.has(product.id) &&
+            rateCardValue !== null &&
+            rateCardValue !== undefined &&
+            can('pricing_override')
+          ) {
             const overrideRow = document.createElement('div');
             overrideRow.style.display = 'flex';
             overrideRow.style.alignItems = 'center';
@@ -1863,14 +2107,15 @@
             const input = document.createElement('input');
             input.type = 'number';
             input.min = '0';
-            input.step = pricingType === 'cash' ? '1' : '10';
-            input.value = currentValue;
+            input.step = (pricingType === 'cash') ? '1' : '10';
+            input.value = (currentValue ?? 0);
             input.style.width = '120px';
             input.style.height = '32px';
+
             input.onchange = () => {
               const val = parseFloat(input.value);
-              if (!isNaN(val) && val >= 0) {
-                productState.customPrices.set(product.id, val);
+              if (Number.isFinite(val) && val >= 0) {
+                window.productState.customPrices.set(product.id, val);
                 updateProductSummary();
               }
             };
@@ -1882,55 +2127,188 @@
 
           list.appendChild(row);
         });
-    }
+    };
 
-    function updateProductSummary() {
-      const pricingType = productState.pricingType;
-      let totalMonthlyValue = 0;
+    window.updateProductSummary = function updateProductSummary() {
+      const pricingType = window.productState.pricingType;
+      let totalMonthlyPerStation = 0;
       let productCount = 0;
 
-      productState.selectedProducts.forEach(productId => {
-        const product = PRODUCTS.find(p => p.id === productId);
+      window.productState.selectedProducts.forEach(productId => {
+        const product = window.PRODUCTS.find(p => p.id === productId);
         if (!product) return;
 
         const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
-        if (rateCardValue === null) return;
+        if (rateCardValue === null || rateCardValue === undefined) return;
 
-        const value = productState.customPrices.get(productId) ?? rateCardValue;
-        totalMonthlyValue += value;
+        const value = window.productState.customPrices.get(productId) ?? rateCardValue;
+        totalMonthlyPerStation += Number(value || 0);
         productCount++;
       });
 
-      const numStations = state.stations.size;
-      const totalMonthlyValueAllStations = totalMonthlyValue * numStations;
+      const numStations = window.state.stations.size;
+      const totalMonthlyAllStations = totalMonthlyPerStation * numStations;
 
       el('productCount').textContent = String(productCount);
-      el('totalValue').textContent = totalMonthlyValueAllStations.toLocaleString();
+      el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
 
+      // Show proposal section only if both stations & products exist
       const proposalSection = el('proposalSection');
       if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
       else proposalSection.classList.add('hidden');
 
+      // CPM visible for barter/mixed only
+      el('cpmDisplay').classList.toggle('hidden', !(pricingType === 'barter' || pricingType === 'mixed'));
+
+      // Reset proposal output whenever pricing changes/selection changes (clean)
+      el("proposalOutput").classList.add("hidden");
+      el("proposalTable").innerHTML = "";
+
       if (pricingType === 'barter') {
-        const annualBarterValue = totalMonthlyValueAllStations * 12;
-        calculateBarterMinutes(annualBarterValue, totalMonthlyValueAllStations);
         el('cashValuesSection').classList.add('hidden');
+        // barter minutes computed from annual
+        const annualBarterValue = totalMonthlyAllStations * 12;
+        calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
       } else if (pricingType === 'mixed') {
-        renderCashValues(totalMonthlyValueAllStations);
+        el('cashValuesSection').classList.remove('hidden');
+        renderCashValues(totalMonthlyAllStations);
       } else {
-        showCashSummary(totalMonthlyValueAllStations);
+        // cash summary only (no barter)
         el('cashValuesSection').classList.add('hidden');
+        showCashSummary(totalMonthlyAllStations);
       }
+    };
+
+    function updateProductCalculations(){
+      // called after station selection changes
+      updateProductSummary();
     }
 
-    function showCashSummary(totalMonthlyValue) {
+    function attachProductEventListeners() {
+      // pricing type radios
+      document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+        r.addEventListener('change', () => {
+          window.productState.pricingType = r.value;
+
+          // Clear station cash allocations when leaving mixed
+          if (window.productState.pricingType !== 'mixed') {
+            window.productState.stationCashValues.clear();
+          }
+
+          // show/hide cash section
+          if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
+          else el('cashValuesSection').classList.add('hidden');
+
+          renderProducts();
+          updateProductSummary();
+        });
+      });
+
+      // Product search
+      el('productSearch').addEventListener('input', renderProducts);
+
+      // select/clear all products
+      el('btnSelAllProducts').onclick = () => {
+        window.PRODUCTS.forEach(p => window.productState.selectedProducts.add(p.id));
+        renderProducts();
+        updateProductSummary();
+      };
+      el('btnClrAllProducts').onclick = () => {
+        window.productState.selectedProducts.clear();
+        window.productState.customPrices.clear();
+        renderProducts();
+        updateProductSummary();
+      };
+
+      // reset pricing overrides to rate card
+      el('btnResetPricing').onclick = () => {
+        window.productState.customPrices.clear();
+        renderProducts();
+        updateProductSummary();
+      };
+
+      // reset barter minutes to auto
+      el('btnResetMinutes').onclick = () => {
+        window.productState.manualMinutes.clear();
+        updateProductSummary();
+      };
+
+      // proposal buttons
+      el('btnGenerateProposal').onclick = () => {
+        if (!can('generate_proposal')) return alert("Your permissions do not allow proposal generation.");
+        generateProposal();
+      };
+
+      el('btnCopyProposal').onclick = async () => {
+        if (!el('proposalTable')?.innerHTML) return alert("Generate the proposal first.");
+        try{
+          const text = buildProposalText();
+          await navigator.clipboard.writeText(text);
+          const b = el('btnCopyProposal');
+          const t = b.textContent;
+          b.textContent = "✓ Copied";
+          setTimeout(()=>b.textContent=t, 1200);
+        }catch{
+          alert("Could not copy proposal. Try again or use manual select/copy.");
+        }
+      };
+    }
+
+    /**********************
+     * Money + selection helpers
+     **********************/
+    function money(n){
+      const x = Number(n || 0);
+      return `$${Math.round(x).toLocaleString()}`;
+    }
+
+    function getSelectedStationsDetailed(){
+      const out = [];
+      (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
+        const key = s.parent + '|' + s.market + '|' + s.station;
+        if (window.state.stations.has(key)) out.push({ ...s, key });
+      });
+      return out;
+    }
+
+    function getSelectedProductsDetailed(){
+      const pricingType = window.productState.pricingType;
+      const out = [];
+      window.productState.selectedProducts.forEach(pid => {
+        const p = window.PRODUCTS.find(pp => pp.id === pid);
+        if (!p) return;
+        const rate = (pricingType === 'cash') ? p.cash : p.barter;
+        const val = (rate === null || rate === undefined) ? null : (window.productState.customPrices.get(pid) ?? rate);
+        out.push({ ...p, rateCard: rate, value: val });
+      });
+      out.sort((a,b)=>a.name.localeCompare(b.name));
+      return out;
+    }
+
+    function computeMonthlyValuePerStation(){
+      const pricingType = window.productState.pricingType;
+      let total = 0;
+      window.productState.selectedProducts.forEach(pid => {
+        const p = window.PRODUCTS.find(pp => pp.id === pid);
+        if (!p) return;
+        const rate = (pricingType === 'cash') ? p.cash : p.barter;
+        if (rate === null || rate === undefined) return;
+        total += (window.productState.customPrices.get(pid) ?? rate);
+      });
+      return total;
+    }
+
+    /**********************
+     * Cash-only summary block (uses barter section as a clean summary list)
+     **********************/
+    function showCashSummary(totalMonthlyAllStations) {
       const barterSection = el('barterMinutesSection');
       const breakdown = el('barterBreakdown');
       const sectionTitle = el('barterSectionTitle');
       const barterControls = el('barterControls');
       const barterTotals = el('barterTotals');
 
-      if (totalMonthlyValue === 0 || state.stations.size === 0) {
+      if (totalMonthlyAllStations === 0 || window.state.stations.size === 0) {
         barterSection.classList.add('hidden');
         return;
       }
@@ -1942,15 +2320,10 @@
       if (barterControls) barterControls.classList.add('hidden');
       if (barterTotals) barterTotals.classList.add('hidden');
 
-      const selectedStations = [];
-      (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
-        const key = s.parent + '|' + s.market + '|' + s.station;
-        if (state.stations.has(key)) selectedStations.push({...s, key});
-      });
-
+      const selectedStations = getSelectedStationsDetailed();
       if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
 
-      const perStationMonthly = totalMonthlyValue / selectedStations.length;
+      const perStationMonthly = totalMonthlyAllStations / selectedStations.length;
 
       selectedStations.forEach(station => {
         const row = document.createElement('div');
@@ -1963,482 +2336,442 @@
 
         const stationValue = document.createElement('div');
         stationValue.className = 'badge';
-        stationValue.textContent = `$${Math.round(perStationMonthly).toLocaleString()}/mo`;
+        stationValue.textContent = `${money(perStationMonthly)}/mo`;
 
         row.appendChild(stationName);
         row.appendChild(stationValue);
         breakdown.appendChild(row);
       });
 
-      const annualValue = totalMonthlyValue * 12;
+      const annualValue = totalMonthlyAllStations * 12;
 
       const summaryRow = document.createElement('div');
-      summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 12px; background: rgba(15, 24, 35, 0.5);';
+      summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 10px; background: rgba(15, 24, 35, 0.5);';
       summaryRow.innerHTML = `
-        <div><strong>Per Station:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          $${Math.round(perStationMonthly).toLocaleString()}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
-        </div></div>
-        <div><strong>Total Monthly Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          $${Math.round(totalMonthlyValue).toLocaleString()}
-        </div></div>
-        <div><strong>Total Annual Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          $${Math.round(annualValue).toLocaleString()} ($${Math.round(totalMonthlyValue).toLocaleString()}/mo × 12)
-        </div></div>
+        <div><strong>Per Station:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+            ${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
+          </div>
+        </div>
+        <div><strong>Total Monthly Value:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+            ${money(totalMonthlyAllStations)}
+          </div>
+        </div>
+        <div><strong>Total Annual Value:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+            ${money(annualValue)}
+          </div>
+        </div>
       `;
       breakdown.appendChild(summaryRow);
     }
 
-    function calculateBarterMinutes(totalBarterValue, monthlyBarterValue) {
-      const barterSection = el('barterMinutesSection');
-      const breakdown = el('barterBreakdown');
-      const sectionTitle = el('barterSectionTitle');
-      const barterControls = el('barterControls');
-      const barterTotals = el('barterTotals');
+    /**********************
+     * Mixed cash allocation UI
+     **********************/
+    function renderCashValues(monthlyProductValueAllStations){
+      const root = el('cashValuesList');
+      root.innerHTML = '';
 
-      if (totalBarterValue === 0 || state.stations.size === 0) {
-        barterSection.classList.add('hidden');
+      const stations = getSelectedStationsDetailed();
+      if (!stations.length) {
+        root.innerHTML = `<div class="placeholder">Select stations first.</div>`;
+        el('totalCashInput').textContent = "0";
+        el('remainingForBarter').textContent = Math.round(monthlyProductValueAllStations).toLocaleString();
+        el('barterMinutesSection').classList.add('hidden');
         return;
       }
 
-      barterSection.classList.remove('hidden');
-      breakdown.innerHTML = '';
-      if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
-      if (barterControls) barterControls.classList.remove('hidden');
-      if (barterTotals) barterTotals.classList.remove('hidden');
-
-      const selectedStations = [];
-      (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
-        const key = s.parent + '|' + s.market + '|' + s.station;
-        if (state.stations.has(key)) selectedStations.push({...s, key});
-      });
-      if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
-
-      const cpm = productState.cpm;
-      const factor = cpm * 7 * 2 * 52;
-
-      const hasAnyManualOverrides = selectedStations.some(s => productState.manualMinutes.has(s.key));
-      let stationSpots = [];
-
-      if (hasAnyManualOverrides) {
-        selectedStations.forEach(station => {
-          const manualOverride = productState.manualMinutes.get(station.key);
-          stationSpots.push({
-            station,
-            primeSpots: manualOverride?.prime || 0,
-            rosSpots: manualOverride?.ros || 0,
-            primeAQH: station.primeAQH||0,
-            rosAQH: station.rosAQH||0,
-            manual: true
-          });
-        });
-      } else {
-        let totalPrimeEfficiency = 0, totalROSEfficiency=0;
-        selectedStations.forEach(station => {
-          const primeAQH = station.primeAQH || 0;
-          const rosAQH   = station.rosAQH || 0;
-          if (primeAQH>0) totalPrimeEfficiency += (primeAQH/1000)*factor;
-          if (rosAQH>0)   totalROSEfficiency   += (rosAQH/1000)*factor;
-        });
-
-        const totalEfficiency = totalPrimeEfficiency + totalROSEfficiency;
-
-        selectedStations.forEach(station => {
-          const primeAQH = station.primeAQH || 0;
-          const rosAQH   = station.rosAQH || 0;
-          let primeSpots=0, rosSpots=0;
-
-          if (primeAQH>0 && totalEfficiency>0){
-            const primeSpotValue=(primeAQH/1000)*factor;
-            const primeShare=(primeSpotValue/totalEfficiency)*totalBarterValue;
-            primeSpots=Math.round(primeShare/primeSpotValue); if(!primeSpots) primeSpots=1;
-          }
-          if (rosAQH>0 && totalEfficiency>0){
-            const rosSpotValue=(rosAQH/1000)*factor;
-            const rosShare=(rosSpotValue/totalEfficiency)*totalBarterValue;
-            rosSpots=Math.round(rosShare/rosSpotValue); if(!rosSpots) rosSpots=1;
-          }
-
-          stationSpots.push({ station, primeSpots, rosSpots, primeAQH, rosAQH, manual:false });
-        });
-      }
-
-      let totalPrimeSpots=0, totalROSSpots=0, totalActualValue=0;
-
-      stationSpots.forEach(entry => {
-        totalPrimeSpots += entry.primeSpots;
-        totalROSSpots   += entry.rosSpots;
-        if (entry.primeAQH>0 && entry.primeSpots>0) totalActualValue += (entry.primeAQH/1000)*factor*entry.primeSpots;
-        if (entry.rosAQH>0 && entry.rosSpots>0)     totalActualValue += (entry.rosAQH/1000)*factor*entry.rosSpots;
-      });
-
-      stationSpots.forEach(entry => {
-        const station = entry.station;
-        const row = document.createElement('div');
-        row.className='el';
-        row.style.flexDirection='column';
-        row.style.alignItems='stretch';
-        row.style.gap='8px';
-
-        const stationName = document.createElement('div');
-        stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
-        row.appendChild(stationName);
-
-        if ((entry.primeAQH===0 && entry.rosAQH===0)) {
-          const noDataMsg = document.createElement('div');
-          noDataMsg.style.cssText='margin-left:8px;color:var(--muted);font-size:11px;font-style:italic;';
-          noDataMsg.textContent='⚠️ No AQH data available for this station';
-          row.appendChild(noDataMsg);
-          breakdown.appendChild(row);
-          return;
-        }
-
-        const editRow = document.createElement('div');
-        editRow.style.display='flex';
-        editRow.style.gap='12px';
-        editRow.style.marginLeft='8px';
-        editRow.style.alignItems='center';
-
-        if (entry.primeAQH>0) {
-          const g=document.createElement('div');
-          g.style.display='flex'; g.style.alignItems='center'; g.style.gap='6px';
-
-          const lbl=document.createElement('span'); lbl.className='muted'; lbl.textContent='Prime:';
-          const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.step='1'; inp.value=entry.primeSpots;
-          inp.style.width='60px'; inp.style.height='28px';
-          inp.onchange=()=> {
-            const val=Math.round(parseFloat(inp.value)||0);
-            const cur=productState.manualMinutes.get(station.key)||{};
-            productState.manualMinutes.set(station.key,{...cur,prime:val});
-            calculateBarterMinutes(totalBarterValue, monthlyBarterValue);
-          };
-          const unit=document.createElement('span'); unit.className='muted'; unit.style.fontSize='11px'; unit.textContent='spots/day';
-          const vBadge=document.createElement('span'); vBadge.className='badge'; vBadge.style.fontSize='10px';
-          vBadge.textContent=`$${Math.round((entry.primeAQH/1000)*factor).toLocaleString()}/yr`;
-
-          g.append(lbl,inp,unit,vBadge); editRow.appendChild(g);
-        }
-
-        if (entry.rosAQH>0) {
-          const g=document.createElement('div');
-          g.style.display='flex'; g.style.alignItems='center'; g.style.gap='6px';
-
-          const lbl=document.createElement('span'); lbl.className='muted'; lbl.textContent='ROS:';
-          const inp=document.createElement('input'); inp.type='number'; inp.min='0'; inp.step='1'; inp.value=entry.rosSpots;
-          inp.style.width='60px'; inp.style.height='28px';
-          inp.onchange=()=> {
-            const val=Math.round(parseFloat(inp.value)||0);
-            const cur=productState.manualMinutes.get(station.key)||{};
-            productState.manualMinutes.set(station.key,{...cur,ros:val});
-            calculateBarterMinutes(totalBarterValue, monthlyBarterValue);
-          };
-          const unit=document.createElement('span'); unit.className='muted'; unit.style.fontSize='11px'; unit.textContent='spots/day';
-          const vBadge=document.createElement('span'); vBadge.className='badge'; vBadge.style.fontSize='10px';
-          vBadge.textContent=`$${Math.round((entry.rosAQH/1000)*factor).toLocaleString()}/yr`;
-
-          g.append(lbl,inp,unit,vBadge); editRow.appendChild(g);
-        }
-
-        if (entry.manual) {
-          const manualBadge=document.createElement('span');
-          manualBadge.className='badge'; manualBadge.style.background='#1a3a52';
-          manualBadge.textContent='✏️ Manual';
-          editRow.appendChild(manualBadge);
-        }
-
-        row.appendChild(editRow);
-        breakdown.appendChild(row);
-      });
-
-      el('totalPrimeMinutes').textContent = `${totalPrimeSpots} spots/day`;
-      el('totalROSMinutes').textContent   = `${totalROSSpots} spots/day`;
-
-      const variance = ((totalActualValue-totalBarterValue)/totalBarterValue)*100;
-      const isWithinTolerance = Math.abs(variance) <= 5;
-      const status = hasAnyManualOverrides ? '✏️ Manual' : '✓ Distributed';
-      const actualMonthly= totalActualValue/12;
-
-      const verifyRow=document.createElement('div');
-      verifyRow.style.cssText='padding:12px;font-size:12px;border-top:1px solid var(--edge);margin-top:8px;display:flex;flex-direction:column;gap:12px;background:rgba(15,24,35,0.5);';
-      verifyRow.innerHTML = `
-        <div><strong>Monthly Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          Target: $${Math.round(monthlyBarterValue).toLocaleString()}<br>
-          Actual: $${Math.round(actualMonthly).toLocaleString()} ${status}
-        </div></div>
-        <div><strong>Annual Value:</strong><div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          Target: $${Math.round(totalBarterValue).toLocaleString()}<br>
-          Actual: $${Math.round(totalActualValue).toLocaleString()} ${status}<br>
-          <span style="color:${isWithinTolerance?'var(--muted)':'#ff6b6b'};font-weight:500;">
-            Variance: ${variance>0?'+':''}${variance.toFixed(1)}% ${isWithinTolerance?'':'⚠️ Outside ±5% tolerance'}
-          </span>
-        </div></div>
-      `;
-      breakdown.appendChild(verifyRow);
-    }
-
-    function renderCashValues(monthlyProductValue) {
-      const cashSection = el('cashValuesSection');
-      const cashList = el('cashValuesList');
-
-      if (state.stations.size === 0) { cashSection.classList.add('hidden'); return; }
-
-      cashSection.classList.remove('hidden');
-      cashList.innerHTML = '';
-
-      const selectedStations = [];
-      (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
-        const key = s.parent + '|' + s.market + '|' + s.station;
-        if (state.stations.has(key)) selectedStations.push({...s, key});
-      });
-
-      let totalCash = 0;
-
-      selectedStations.forEach(station => {
+      stations.forEach(st => {
         const row = document.createElement('div');
         row.className = 'el';
         row.style.justifyContent = 'space-between';
         row.style.alignItems = 'center';
 
-        const stationName = document.createElement('span');
-        stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
-
-        const inputGroup = document.createElement('div');
-        inputGroup.style.display = 'flex';
-        inputGroup.style.alignItems = 'center';
-        inputGroup.style.gap = '6px';
-
-        const dollarSign = document.createElement('span');
-        dollarSign.textContent = '$';
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
 
         const input = document.createElement('input');
         input.type = 'number';
         input.min = '0';
-        input.step = '100';
-        input.placeholder = '0';
-        input.value = productState.stationCashValues.get(station.key) || '';
-        input.style.width = '100px';
-        input.style.height = '32px';
-        input.onchange = () => {
-          const val = parseFloat(input.value) || 0;
-          if (val > 0) productState.stationCashValues.set(station.key, val);
-          else productState.stationCashValues.delete(station.key);
-          updateMixedPricing(monthlyProductValue);
+        input.step = '1';
+        input.value = String(Math.round(window.productState.stationCashValues.get(st.key) || 0));
+        input.style.width = '140px';
+
+        input.oninput = () => {
+          const v = parseFloat(input.value);
+          window.productState.stationCashValues.set(st.key, Number.isFinite(v) && v >= 0 ? v : 0);
+          updateMixedPricing(monthlyProductValueAllStations);
         };
 
-        inputGroup.appendChild(dollarSign);
-        inputGroup.appendChild(input);
-
-        row.appendChild(stationName);
-        row.appendChild(inputGroup);
-        cashList.appendChild(row);
-
-        totalCash += (productState.stationCashValues.get(station.key) || 0);
+        row.appendChild(left);
+        row.appendChild(input);
+        root.appendChild(row);
       });
+
+      updateMixedPricing(monthlyProductValueAllStations);
+    }
+
+    function updateMixedPricing(monthlyProductValueAllStations) {
+      const stations = getSelectedStationsDetailed();
+      let totalCash = 0;
+      stations.forEach(st => totalCash += (window.productState.stationCashValues.get(st.key) || 0));
 
       el('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
 
-      const remainingMonthly = Math.max(0, monthlyProductValue - totalCash);
+      const remainingMonthly = Math.max(0, monthlyProductValueAllStations - totalCash);
       el('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
 
-      if (remainingMonthly > 0) {
+      if (remainingMonthly > 0 && stations.length > 0) {
         calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
       } else {
         el('barterMinutesSection').classList.add('hidden');
       }
     }
 
-    function updateMixedPricing(monthlyProductValue) { renderCashValues(monthlyProductValue); }
-    function resetMinutesToAuto(){ productState.manualMinutes.clear(); updateProductSummary(); }
+    /**********************
+     * Barter minutes calculator
+     *
+     * We compute required :30 spots per station per month based on:
+     * - remaining value (monthly)
+     * - CPM (productState.cpm)
+     * - each station’s PrimeAQH + ROSAQH share
+     *
+     * Formula (simple): spots/month = (monthly_value * 1000) / (cpm * total_aqh)
+     * Then distribute spots proportional to station aqh share.
+     **********************/
+    function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue){
+      const section = el('barterMinutesSection');
+      const breakdown = el('barterBreakdown');
+      const sectionTitle = el('barterSectionTitle');
+      const barterControls = el('barterControls');
+      const barterTotals = el('barterTotals');
 
-    function updateProductCalculations() {
-      if (productState.pricingType === 'barter' && productState.selectedProducts.size > 0) {
-        updateProductSummary();
-      }
-    }
-
-    function handlePricingTypeChange() {
-      const selectedType = document.querySelector('input[name="pricingType"]:checked').value;
-      productState.pricingType = selectedType;
-      productState.customPrices.clear();
-      productState.manualMinutes.clear();
-
-      const cpmDisplay = el('cpmDisplay');
-      const cashValuesSection = el('cashValuesSection');
-      const barterSection = el('barterMinutesSection');
-
-      if (selectedType === 'cash') {
-        cpmDisplay.classList.add('hidden');
-        cashValuesSection.classList.add('hidden');
-        barterSection.classList.add('hidden');
-      } else if (selectedType === 'barter') {
-        cpmDisplay.classList.remove('hidden');
-        cashValuesSection.classList.add('hidden');
-      } else if (selectedType === 'mixed') {
-        cpmDisplay.classList.remove('hidden');
-        cashValuesSection.classList.remove('hidden');
-      }
-
-      renderProducts();
-      updateProductSummary();
-    }
-
-    function resetPricingToRateCard() {
-      productState.customPrices.clear();
-      renderProducts();
-      updateProductSummary();
-    }
-
-    /* ===== Proposal Generation (kept as-is, minimal dependency) ===== */
-    function generateProposal() {
-      const pricingType = productState.pricingType;
-      const proposalSection = el('proposalSection');
-      const proposalOutput = el('proposalOutput');
-      const proposalTable = el('proposalTable');
-      const proposalMode = el('proposalMode');
-
-      proposalSection.classList.remove('hidden');
-      proposalOutput.classList.remove('hidden');
-
-      const selectedStations = [];
-      (IDX.stationsByParent.get(state.parent) || []).forEach(s => {
-        const key = s.parent + '|' + s.market + '|' + s.station;
-        if (state.stations.has(key)) selectedStations.push({...s, key});
-      });
-
-      if (!selectedStations.length) {
-        proposalTable.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No stations selected. Please select stations first.</div>';
+      const stations = getSelectedStationsDetailed();
+      if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) {
+        section.classList.add('hidden');
         return;
       }
 
-      const selectedProducts = [];
-      productState.selectedProducts.forEach(productId => {
-        const product = PRODUCTS.find(p => p.id === productId);
-        if (!product) return;
-        const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
-        if (rateCardValue === null) return;
-        const value = productState.customPrices.get(productId) ?? rateCardValue;
-        selectedProducts.push({ ...product, monthlyValue: value });
+      section.classList.remove('hidden');
+      breakdown.innerHTML = '';
+      if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
+      if (barterControls) barterControls.classList.remove('hidden');
+      if (barterTotals) barterTotals.classList.remove('hidden');
+
+      // total AQH across selected stations
+      let totalPrime = 0;
+      let totalRos = 0;
+      stations.forEach(s => {
+        totalPrime += (Number(s.primeAQH) || 0);
+        totalRos   += (Number(s.rosAQH) || 0);
       });
 
-      if (!selectedProducts.length) {
-        proposalTable.innerHTML = '<div style="color: var(--muted); text-align: center; padding: 20px;">No products selected. Please select products first.</div>';
-        return;
+      // guard: if AQH is zero, distribute evenly
+      const hasAQH = (totalPrime + totalRos) > 0;
+
+      const cpm = Number(window.productState.cpm || 2.0);
+      // spots/month (all stations) based on total AQH
+      let totalSpotsPerMonth = 0;
+      if (hasAQH && cpm > 0) {
+        totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
+      } else {
+        // fallback: arbitrary safe default (1 spot per station) when AQH missing
+        totalSpotsPerMonth = stations.length;
       }
 
-      if (pricingType === 'cash') { proposalMode.textContent = 'Cash Deal'; proposalMode.style.background = '#0d4a2e'; }
-      else if (pricingType === 'barter') { proposalMode.textContent = 'Barter Deal'; proposalMode.style.background = '#3a2d0b'; }
-      else { proposalMode.textContent = 'Mixed Deal'; proposalMode.style.background = '#2d1a3a'; }
+      // split prime vs ros by share of AQH (or 50/50 if no AQH)
+      let primeShare = 0.5;
+      if (hasAQH) {
+        const denom = (totalPrime + totalRos);
+        primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
+      }
+      const rosShare = 1 - primeShare;
 
-      const perStationMonthly = selectedProducts.reduce((s,p)=>s+p.monthlyValue,0);
-      const totalMonthly = perStationMonthly * selectedStations.length;
-      const totalAnnual = totalMonthly * 12;
+      const totalPrimeSpots = totalSpotsPerMonth * primeShare;
+      const totalRosSpots   = totalSpotsPerMonth * rosShare;
 
-      proposalTable.innerHTML = `
-        <div style="font-family:Arial,sans-serif;color:white;background:#0f1823;padding:20px;border-radius:8px;">
-          <h2 style="text-align:center;margin:0 0 16px 0;color:#5fb584;font-size:20px;">FUTURI MEDIA - RADIO PROPOSAL</h2>
-          <div style="margin-bottom:12px;"><span class="badge">Parent</span> <strong>${state.parent || "—"}</strong></div>
-          <div style="margin-bottom:16px;"><span class="badge">Pricing</span> <strong>${pricingType}</strong></div>
-          <div class="muted" style="font-size:12px;margin-bottom:10px;">Products (per station / month):</div>
-          <div style="background:white;color:black;border-radius:8px;overflow:hidden;">
-            <table style="width:100%;border-collapse:collapse;">
-              <tbody>
-                ${selectedProducts.map((p,i)=>`
-                  <tr style="background:${i%2===0?'#ffffff':'#f6f7f9'};">
-                    <td style="padding:10px 12px;border-bottom:1px solid #e0e0e0;">${p.name}</td>
-                    <td style="padding:10px 12px;text-align:right;font-weight:600;border-bottom:1px solid #e0e0e0;">$${p.monthlyValue.toLocaleString()}/mo</td>
-                  </tr>
-                `).join("")}
-              </tbody>
-              <tfoot>
-                <tr style="background:#e8f4f0;font-weight:700;">
-                  <td style="padding:12px;text-align:right;">TOTAL MONTHLY:</td>
-                  <td style="padding:12px;text-align:right;color:#0d4a2e;">$${totalMonthly.toLocaleString()}</td>
-                </tr>
-                <tr style="background:#d4ede5;font-weight:700;">
-                  <td style="padding:12px;text-align:right;">TOTAL ANNUAL:</td>
-                  <td style="padding:12px;text-align:right;color:#0d4a2e;">$${totalAnnual.toLocaleString()}</td>
-                </tr>
-              </tfoot>
-            </table>
+      let sumPrime = 0;
+      let sumRos = 0;
+
+      stations.forEach(st => {
+        const pAQH = Number(st.primeAQH) || 0;
+        const rAQH = Number(st.rosAQH) || 0;
+
+        const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
+        const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
+
+        const autoPrime = totalPrimeSpots * pWeight;
+        const autoRos   = totalRosSpots   * rWeight;
+
+        const manual = window.productState.manualMinutes.get(st.key);
+        const primeSpots = manual?.prime ?? autoPrime;
+        const rosSpots   = manual?.ros   ?? autoRos;
+
+        sumPrime += primeSpots;
+        sumRos   += rosSpots;
+
+        const row = document.createElement('div');
+        row.className = 'el';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+
+        const left = document.createElement('div');
+        left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+
+        const right = document.createElement('div');
+        right.style.display = 'flex';
+        right.style.alignItems = 'center';
+        right.style.gap = '10px';
+
+        const primeInput = document.createElement('input');
+        primeInput.type = 'number';
+        primeInput.min = '0';
+        primeInput.step = '0.1';
+        primeInput.value = String(Math.round(primeSpots * 10) / 10);
+        primeInput.style.width = '84px';
+        primeInput.title = 'Prime spots per month';
+
+        const rosInput = document.createElement('input');
+        rosInput.type = 'number';
+        rosInput.min = '0';
+        rosInput.step = '0.1';
+        rosInput.value = String(Math.round(rosSpots * 10) / 10);
+        rosInput.style.width = '84px';
+        rosInput.title = 'ROS spots per month';
+
+        const primeLbl = document.createElement('span');
+        primeLbl.className = 'muted';
+        primeLbl.style.fontSize = '12px';
+        primeLbl.textContent = 'Prime';
+
+        const rosLbl = document.createElement('span');
+        rosLbl.className = 'muted';
+        rosLbl.style.fontSize = '12px';
+        rosLbl.textContent = 'ROS';
+
+        const saveManual = () => {
+          const p = parseFloat(primeInput.value);
+          const r = parseFloat(rosInput.value);
+          window.productState.manualMinutes.set(st.key, {
+            prime: Number.isFinite(p) && p >= 0 ? p : 0,
+            ros: Number.isFinite(r) && r >= 0 ? r : 0
+          });
+          // recompute totals display
+          calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
+        };
+
+        primeInput.onchange = saveManual;
+        rosInput.onchange = saveManual;
+
+        right.appendChild(primeLbl);
+        right.appendChild(primeInput);
+        right.appendChild(rosLbl);
+        right.appendChild(rosInput);
+
+        row.appendChild(left);
+        row.appendChild(right);
+        breakdown.appendChild(row);
+      });
+
+      el('totalPrimeMinutes').textContent = String(Math.round(sumPrime * 10) / 10);
+      el('totalROSMinutes').textContent = String(Math.round(sumRos * 10) / 10);
+
+      // footer summary
+      const footer = document.createElement('div');
+      footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-direction:column; gap:10px; background: rgba(15, 24, 35, 0.5);';
+      footer.innerHTML = `
+        <div><strong>Remaining Value:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+            Monthly: ${money(monthlyRemainingValue)} • Annual: ${money(annualRemainingValue)}
+          </div>
+        </div>
+        <div><strong>CPM:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+            $${Number(window.productState.cpm || 2).toFixed(2)}
+          </div>
+        </div>
+        <div><strong>Estimated Total Spots/Month:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+            ${Math.round((sumPrime + sumRos) * 10) / 10}
           </div>
         </div>
       `;
-
-      proposalSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      breakdown.appendChild(footer);
     }
 
-    function copyProposalToClipboard() {
-      const proposalTable = el('proposalTable');
-      if (!proposalTable || !proposalTable.innerHTML || proposalTable.innerHTML.includes('No stations') || proposalTable.innerHTML.includes('No products')) {
-        alert('Please generate a proposal first');
-        return;
-      }
+    /**********************
+     * Proposal generation (HTML table + text copy)
+     **********************/
+    function generateProposal(){
+      if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
-      const temp = document.createElement('div');
-      temp.innerHTML = proposalTable.innerHTML;
-      temp.style.position = 'absolute';
-      temp.style.left = '-9999px';
-      document.body.appendChild(temp);
+      const stations = getSelectedStationsDetailed();
+      const products = getSelectedProductsDetailed();
+      const pricingType = window.productState.pricingType;
 
-      const range = document.createRange();
-      range.selectNode(temp);
-      window.getSelection().removeAllRanges();
-      window.getSelection().addRange(range);
+      if (!window.state.parent) return alert("Select a parent company first.");
+      if (!stations.length) return alert("Select at least one station.");
+      if (!products.length) return alert("Select at least one product.");
 
-      try {
-        document.execCommand('copy');
-        const btn = el('btnCopyProposal');
-        const originalText = btn.textContent;
-        btn.textContent = '✓ Copied!';
-        btn.style.background = '#0d4a2e';
-        setTimeout(() => { btn.textContent = originalText; btn.style.background = ''; }, 2000);
-      } catch {
-        alert('Failed to copy. Please manually select and copy the proposal.');
-      }
-      window.getSelection().removeAllRanges();
-      document.body.removeChild(temp);
-    }
+      const monthlyPerStation = computeMonthlyValuePerStation();
+      const monthlyAllStations = monthlyPerStation * stations.length;
+      const annualAllStations  = monthlyAllStations * 12;
 
-    function attachProductEventListeners() {
-      document.querySelectorAll('input[name="pricingType"]').forEach(radio => {
-        radio.addEventListener('change', handlePricingTypeChange);
+      const lines = [];
+      lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+      lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
+      lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+      lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
+      lines.push(`<span class="pill">Monthly Total: <span>${money(monthlyAllStations)}</span></span>`);
+      lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStations)}</span></span>`);
+      lines.push(`</div>`);
+
+      // deal meta (from Part 2 state)
+      const termMonths = (window.dealMetaState?.termMonths) || (typeof getEffectiveTermMonths === "function" ? getEffectiveTermMonths() : 36);
+      const arEnabled = !!(window.dealMetaState?.autoRenewEnabled);
+      const arMonths  = (window.dealMetaState?.autoRenewMonths) || (typeof getEffectiveAutoRenewMonths === "function" ? getEffectiveAutoRenewMonths() : 12);
+      const nSeason = window.dealMetaState?.nielsenSeason || "—";
+      const nYear   = window.dealMetaState?.nielsenYear || "—";
+
+      lines.push(`<div class="subtle-divider"></div>`);
+      lines.push(`<div class="card" style="background:#0b121a;">`);
+      lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
+      lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
+      lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
+      lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
+      lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
+      lines.push(`<span class="badge">Nielsen: ${nSeason} ${nYear}</span>`);
+      lines.push(`</div>`);
+      lines.push(`</div>`);
+
+      // Products table
+      lines.push(`<div class="subtle-divider"></div>`);
+      lines.push(`<div class="title" style="margin-bottom:6px;">Products</div>`);
+      lines.push(`<div style="overflow-x:auto;">`);
+      lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+      lines.push(`<thead><tr>
+        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Per Station / Month</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">All Stations / Month</th>
+      </tr></thead>`);
+      lines.push(`<tbody>`);
+      products.forEach(p => {
+        const perStation = (p.value === null) ? null : p.value;
+        const allStations = (perStation === null) ? null : perStation * stations.length;
+        lines.push(`<tr>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+            <strong>${p.name}</strong> ${(p.rateCard === null || p.rateCard === undefined) ? `<span class="badge" style="margin-left:6px;">TBD</span>` : ``}
+          </td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+            ${perStation === null ? "TBD" : money(perStation)}
+          </td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+            ${allStations === null ? "TBD" : money(allStations)}
+          </td>
+        </tr>`);
       });
+      lines.push(`</tbody>`);
+      lines.push(`<tfoot><tr>
+        <td style="padding:10px 8px; text-align:right;"><strong>Totals</strong></td>
+        <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyPerStation)}</strong></td>
+        <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyAllStations)}</strong></td>
+      </tr></tfoot>`);
+      lines.push(`</table>`);
+      lines.push(`</div>`);
 
-      el('productSearch').addEventListener('input', renderProducts);
+      // Stations table
+      lines.push(`<div class="subtle-divider"></div>`);
+      lines.push(`<div class="title" style="margin-bottom:6px;">Stations Included</div>`);
+      lines.push(`<div style="overflow-x:auto;">`);
+      lines.push(`<table style="width:100%; border-collapse:collapse; font-size:12px;">`);
+      lines.push(`<thead><tr>
+        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
+      </tr></thead><tbody>`);
+      stations
+        .slice()
+        .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+        .forEach(s => {
+          lines.push(`<tr>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${s.station}</strong></td>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${s.market || ""}</td>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.primeAQH||0)}</td>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.rosAQH||0)}</td>
+          </tr>`);
+        });
+      lines.push(`</tbody></table></div>`);
 
-      el('btnSelAllProducts').onclick = () => {
-        PRODUCTS.forEach(p => productState.selectedProducts.add(p.id));
-        renderProducts();
-        updateProductSummary();
-      };
+      // Pricing mode badge
+      const modeBadge = el('proposalMode');
+      if (modeBadge){
+        modeBadge.textContent =
+          pricingType === 'cash'  ? "Cash Deal" :
+          pricingType === 'barter'? "Barter Deal" :
+          "Mixed Deal";
+      }
 
-      el('btnClrAllProducts').onclick = () => {
-        productState.selectedProducts.clear();
-        productState.customPrices.clear();
-        renderProducts();
-        updateProductSummary();
-      };
+      // Show output
+      el('proposalOutput').classList.remove('hidden');
+      el('proposalTable').innerHTML = lines.join("\n");
 
-      el('btnResetPricing').onclick = resetPricingToRateCard;
-      el('btnResetMinutes').onclick = resetMinutesToAuto;
-
-      const genBtn = el('btnGenerateProposal');
-      genBtn.onclick = () => {
-        if (!can('generate_proposal')) {
-          alert('Your permissions do not allow generating proposals.');
-          return;
-        }
-        generateProposal();
-      };
-
-      el('btnCopyProposal').onclick = copyProposalToClipboard;
-
-      const syncGenBtn = () => {
-        const ok = (productState.selectedProducts.size > 0) && (state.stations.size > 0) && can('generate_proposal');
-        genBtn.disabled = !ok;
-      };
-      ['input','change','click'].forEach(evt => document.addEventListener(evt, syncGenBtn, true));
-      syncGenBtn();
+      // ensure section visible
+      el('proposalSection').classList.remove('hidden');
     }
+
+    function buildProposalText(){
+      if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+
+      const stations = getSelectedStationsDetailed();
+      const products = getSelectedProductsDetailed();
+      const pricingType = window.productState.pricingType;
+
+      const monthlyPerStation = computeMonthlyValuePerStation();
+      const monthlyAllStations = monthlyPerStation * stations.length;
+
+      const termMonths = (window.dealMetaState?.termMonths) || (typeof getEffectiveTermMonths === "function" ? getEffectiveTermMonths() : 36);
+      const arEnabled = !!(window.dealMetaState?.autoRenewEnabled);
+      const arMonths  = (window.dealMetaState?.autoRenewMonths) || (typeof getEffectiveAutoRenewMonths === "function" ? getEffectiveAutoRenewMonths() : 12);
+      const nSeason = window.dealMetaState?.nielsenSeason || "—";
+      const nYear   = window.dealMetaState?.nielsenYear || "—";
+
+      const lines = [];
+      lines.push(`Futuri Media Deal Calc — Proposal`);
+      lines.push(`--------------------------------`);
+      lines.push(`Parent: ${window.state.parent || "—"}`);
+      lines.push(`Pricing Type: ${pricingType}`);
+      lines.push(`Stations: ${stations.length}`);
+      lines.push(`Products: ${products.length}`);
+      lines.push(`Monthly Total (all stations): ${money(monthlyAllStations)}`);
+      lines.push(`Annual Total (all stations): ${money(monthlyAllStations*12)}`);
+      lines.push(``);
+      lines.push(`Deal Terms`);
+      lines.push(`- Term: ${termMonths} months`);
+      lines.push(`- Auto-Renew: ${arEnabled ? "Yes" : "No"}`);
+      lines.push(`- Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}`);
+      lines.push(`- Nielsen: ${nSeason} ${nYear}`);
+      lines.push(``);
+      lines.push(`Products (per station / month)`);
+      products.forEach(p => {
+        const v = (p.value === null) ? "TBD" : money(p.value);
+        lines.push(`- ${p.name}: ${v}`);
+      });
+      lines.push(``);
+      lines.push(`Stations Included`);
+      stations
+        .slice()
+        .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+        .forEach(s => {
+          lines.push(`- ${s.station} — ${s.market} (Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)})`);
+        });
+
+      return lines.join("\n");
+    }
+
   </script>
+
 </body>
 </html>
