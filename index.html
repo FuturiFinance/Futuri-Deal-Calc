@@ -602,35 +602,36 @@
 ]);
 
 
-    const PERMS_BASE = {
-      admin: {
-        manage_custom_parents:true,
-        import_export:true,
-        pricing_override:true,
-        generate_proposal:true,
-        upload_files:true,
-        view_all_uploads:true,
-        manage_roles:true
-      },
-      staff: {
-        manage_custom_parents:true,
-        import_export:true,
-        pricing_override:true,
-        generate_proposal:true,
-        upload_files:true,
-        view_all_uploads:false,
-        manage_roles:false
-      },
-      view:  {
-        manage_custom_parents:false,
-        import_export:false,
-        pricing_override:false,
-        generate_proposal:false,
-        upload_files:false,
-        view_all_uploads:false,
-        manage_roles:false
-      }
-    };
+   const PERMS_BASE = {
+  superadmin: {
+    manage_custom_parents:true,
+    import_export:true,
+    pricing_override:true,
+    generate_proposal:true,
+    upload_files:true,
+    view_all_uploads:true,
+    manage_roles:true   // only superadmin gets role mgmt
+  },
+  admin: {
+    manage_custom_parents:true,
+    import_export:true,
+    pricing_override:true,
+    generate_proposal:true,
+    upload_files:true,
+    view_all_uploads:true,
+    manage_roles:false  // admin cannot change roles
+  },
+  staff: {
+    manage_custom_parents:true,
+    import_export:true,
+    pricing_override:true,
+    generate_proposal:true,
+    upload_files:true,
+    view_all_uploads:false,
+    manage_roles:false
+  }
+};
+
 
     const PERM_META = [
       { key:"manage_custom_parents", name:"Manage Custom Companies", desc:"Add/remove custom parent + market + station entries." },
@@ -673,36 +674,48 @@
       return email.endsWith("@futurimedia.com");
     }
 
-    async function ensureUserDoc(authUser){
-      const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
-      const ref = doc(db, "users", authUser.uid);
-      const snap = await getDoc(ref);
+   async function ensureUserDoc(authUser){
+  const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
+  const ref = doc(db, "users", authUser.uid);
+  const snap = await getDoc(ref);
 
-     if (!snap.exists()){
   const email = (authUser.email || "").toLowerCase();
-  const role = SUPERADMIN_EMAILS.has(email) ? "superadmin" : "staff";
 
-  const payload = {
-    uid: authUser.uid,
-    email: authUser.email || "",
-    name: authUser.displayName || "",
-    role,
-    permOverrides: {},
-    createdAt: serverTimestamp()
-  };
+  // First login: create doc
+  if (!snap.exists()){
+    const role = SUPERADMIN_EMAILS.has(email) ? "superadmin" : "staff";
 
-  await setDoc(ref, payload);
-  return payload;
+    const payload = {
+      uid: authUser.uid,
+      email: authUser.email || "",
+      name: authUser.displayName || "",
+      role,
+      permOverrides: {},
+      createdAt: serverTimestamp()
+    };
+
+    await setDoc(ref, payload);
+    return payload;
+  }
+
+  // Existing doc: patch/migrate
+  const data = snap.data() || {};
+  const patch = {};
+
+  if (!data.uid) patch.uid = authUser.uid;
+  if (!data.permOverrides) patch.permOverrides = {};
+
+  // MIGRATE old role "view" -> "staff"
+  if (data.role === "view") patch.role = "staff";
+
+  // ENFORCE Sabrina as superadmin even if doc already exists
+  if (SUPERADMIN_EMAILS.has(email)) patch.role = "superadmin";
+
+  if (Object.keys(patch).length) await setDoc(ref, patch, { merge:true });
+
+  return { ...data, ...patch };
 }
 
-      const data = snap.data() || {};
-      const patch = {};
-      if (!data.uid) patch.uid = authUser.uid;
-      if (!data.permOverrides) patch.permOverrides = {};
-      if (Object.keys(patch).length) await setDoc(ref, patch, { merge:true });
-
-      return { ...data, ...patch };
-    }
 
     function showView(viewId){
       ["landing","radioView","snapshotsView","permissionsView","adminUploadsView"].forEach(id=>{
@@ -717,8 +730,9 @@
       el("whois").textContent = `Role: ${CURRENT_ROLE}`;
 
       // snapshots hint + save snapshot button
-      el("uploadHint").textContent = can("upload_files") ? "Staff/Admin only" : "View-only";
-      el("btnUpload").disabled = !can("upload_files");
+      el("uploadHint").textContent = can("upload_files") ? "Staff/Admin/SuperAdmin" : "No upload access";
+const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+
 
       // landing nav buttons (soft-gate)
       const adminBtn = el("btnOpenAdminUploads");
@@ -750,7 +764,7 @@
       if (!grid) return;
       grid.innerHTML = "";
 
-      const editable = (CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+      const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
       const overrides = getOverrides();
 
       PERM_META.forEach(meta => {
@@ -836,16 +850,17 @@
         row.style.alignItems = "center";
 
         row.innerHTML = `
-          <div style="display:flex;flex-direction:column;gap:2px;">
-            <strong>${u.name || "(no name)"}</strong>
-            <span class="muted" style="font-size:11px">${u.email || ""}</span>
-          </div>
-          <select style="max-width:180px;">
-            <option value="superadmin">SuperAdmin</option>
-            <option value="admin">Admin</option>
-            <option value="staff">Staff</option>
-          </select>
-        `;
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <strong>${u.name || "(no name)"}</strong>
+    <span class="muted" style="font-size:11px">${u.email || ""}</span>
+  </div>
+  <select style="max-width:180px;">
+    <option value="superadmin" ${u.role==="superadmin"?"selected":""}>SuperAdmin</option>
+    <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
+    <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
+  </select>
+`;
+
 
         const sel = row.querySelector("select");
         sel.onchange = async (e) => {
