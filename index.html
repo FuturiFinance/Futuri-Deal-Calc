@@ -67,7 +67,7 @@
     .row>.field,.row>.grow{flex:1 1 auto;min-width:0}
     .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0}
 
-    /* Permissions grid (new card id) */
+    /* Permissions UI bits */
     #permissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
     @media (max-width:820px){#permissionsCard .perm-grid{grid-template-columns:1fr}}
     .perm-item{display:flex;align-items:flex-start;gap:10px;padding:10px;border:1px solid var(--edge);border-radius:12px;background:#0b121a}
@@ -141,103 +141,132 @@
         </div>
       </section>
 
-      <!-- Snapshots card on landing -->
-      <section class="card" style="grid-column:1 / -1;" id="snapshotsLandingCard">
-        <div class="title">My Snapshots (Firestore)</div>
-        <div class="muted" style="font-size:12px;margin-bottom:10px;">
-          Create snapshots from <strong>Radio</strong>. Review + load them here.
+      <!-- NEW: Landing "Go to ..." cards (no big UI open by default) -->
+      <section class="card">
+        <div class="title">Snapshots</div>
+        <div class="row">
+          <div class="muted">View + load saved snapshots</div>
+          <button class="btn" id="btnToggleSnapshots" type="button">Go to Snapshots</button>
         </div>
-
-        <!-- RICH SEARCH / FILTERS -->
-        <div class="card" style="margin-top:6px; background:#0b121a;">
-          <div class="title" style="margin-bottom:6px;">Search Snapshots</div>
-
-          <div class="row" style="margin-bottom:8px;">
-            <div class="field grow">
-              <label for="uploadsSearchName">Name</label>
-              <input id="uploadsSearchName" type="text" placeholder="Search by snapshot name..." />
-            </div>
-
-            <div class="field grow">
-              <label for="uploadsSearchParent">Parent Company</label>
-              <input id="uploadsSearchParent" type="text" placeholder="Search by parent company..." />
-            </div>
-          </div>
-
-          <div class="row" style="margin-bottom:8px;">
-            <div class="field" style="min-width:160px;">
-              <label for="uploadsPricingType">Pricing Type</label>
-              <select id="uploadsPricingType">
-                <option value="">Any</option>
-                <option value="cash">Cash</option>
-                <option value="barter">Barter</option>
-                <option value="mixed">Mixed</option>
-              </select>
-            </div>
-
-            <div class="field grow">
-              <label for="uploadsSearchProduct">Has Product</label>
-              <input id="uploadsSearchProduct" type="text" placeholder='e.g. "TopicPulse" (matches selected products)' />
-            </div>
-
-            <div class="field" style="min-width:160px;">
-              <label for="uploadsSortBy">Sort</label>
-              <select id="uploadsSortBy">
-                <option value="newest" selected>Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="name">Name A → Z</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="row">
-            <div class="field" style="min-width:160px;">
-              <label for="uploadsDateFrom">Date From</label>
-              <input id="uploadsDateFrom" type="date" />
-            </div>
-
-            <div class="field" style="min-width:160px;">
-              <label for="uploadsDateTo">Date To</label>
-              <input id="uploadsDateTo" type="date" />
-            </div>
-
-            <div class="row" style="align-self:flex-end; margin-left:auto;">
-              <button class="btn" id="btnClearUploadsFilters" type="button">Clear Filters</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="row" style="margin-top:10px;">
-          <span class="muted" id="uploadHint" style="font-size:12px;">Staff/Admin only</span>
-          <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
-        </div>
-
-        <div id="uploadsList" class="list" style="margin-top:10px;"></div>
       </section>
 
-      <!-- Permissions (separate card) -->
-      <section class="card" style="grid-column:1 / -1;" id="permissionsCard">
+      <section class="card">
         <div class="title">Permissions</div>
-        <div class="muted" style="font-size:12px;margin-bottom:10px;">
-          Toggle what <strong>you</strong> can do. Saved to your user record (permOverrides).
+        <div class="row">
+          <div class="muted">Toggle what you can do</div>
+          <button class="btn" id="btnTogglePermissions" type="button">Go to Permissions</button>
         </div>
-
-        <div class="row" style="margin-bottom:8px;">
-          <span class="badge" id="permModeBadge">Mode: View</span>
-          <span class="muted" style="font-size:12px;" id="permModeHelp"></span>
-        </div>
-
-        <div class="perm-grid" id="permissionsGrid"></div>
       </section>
 
-      <!-- Admin: Users & Uploads (admin-only; separate from permissions) -->
-      <section class="card hidden" style="grid-column:1 / -1;" id="adminUsersUploadsCard">
-        <div class="title">Admin: Users & Uploads</div>
-        <div class="muted" style="font-size:12px;margin-bottom:8px;">
-          Promote roles + browse each user’s upload folder.
+      <section class="card">
+        <div class="title">Admin</div>
+        <div class="row">
+          <div class="muted">Users + uploads (admin only)</div>
+          <button class="btn" id="btnToggleAdmin" type="button">Go to Admin</button>
         </div>
-        <div id="adminUsersList" class="list"></div>
       </section>
+
+      <!-- Collapsible sections (kept out of landing until clicked) -->
+      <div id="snapshotsSection" class="hidden" style="grid-column:1 / -1;">
+        <section class="card">
+          <div class="title">My Snapshots (Firestore)</div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px;">
+            Create snapshots from <strong>Radio</strong>. Review + load them here.
+          </div>
+
+          <!-- Filters -->
+          <div class="card" style="margin-top:6px; background:#0b121a;">
+            <div class="title" style="margin-bottom:6px;">Search Snapshots</div>
+
+            <div class="row" style="margin-bottom:8px;">
+              <div class="field grow">
+                <label for="uploadsSearchName">Name</label>
+                <input id="uploadsSearchName" type="text" placeholder="Search by snapshot name..." />
+              </div>
+
+              <div class="field grow">
+                <label for="uploadsSearchParent">Parent Company</label>
+                <input id="uploadsSearchParent" type="text" placeholder="Search by parent company..." />
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:8px;">
+              <div class="field" style="min-width:160px;">
+                <label for="uploadsPricingType">Pricing Type</label>
+                <select id="uploadsPricingType">
+                  <option value="">Any</option>
+                  <option value="cash">Cash</option>
+                  <option value="barter">Barter</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
+
+              <div class="field grow">
+                <label for="uploadsSearchProduct">Has Product</label>
+                <input id="uploadsSearchProduct" type="text" placeholder='e.g. "TopicPulse" (matches selected products)' />
+              </div>
+
+              <div class="field" style="min-width:160px;">
+                <label for="uploadsSortBy">Sort</label>
+                <select id="uploadsSortBy">
+                  <option value="newest" selected>Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name">Name A → Z</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field" style="min-width:160px;">
+                <label for="uploadsDateFrom">Date From</label>
+                <input id="uploadsDateFrom" type="date" />
+              </div>
+
+              <div class="field" style="min-width:160px;">
+                <label for="uploadsDateTo">Date To</label>
+                <input id="uploadsDateTo" type="date" />
+              </div>
+
+              <div class="row" style="align-self:flex-end; margin-left:auto;">
+                <button class="btn" id="btnClearUploadsFilters" type="button">Clear Filters</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <span class="muted" id="uploadHint" style="font-size:12px;">Staff/Admin only</span>
+            <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
+          </div>
+
+          <div id="uploadsList" class="list" style="margin-top:10px;"></div>
+        </section>
+      </div>
+
+      <div id="permissionsSection" class="hidden" style="grid-column:1 / -1;">
+        <section class="card" id="permissionsCard">
+          <div class="title">Permissions</div>
+          <div class="muted" style="font-size:12px;margin-bottom:10px;">
+            Toggle what <strong>you</strong> can do. Changes save to your user record (permOverrides).
+          </div>
+
+          <div class="row" style="margin-bottom:8px;">
+            <span class="badge" id="permModeBadge">Mode: View</span>
+            <span class="muted" style="font-size:12px;" id="permModeHelp"></span>
+          </div>
+
+          <div class="perm-grid" id="permissionsGrid"></div>
+        </section>
+      </div>
+
+      <div id="adminSection" class="hidden" style="grid-column:1 / -1;">
+        <section class="card" id="adminUsersUploadsCard">
+          <div class="title">Admin: Users & Uploads</div>
+          <div class="muted" style="font-size:12px;margin-bottom:8px;">
+            Promote roles + browse each user’s upload folder.
+          </div>
+          <div id="adminUsersList" class="list"></div>
+        </section>
+      </div>
     </div>
 
     <!-- RADIO VIEW -->
@@ -401,7 +430,7 @@
         </div>
       </section>
 
-      <!-- Save Snapshot button stays on Radio page (create here, view on landing) -->
+      <!-- Save Snapshot button stays on Radio page (create here, view on landing via Snapshots section) -->
       <section class="card">
         <div class="title">Snapshot</div>
         <div class="row">
@@ -503,8 +532,8 @@
       { key:"manage_roles",          name:"Manage Roles",           desc:"Admin: change user role selection." }
     ];
 
-    let CURRENT_USER = null;
-    let CURRENT_UID  = null;
+    let CURRENT_USER = null;   // Firestore user doc data
+    let CURRENT_UID  = null;   // Auth uid
     let CURRENT_ROLE = "staff";
 
     // Cache of my snapshots for client-side search
@@ -548,7 +577,7 @@
           email: authUser.email || "",
           name: authUser.displayName || "",
           role,
-          permOverrides: {},           // NEW
+          permOverrides: {},
           createdAt: serverTimestamp()
         };
         await setDoc(ref, payload);
@@ -564,23 +593,29 @@
       return { ...data, ...patch };
     }
 
+    function closeAllLandingSections(){
+      ["snapshotsSection","permissionsSection","adminSection"].forEach(id=>{
+        const node = el(id);
+        if (node) node.classList.add("hidden");
+      });
+    }
+
     function applyRoleUI(){
       el("whois").textContent = `Role: ${CURRENT_ROLE}`;
 
+      // snapshots hint + save snapshot button (radio)
       el("uploadHint").textContent = can("upload_files") ? "Staff/Admin only" : "View-only";
-
-      // radio snapshot button
       el("btnUpload").disabled = !can("upload_files");
+
+      // landing nav buttons
+      const btnAdmin = el("btnToggleAdmin");
+      if (btnAdmin) btnAdmin.disabled = !can("view_all_uploads");
 
       // permissions mode badge
       const editable = (CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
       el("permModeBadge").textContent = `Mode: ${editable ? "Editable" : "View"}`;
       el("permModeHelp").textContent =
         editable ? "Changes are saved to your user record (permOverrides)." : "Your role is view-only.";
-
-      // admin users/uploads card toggle (SEPARATE from permissions)
-      if (can("view_all_uploads")) el("adminUsersUploadsCard").classList.remove("hidden");
-      else el("adminUsersUploadsCard").classList.add("hidden");
     }
 
     async function saveMyPermissionOverride(key, value){
@@ -622,7 +657,7 @@
             updateProductSummary();
           }catch(e){
             console.warn("Failed saving perm override", e);
-            cb.checked = effective; // revert
+            cb.checked = effective;
             alert("Could not save permission change.");
           }
         };
@@ -648,7 +683,7 @@
     }
 
     /* -------------------------
-       Snapshots: save + render list (landing)
+       Snapshots: save + render list (collapsible on landing)
        ------------------------- */
     function buildSnapshotPayload(){
       return {
@@ -734,7 +769,9 @@
       el("uploadStatus").textContent = "Saved!";
       setTimeout(() => (el("uploadStatus").textContent = ""), 1500);
 
+      // if snapshots section is open, refresh list
       await renderMyUploads();
+      // if admin section is open + allowed, refresh
       if (can("view_all_uploads")) await renderAdminUsers();
     }
 
@@ -840,7 +877,7 @@
     }
 
     /* -------------------------
-       Admin: Users + Uploads (admin-only view in separate card)
+       Admin: Users + Uploads (admin-only, collapsible on landing)
        ------------------------- */
     async function renderAdminUsers(){
       if (!can("view_all_uploads")) return;
@@ -949,7 +986,7 @@
     }
 
     /* -------------------------
-       Google-only Login wiring
+       Google-only Login wiring + Landing toggles
        ------------------------- */
     document.addEventListener("DOMContentLoaded", () => {
       const {
@@ -997,6 +1034,29 @@
         await saveSnapshot();
       };
 
+      // landing toggles
+      el("btnToggleSnapshots").onclick = async () => {
+        closeAllLandingSections();
+        el("snapshotsSection").classList.remove("hidden");
+        await renderMyUploads();
+      };
+
+      el("btnTogglePermissions").onclick = () => {
+        closeAllLandingSections();
+        el("permissionsSection").classList.remove("hidden");
+        renderPermissionsCard();
+      };
+
+      el("btnToggleAdmin").onclick = async () => {
+        closeAllLandingSections();
+        if (!can("view_all_uploads")) {
+          alert("Admin only.");
+          return;
+        }
+        el("adminSection").classList.remove("hidden");
+        await renderAdminUsers();
+      };
+
       onAuthStateChanged(auth, async (user) => {
         if (!user){
           el("btnLogout").style.display = "none";
@@ -1022,15 +1082,14 @@
         const email = (user.email || "").toLowerCase();
         CURRENT_ROLE = CURRENT_USER.role || (ADMIN_EMAILS.has(email) ? "admin" : "staff");
 
+        closeAllLandingSections();
         applyRoleUI();
         renderPermissionsCard();
 
         await initApp();
-        await renderMyUploads();
-
-        if (can("view_all_uploads")) await renderAdminUsers();
       });
 
+      // Radio nav
       el("btnOpenRadio").onclick = () => {
         el("landing").classList.add("hidden");
         el("radioView").classList.remove("hidden");
@@ -1043,7 +1102,7 @@
         window.scrollTo(0,0);
       };
 
-      // Snapshots filters: re-render on change (landing)
+      // Snapshots filters: re-render on change (works even if section is hidden)
       [
         "uploadsSearchName",
         "uploadsSearchParent",
