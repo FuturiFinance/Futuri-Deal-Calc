@@ -760,26 +760,25 @@ const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || C
     }
 
     function renderPermissionsCard(){
-      const grid = el("permissionsGrid");
-      if (!grid) return;
-      grid.innerHTML = "";
+  const grid = el("permissionsGrid");
+  if (!grid) return;
+  grid.innerHTML = "";
 
-      const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
-      const overrides = getOverrides();
+  const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+  const overrides = getOverrides();
 
-      PERM_META.forEach(meta => {
-        const baseVal = !!PERMS_BASE[CURRENT_ROLE]?.[meta.key];
-        const effective = can(meta.key);
-        const overridden = Object.prototype.hasOwnProperty.call(overrides, meta.key);
+  PERM_META.forEach(meta => {
+    const baseVal = !!PERMS_BASE[CURRENT_ROLE]?.[meta.key];
+    const effective = can(meta.key);
+    const overridden = Object.prototype.hasOwnProperty.call(overrides, meta.key);
 
-        const item = document.createElement("div");
-        item.className = "perm-item";
+    const item = document.createElement("div");
+    item.className = "perm-item";
 
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = effective;
-        cb.disabled = !editable;
-        cb.title = editable ? "Toggle permission" : "View only";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = effective;
+    cb.disabled = !editable;
 
         cb.onchange = async () => {
           try{
