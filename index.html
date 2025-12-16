@@ -802,11 +802,14 @@
     }
 
     async function renderAdminAccessUsers(){
-      if (!can("manage_roles")) {
-        el("userAccessCard").classList.add("hidden");
-        return;
-      }
-      el("userAccessCard").classList.remove("hidden");
+  const isSuperAdmin = (CURRENT_ROLE === "superadmin");
+
+  if (!isSuperAdmin) {
+    el("userAccessCard").classList.add("hidden");
+    return;
+  }
+
+  el("userAccessCard").classList.remove("hidden");
 
       const { db, collection, getDocs, query, orderBy, doc, updateDoc } = window.fb;
 
@@ -835,9 +838,9 @@
             <span class="muted" style="font-size:11px">${u.email || ""}</span>
           </div>
           <select style="max-width:180px;">
-            <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
-            <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
-            <option value="view"  ${u.role==="view" ?"selected":""}>View Only</option>
+            <option value="superadmin">SuperAdmin</option>
+            <option value="admin">Admin</option>
+            <option value="staff">Staff</option>
           </select>
         `;
 
