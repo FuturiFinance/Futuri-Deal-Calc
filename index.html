@@ -13,31 +13,29 @@
     --brand-3:#4e1b59;
     --brand-soft:rgba(103,36,119,.10);
 
-    /* Bright theme (lavender-tinted, less “white”) */
-    --bg:#f3eef8;
-    --surface:#fbf8fd;
-    --surface-2:#f6f1fb;
+    /* Lavender light theme (not white) */
+    --bg:#efe6f5;
+    --surface:#f8f2fb;
+    --surface-2:#f4ecfa;
+    --edge:#e0d2ee;
+    --edge-2:#d3c0e7;
 
-    --edge:#e3d8ee;
-    --edge-2:#d6c8e6;
-
-    --text:#1a1523;
-    --muted:#5b5169;
+    --text:#1b1326;
+    --muted:#5c526d;
 
     /* States */
     --success:#16794c;
     --danger:#b42318;
-    --warn:#b54708;
 
     /* Inputs */
-    --input:#ffffff;
-    --input-edge:#d6c8e6;
+    --input:#fbf7fd;
+    --input-edge:#d7c6ea;
     --focus:rgba(103,36,119,.28);
 
     /* Layout */
-    --shadow:0 10px 30px rgba(21,14,34,.08);
-    --shadow-sm:0 6px 16px rgba(21,14,34,.06);
-    --radius:16px;
+    --shadow:0 16px 40px rgba(26, 14, 44, .10);
+    --shadow-sm:0 10px 26px rgba(26, 14, 44, .08);
+    --radius:18px;
   }
 
   *,:before,:after{box-sizing:border-box}
@@ -52,7 +50,7 @@
   header{
     border-bottom:1px solid var(--edge);
     position:sticky;top:0;z-index:10;
-    background:rgba(243,238,248,.86);
+    background:rgba(239,230,245,.88);
     backdrop-filter:blur(10px);
   }
   .wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
@@ -71,7 +69,7 @@
     font-size:12px;
     letter-spacing:.14em;
     text-transform:uppercase;
-    color:rgba(103,36,119,.72); /* more readable than muted */
+    color:rgba(103,36,119,.72);
     margin-bottom:10px;
   }
 
@@ -82,7 +80,7 @@
   /* Buttons */
   .btn, .back-btn{
     appearance:none;
-    border-radius:12px;
+    border-radius:999px;
     cursor:pointer;
     font-weight:700;
     letter-spacing:.2px;
@@ -92,33 +90,28 @@
   }
   .btn:active:not(:disabled),
   .back-btn:active:not(:disabled){transform:translateY(1px)}
-
-  /* Default button (secondary) */
   .btn{
     background:var(--surface);
     color:var(--text);
     border:1px solid var(--edge-2);
-    padding:9px 12px;
+    padding:9px 14px;
     font-size:13px;
     box-shadow:0 1px 0 rgba(0,0,0,.02);
   }
   .btn:hover:not(:disabled){
     background:var(--surface-2);
-    border-color:var(--edge-2);
-    box-shadow:0 8px 18px rgba(21,14,34,.06);
+    box-shadow:0 10px 22px rgba(26,14,44,.10);
   }
   .btn:disabled{opacity:.55;cursor:not-allowed}
 
-  /* Primary */
   .btn.primary{
     background:linear-gradient(180deg, var(--brand-2), var(--brand));
-    border:1px solid var(--brand-3);
+    border-color:var(--brand-3);
     color:#fff;
-    box-shadow:0 10px 22px rgba(103,36,119,.18);
+    box-shadow:0 12px 26px rgba(103,36,119,.20);
   }
   .btn.primary:hover:not(:disabled){
-    filter:saturate(1.05);
-    box-shadow:0 14px 26px rgba(103,36,119,.24);
+    box-shadow:0 16px 34px rgba(103,36,119,.28);
   }
 
   .btn.danger{
@@ -126,21 +119,7 @@
     border-color:rgba(180,35,24,.25);
     color:var(--danger);
   }
-  .btn.danger:hover:not(:disabled){
-    background:rgba(180,35,24,.12);
-    border-color:rgba(180,35,24,.35);
-  }
-  .btn.ghost{
-    background:transparent;
-    border-color:transparent;
-    color:var(--brand);
-  }
-  .btn.ghost:hover:not(:disabled){
-    background:var(--brand-soft);
-    border-color:rgba(103,36,119,.18);
-  }
 
-  /* Back button */
   .back-btn{
     background:var(--surface);
     border:1px solid var(--edge-2);
@@ -150,15 +129,15 @@
     display:inline-flex;align-items:center;gap:8px;
     box-shadow:0 1px 0 rgba(0,0,0,.02);
   }
-  .back-btn:hover{background:var(--surface-2);box-shadow:0 8px 18px rgba(21,14,34,.06)}
+  .back-btn:hover{background:var(--surface-2);box-shadow:0 10px 22px rgba(26,14,44,.10)}
 
   /* Badges / Pills */
   .badge{
     background:rgba(103,36,119,.08);
     border:1px solid rgba(103,36,119,.18);
     color:var(--brand);
-    border-radius:10px;
-    padding:3px 8px;
+    border-radius:999px;
+    padding:4px 10px;
     font-size:12px;
     font-weight:800;
   }
@@ -170,7 +149,6 @@
     padding:6px 10px;
     gap:8px;
     align-items:center;
-    color:var(--text);
   }
 
   /* Lists / rows */
@@ -185,12 +163,11 @@
     border:1px solid var(--edge);
     background:var(--surface);
     transition:background .15s, border-color .15s, transform .08s, box-shadow .18s;
-    color:var(--text);
   }
   .el:hover{
     background:var(--surface-2);
     border-color:rgba(103,36,119,.22);
-    box-shadow:0 12px 26px rgba(103,36,119,.08);
+    box-shadow:0 12px 26px rgba(103,36,119,.10);
   }
   label.el{cursor:pointer}
 
@@ -199,7 +176,7 @@
     border-radius:14px;
     padding:12px 12px;
     color:var(--muted);
-    background:rgba(94,85,109,.04);
+    background:rgba(103,36,119,.05);
     text-align:center
   }
 
@@ -210,7 +187,7 @@
     background:var(--input);
     border:1px solid var(--input-edge);
     color:var(--text);
-    border-radius:12px;
+    border-radius:14px;
     padding:10px 12px;
     font-size:14px;
     box-shadow:0 1px 0 rgba(0,0,0,.02);
@@ -219,7 +196,7 @@
     background:var(--input);
     border:1px solid var(--input-edge);
     color:var(--text);
-    border-radius:10px;
+    border-radius:12px;
     padding:6px 10px;
     height:36px;
   }
@@ -228,7 +205,7 @@
     background:var(--input);
     border:1px solid var(--input-edge);
     color:var(--text);
-    border-radius:12px;
+    border-radius:14px;
     padding:8px 12px;
     width:100%;
     box-shadow:0 1px 0 rgba(0,0,0,.02);
@@ -253,122 +230,190 @@
   a{color:var(--brand);text-decoration:none}
   a:hover{text-decoration:underline}
 
-  /* Responsive */
-  @media (max-width:980px){ .grid{grid-template-columns:1fr 1fr} }
-  @media (max-width:640px){ .grid{grid-template-columns:1fr} }
-
-  /* =========================
-     LANDING: centered, smaller buttons that match Radio
-     (No HTML changes)
-     ========================= */
-  #landing .btn{
-    background:linear-gradient(180deg, var(--brand-2), var(--brand));
-    border:1px solid var(--brand-3);
-    color:#fff;
-    box-shadow:0 10px 22px rgba(103,36,119,.18);
-    padding:10px 14px;
-    font-size:14px;
+  .role-badge{
+    background:rgba(103,36,119,.08);
+    border:1px solid rgba(103,36,119,.18);
     border-radius:999px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    margin:10px auto 0;     /* centers within card */
-    min-width:220px;        /* consistent but not huge */
-    max-width:260px;
-  }
-  #landing .btn:hover:not(:disabled){
-    box-shadow:0 14px 26px rgba(103,36,119,.24);
-  }
-  #landing .btn:disabled{
-    background:rgba(94,85,109,.08);
-    color:rgba(26,21,35,.45);
-    border-color:var(--edge);
-    box-shadow:none;
+    padding:6px 10px;
+    font-size:12px;
+    color:var(--brand);
+    font-weight:800;
   }
 
-  /* =========================
-     RADIO / SAVED DEALS: remove “too dark” search panel
-     This targets common wrappers without needing HTML edits.
-     ========================= */
-  /* Any obvious “search” block becomes a normal surface card */
-  [id*="search" i],
-  [class*="search" i]{
-    color:var(--text);
-  }
-  /* If you have a dark container, force it to match UI */
-  [id*="search" i].card,
-  [class*="search" i].card,
-  [id*="search" i] .card,
-  [class*="search" i] .card{
-    background:var(--surface);
-    border-color:var(--edge);
-  }
-  /* Common dark panel patterns (covers your black rounded box) */
-  [id*="search" i],
-  [class*="search" i]{
-    background:var(--surface-2) !important;
-    border:1px solid var(--edge) !important;
-    border-radius:18px;
-    box-shadow:var(--shadow-sm);
-  }
-  [id*="search" i] label,
-  [class*="search" i] label{
-    color:rgba(103,36,119,.75);
-    font-weight:700;
-  }
-
-  /* =========================
-     LOGIN MODAL: remove giant “G”, keep simple CTA
-     ========================= */
-  #googleLoginScreen{
-    position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-    background:rgba(26,21,35,.45);z-index:99999
-  }
+  /* Login */
+  #googleLoginScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:99999}
   .login-card{
     width:min(440px,92vw);
     background:var(--surface);
     color:var(--text);
     border:1px solid var(--edge);
-    border-radius:18px;
+    border-radius:20px;
     padding:18px;
     box-shadow:var(--shadow);
     display:grid;gap:12px;text-align:center
   }
 
-  /* Hide any big hero image/logo inside login card (keeps button icon) */
-  #googleLoginScreen .login-card img:not(.google-logo),
-  #googleLoginScreen .login-card svg:not(.google-logo){
-    display:none !important;
+  /* Modal */
+  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:9999}
+  .modal-card{
+    width:min(560px,95vw);
+    background:var(--surface);
+    border:1px solid var(--edge);
+    border-radius:20px;
+    padding:16px;
+    box-shadow:var(--shadow);
+    display:grid;gap:12px
+  }
+  .modal-header{display:flex;justify-content:space-between;align-items:center}
+  .modal-close{padding:6px 10px;font-size:14px;line-height:1}
+
+  .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media (max-width:640px){.modal-grid{grid-template-columns:1fr}}
+
+  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .req{color:var(--danger);font-weight:900;margin-left:4px}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+  .modal-error{
+    margin:0;padding:10px 12px;border-radius:14px;
+    background:rgba(180,35,24,.08);
+    border:1px solid rgba(180,35,24,.22);
+    color:var(--danger);
+    font-size:12px
   }
 
-  .google-btn{
-    background:#fff;color:#111;border:1px solid #d0d7de;
-    padding:11px 12px;border-radius:12px;font-size:14px;cursor:pointer;
-    display:flex;align-items:center;justify-content:center;gap:10px;
-    transition:box-shadow .18s ease, transform .08s ease, background .18s ease;
-  }
-  .google-btn:hover{background:#f6f8fa; box-shadow:0 10px 20px rgba(21,14,34,.08)}
-  .google-btn:active{transform:translateY(1px)}
-  .google-logo{width:18px;height:18px;display:inline-block}
+  /* Responsive grid */
+  @media (max-width:980px){ .grid{grid-template-columns:1fr 1fr} }
+  @media (max-width:640px){ .grid{grid-template-columns:1fr} }
 
-  /* =========================
-     DETAILS styling (unchanged behavior)
-     ========================= */
+  .row>input,.row>select,.row>textarea{flex:1 1 auto;min-width:0;width:auto}
+  .row>.field,.row>.grow{flex:1 1 auto;min-width:0}
+  .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0}
+
+  #permissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  @media (max-width:820px){#permissionsCard .perm-grid{grid-template-columns:1fr}}
+  .perm-item{
+    display:flex;align-items:flex-start;gap:12px;
+    padding:12px;border:1px solid var(--edge);
+    border-radius:16px;background:var(--surface)
+  }
+  .perm-item .meta{display:flex;flex-direction:column;gap:3px}
+  .perm-item .meta .name{font-weight:900}
+  .perm-item .meta .desc{font-size:12px;color:var(--muted)}
+
+  .subtle-divider{height:1px;background:rgba(211,192,231,.95);margin:12px 0}
+
   details{border:1px solid var(--edge);border-radius:16px;padding:12px;background:var(--surface)}
   details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}
   details>summary::-webkit-details-marker{display:none}
 
-  /* =========================
-     Proposal output stays readable (prevents “hard to see” text)
-     ========================= */
-  #proposalOutput{
-    background:var(--surface);
+  .kbd{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+    font-size:11px;padding:3px 8px;border-radius:10px;
     border:1px solid var(--edge);
-    box-shadow:var(--shadow-sm);
+    background:rgba(103,36,119,.06);
     color:var(--text);
   }
-</style>
 
+  /* =========================
+     LANDING: centered + smaller buttons
+     ========================= */
+  #landing .card{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    min-height:140px;
+  }
+  #landing .card .row{
+    margin-top:auto;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    gap:10px;
+  }
+  #landing .card .row .muted{max-width:28ch}
+
+  /* Landing buttons match Go to Radio, but smaller + centered */
+  #landing .btn{
+    padding:8px 14px;
+    font-size:13px;
+    min-width:180px;
+  }
+  #landing .btn:not(:disabled){
+    background:linear-gradient(180deg, var(--brand-2), var(--brand));
+    border-color:var(--brand-3);
+    color:#fff;
+    box-shadow:0 10px 22px rgba(103,36,119,.18);
+  }
+  #landing .btn:not(:disabled):hover{
+    box-shadow:0 14px 26px rgba(103,36,119,.24);
+  }
+  #landing .btn:disabled{
+    background:rgba(103,36,119,.06);
+    color:rgba(27,19,38,.45);
+    border-color:var(--edge);
+    box-shadow:none;
+  }
+
+  /* =========================
+     CASH SUMMARY + barter footer readability fixes
+     (Overrides the JS inline dark backgrounds)
+     ========================= */
+  #barterMinutesSection .el,
+  #barterBreakdown .el{
+    background:var(--surface) !important;
+    border-color:var(--edge) !important;
+    color:var(--text) !important;
+  }
+  #barterBreakdown .badge{
+    background:rgba(103,36,119,.08) !important;
+    border-color:rgba(103,36,119,.18) !important;
+    color:var(--brand) !important;
+  }
+  /* The generated footer blocks (cash summary + barter footer) */
+  #barterBreakdown > div[style*="background: rgba(15, 24, 35"]{
+    background:rgba(103,36,119,.06) !important;
+    color:var(--text) !important;
+    border-top:1px solid rgba(103,36,119,.18) !important;
+  }
+  #barterBreakdown > div[style*="background: rgba(15, 24, 35"] .muted{
+    color:var(--muted) !important;
+  }
+
+  /* =========================
+     PROPOSAL: make it match the light theme (fix dark inline styles)
+     ========================= */
+  #proposalOutput{
+    background:var(--surface) !important;
+    border:1px solid var(--edge) !important;
+    box-shadow:var(--shadow-sm) !important;
+    color:var(--text) !important;
+  }
+  /* override any inline dark backgrounds in proposal HTML */
+  #proposalTable *{
+    color:var(--text);
+  }
+  #proposalTable [style*="background:#0b121a"],
+  #proposalTable [style*="background: #0b121a"],
+  #proposalTable [style*="background:#0c131b"],
+  #proposalTable [style*="background: rgba(15, 24, 35"]{
+    background:rgba(103,36,119,.05) !important;
+  }
+  #proposalTable [style*="border-bottom:1px solid var(--edge)"],
+  #proposalTable [style*="border-bottom:1px solid rgba(34,50,68"]{
+    border-bottom:1px solid rgba(103,36,119,.18) !important;
+  }
+  #proposalTable table{
+    width:100%;
+    border-collapse:collapse;
+  }
+  #proposalTable th{
+    text-align:left;
+    color:rgba(103,36,119,.80) !important;
+  }
+  #proposalTable td, #proposalTable th{
+    padding:10px 8px;
+  }
+</style>
 
 </head>
 
@@ -393,7 +438,7 @@
       <button class="btn" id="btnLogout" title="Sign out" style="display:none;" type="button">Logout</button>
     </div>
     <div class="wrap" style="padding:12px 16px;">
-      <h1 style="margin-bottom:4px;">Confidential - Futuri Media Deal Calc</h1>
+      <h1 style="margin-bottom:4px;">Futuri Media Deal Calculator</h1>
       <div class="muted" style="font-size:11px;">
         <span style="opacity:.7;">v3.2 (Google-only)</span>
         <span style="margin:0 8px;">•</span>
@@ -408,8 +453,8 @@
       <section class="card">
         <div class="title">TV Deals</div>
         <div class="row">
-          <div class="muted">Coming soon</div>
-          <button class="btn" disabled type="button">Not available yet</button>
+          <div class="muted">Coming Soon</div>
+          <button class="btn" disabled type="button">Not Available Yet</button>
         </div>
       </section>
 
@@ -424,32 +469,32 @@
       <section class="card">
         <div class="title">Other</div>
         <div class="row">
-          <div class="muted">Coming soon</div>
-          <button class="btn" disabled type="button">Not available yet</button>
+          <div class="muted">Coming Soon</div>
+          <button class="btn" disabled type="button">Not Available Yet</button>
         </div>
       </section>
 
       <section class="card">
-        <div class="title">Saved Deal Calcs</div>
+        <div class="title">My Saved Deals</div>
         <div class="row">
-          <div class="muted">View + load saved deals</div>
-          <button class="btn" id="btnOpenSnapshots" type="button">Go to Saved Deal Calcs</button>
+          <div class="muted">Load My Saved Deals</div>
+          <button class="btn" id="btnOpenSnapshots" type="button">Go to Saved Deals</button>
         </div>
       </section>
 
       <section class="card">
         <div class="title">Permissions & Access</div>
         <div class="row">
-          <div class="muted">Your permissions + (superadmin) manage user roles</div>
+          <div class="muted">Modify Permissions</div>
           <button class="btn" id="btnOpenPermissions" type="button">Go to Permissions</button>
         </div>
       </section>
 
       <section class="card">
-        <div class="title">Admin Uploads</div>
+        <div class="title">Admin Deal View</div>
         <div class="row">
-          <div class="muted">Browse other users’ deal calcs (admin only)</div>
-          <button class="btn" id="btnOpenAdminUploads" type="button">Go to Admin Uploads</button>
+          <div class="muted">Browse All Other Users' Deals</div>
+          <button class="btn" id="btnOpenAdminUploads" type="button">Go to All Deals</button>
         </div>
       </section>
     </div>
@@ -831,7 +876,10 @@
   </main>
   <!-- ===========================
        FIREBASE (Modules)
-       =========================== -->
+       =========================== 
+  
+  
+  Beginning of Javascript-->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
     import {
@@ -1379,7 +1427,7 @@
         if (el("proposalTable")) el("proposalTable").innerHTML = payload.proposalHTML;
       }
 
-      alert("Snapshot loaded (Radio view).");
+      alert("Deal Loaded (Radio view).");
     }
 
     async function saveSnapshot(){
@@ -1388,7 +1436,7 @@
 
       const { db, collection, addDoc, serverTimestamp } = window.fb;
 
-      let name = prompt("Name this snapshot:", "");
+      let name = prompt("Name This Deal:", "");
       if (name === null) return;
       name = name.trim();
       if (!name){
@@ -1474,7 +1522,7 @@
       root.innerHTML = "";
 
       if (!CURRENT_USER){
-        root.innerHTML = `<div class="placeholder">Sign in to view snapshots.</div>`;
+        root.innerHTML = `<div class="placeholder">Sign In to View Deals.</div>`;
         return;
       }
 
@@ -1489,7 +1537,7 @@
       const filtered = applyUploadsFilters(MY_UPLOADS_CACHE);
 
       if (!filtered.length){
-        root.innerHTML = `<div class="placeholder">No snapshots found for those filters.</div>`;
+        root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
         return;
       }
 
@@ -1501,7 +1549,7 @@
         row.className = "el";
         row.innerHTML = `
           <div style="display:flex; flex-direction:column; gap:4px;">
-            <strong>${d.name || "Untitled Snapshot"}</strong>
+            <strong>${d.name || "Untitled Deal"}</strong>
             <div class="muted" style="font-size:11px">${label}</div>
             ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
             ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
@@ -1524,7 +1572,7 @@
       const root = el("adminUsersList");
       root.innerHTML = "";
       if (usersSnap.empty){
-        root.innerHTML = `<div class="placeholder">No users yet.</div>`;
+        root.innerHTML = `<div class="placeholder">No Users Yet.</div>`;
         return;
       }
 
