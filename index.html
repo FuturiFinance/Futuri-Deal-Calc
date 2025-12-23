@@ -13,15 +13,15 @@
     --brand-3:#4e1b59;        /* darker for borders */
     --brand-soft:rgba(103,36,119,.10);
 
-    /* Bright theme */
-    --bg:#f7f6fb;
-    --surface:#ffffff;
-    --surface-2:#fbfaff;
-    --edge:#e6e3ef;
-    --edge-2:#d8d4e6;
+    /* Lavender bright theme (less white) */
+    --bg:#f3eef8;
+    --surface:#fbf8fd;
+    --surface-2:#f6f1fb;
+    --edge:#e3d8ee;
+    --edge-2:#d6c8e6;
 
     --text:#1a1523;
-    --muted:#5e556d;
+    --muted:#5b5169;
 
     /* States */
     --success:#16794c;
@@ -30,7 +30,7 @@
 
     /* Inputs */
     --input:#ffffff;
-    --input-edge:#d8d4e6;
+    --input-edge:#d6c8e6;
     --focus:rgba(103,36,119,.28);
 
     /* Layout */
@@ -51,7 +51,7 @@
   header{
     border-bottom:1px solid var(--edge);
     position:sticky;top:0;z-index:10;
-    background:rgba(247,246,251,.85);
+    background:rgba(243,238,248,.86);
     backdrop-filter:blur(10px);
   }
   .wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
@@ -64,13 +64,13 @@
     border:1px solid var(--edge);
     border-radius:var(--radius);
     padding:16px;
-    box-shadow:var(--shadow-sm);
+    box-shadow:0 10px 26px rgba(103,36,119,.06);
   }
   .title{
     font-size:12px;
     letter-spacing:.14em;
     text-transform:uppercase;
-    color:var(--muted);
+    color:rgba(103,36,119,.70);
     margin-bottom:10px;
   }
 
@@ -103,8 +103,8 @@
   }
   .btn:hover:not(:disabled){
     background:var(--surface-2);
-    border-color:var(--edge-2);
-    box-shadow:0 8px 18px rgba(21,14,34,.06);
+    border-color:rgba(103,36,119,.22);
+    box-shadow:0 8px 18px rgba(103,36,119,.08);
   }
   .btn:disabled{opacity:.55;cursor:not-allowed}
 
@@ -150,12 +150,16 @@
     display:inline-flex;align-items:center;gap:8px;
     box-shadow:0 1px 0 rgba(0,0,0,.02);
   }
-  .back-btn:hover{background:var(--surface-2);box-shadow:0 8px 18px rgba(21,14,34,.06)}
+  .back-btn:hover{
+    background:var(--surface-2);
+    border-color:rgba(103,36,119,.22);
+    box-shadow:0 8px 18px rgba(103,36,119,.08)
+  }
 
   /* Badges / Pills */
   .badge{
-    background:rgba(103,36,119,.08);
-    border:1px solid rgba(103,36,119,.18);
+    background:rgba(103,36,119,.10);
+    border:1px solid rgba(103,36,119,.20);
     color:var(--brand);
     border-radius:10px;
     padding:3px 8px;
@@ -164,8 +168,8 @@
   }
   .pill{
     display:inline-flex;
-    background:rgba(94,85,109,.06);
-    border:1px solid var(--edge);
+    background:rgba(103,36,119,.06);
+    border:1px solid rgba(103,36,119,.14);
     border-radius:999px;
     padding:6px 10px;
     gap:8px;
@@ -187,8 +191,8 @@
   }
   .el:hover{
     background:var(--surface-2);
-    border-color:rgba(103,36,119,.18);
-    box-shadow:0 10px 22px rgba(21,14,34,.06);
+    border-color:rgba(103,36,119,.22);
+    box-shadow:0 12px 26px rgba(103,36,119,.08);
   }
   label.el{cursor:pointer}
 
@@ -197,7 +201,7 @@
     border-radius:14px;
     padding:12px 12px;
     color:var(--muted);
-    background:rgba(94,85,109,.04);
+    background:rgba(103,36,119,.04);
     text-align:center
   }
 
@@ -252,8 +256,8 @@
   a:hover{text-decoration:underline}
 
   .role-badge{
-    background:rgba(103,36,119,.08);
-    border:1px solid rgba(103,36,119,.18);
+    background:rgba(103,36,119,.10);
+    border:1px solid rgba(103,36,119,.20);
     border-radius:999px;
     padding:6px 10px;
     font-size:12px;
@@ -279,7 +283,7 @@
     display:flex;align-items:center;justify-content:center;gap:10px;
     transition:box-shadow .18s ease, transform .08s ease, background .18s ease;
   }
-  .google-btn:hover{background:#f6f8fa; box-shadow:0 10px 20px rgba(21,14,34,.08)}
+  .google-btn:hover{background:#f6f8fa; box-shadow:0 10px 20px rgba(103,36,119,.10)}
   .google-btn:active{transform:translateY(1px)}
   .google-logo{width:18px;height:18px;display:inline-block}
 
@@ -343,15 +347,34 @@
     font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
     font-size:11px;padding:3px 8px;border-radius:10px;
     border:1px solid var(--edge);
-    background:rgba(94,85,109,.06);
+    background:rgba(103,36,119,.06);
     color:var(--text);
   }
 
-  /* Make proposal "ready" green still readable in light theme */
+  /* Proposal container */
   #proposalOutput{
     background:var(--surface);
     border:1px solid var(--edge);
     box-shadow:var(--shadow-sm);
+  }
+
+  /* =========================
+     LANDING: make all buttons match "Go to Radio"
+     ========================= */
+  #landing .btn:not(:disabled){
+    background:linear-gradient(180deg, var(--brand-2), var(--brand));
+    border-color:var(--brand-3);
+    color:#fff;
+    box-shadow:0 10px 22px rgba(103,36,119,.18);
+  }
+  #landing .btn:not(:disabled):hover{
+    box-shadow:0 14px 26px rgba(103,36,119,.24);
+  }
+  #landing .btn:disabled{
+    background:rgba(103,36,119,.06);
+    color:rgba(26,21,35,.45);
+    border-color:var(--edge);
+    box-shadow:none;
   }
 </style>
 </head>
@@ -999,9 +1022,10 @@
       el("uploadHint").textContent = can("upload_files") ? "Staff/Admin/SuperAdmin" : "No upload access";
       el("btnUpload").disabled = !can("upload_files");
 
-      // landing nav buttons (soft-gate)
-      const adminBtn = el("btnOpenAdminUploads");
-      if (adminBtn) adminBtn.disabled = !can("view_all_uploads");
+      // landing nav buttons (hard-gate Permissions)
+     const permBtn = el("btnOpenPermissions");
+     if (permBtn) permBtn.disabled = (CURRENT_ROLE !== "superadmin");
+
 
       // permissions mode badge
       const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
@@ -1635,10 +1659,16 @@
       };
 
       el("btnOpenPermissions").onclick = async () => {
-        showView("permissionsView");
-        renderPermissionsCard();
-        await renderAdminAccessUsers();
-      };
+  // SuperAdmin only
+  if (CURRENT_ROLE !== "superadmin") {
+    alert("SuperAdmin only.");
+    return;
+  }
+  showView("permissionsView");
+  renderPermissionsCard();
+  await renderAdminAccessUsers();
+};
+
 
       el("btnOpenAdminUploads").onclick = async () => {
         if (!can("view_all_uploads")) {
