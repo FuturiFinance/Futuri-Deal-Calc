@@ -5,416 +5,438 @@
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>Futuri Media Deal Calculator</title>
 
- <style>
-  :root{
-    /* Brand */
-    --brand:#672477;
-    --brand-2:#8b36a0;
-    --brand-3:#4e1b59;
-    --brand-soft:rgba(103,36,119,.10);
+  <style>
+    :root{
+      /* Brand */
+      --brand:#672477;
+      --brand-2:#8b36a0;
+      --brand-3:#4e1b59;
+      --brand-soft:rgba(103,36,119,.10);
 
-    /* Lavender light theme (not white) */
-    --bg:#efe6f5;
-    --surface:#f8f2fb;
-    --surface-2:#f4ecfa;
-    --edge:#e0d2ee;
-    --edge-2:#d3c0e7;
+      /* Lavender light theme (not white) */
+      --bg:#efe6f5;
+      --surface:#f8f2fb;
+      --surface-2:#f4ecfa;
+      --edge:#e0d2ee;
+      --edge-2:#d3c0e7;
 
-    --text:#1b1326;
-    --muted:#5c526d;
+      --text:#1b1326;
+      --muted:#5c526d;
 
-    /* States */
-    --success:#16794c;
-    --danger:#b42318;
+      /* States */
+      --success:#16794c;
+      --danger:#b42318;
+
+      /* Inputs */
+      --input:#fbf7fd;
+      --input-edge:#d7c6ea;
+      --focus:rgba(103,36,119,.28);
+
+      /* Layout */
+      --shadow:0 16px 40px rgba(26, 14, 44, .10);
+      --shadow-sm:0 10px 26px rgba(26, 14, 44, .08);
+      --radius:18px;
+    }
+
+    *,:before,:after{box-sizing:border-box}
+    html,body{
+      background:var(--bg);
+      color:var(--text);
+      font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
+      margin:0;
+    }
+
+    /* Header */
+    header{
+      border-bottom:1px solid var(--edge);
+      position:sticky;top:0;z-index:10;
+      background:rgba(239,230,245,.88);
+      backdrop-filter:blur(10px);
+    }
+    .wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
+    h1{font-size:18px;margin:0;letter-spacing:.2px}
+
+    /* Grid / Cards */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+    .card{
+      background:var(--surface);
+      border:1px solid var(--edge);
+      border-radius:var(--radius);
+      padding:16px;
+      box-shadow:var(--shadow-sm);
+    }
+    .title{
+      font-size:12px;
+      letter-spacing:.14em;
+      text-transform:uppercase;
+      color:rgba(103,36,119,.72);
+      margin-bottom:10px;
+    }
+
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .muted{color:var(--muted)}
+    .hidden{display:none !important}
+
+    /* Buttons */
+    .btn, .back-btn{
+      appearance:none;
+      border-radius:999px;
+      cursor:pointer;
+      font-weight:700;
+      letter-spacing:.2px;
+      transition:transform .08s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease, color .18s ease;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:active:not(:disabled),
+    .back-btn:active:not(:disabled){transform:translateY(1px)}
+    .btn{
+      background:var(--surface);
+      color:var(--text);
+      border:1px solid var(--edge-2);
+      padding:9px 14px;
+      font-size:13px;
+      box-shadow:0 1px 0 rgba(0,0,0,.02);
+    }
+    .btn:hover:not(:disabled){
+      background:var(--surface-2);
+      box-shadow:0 10px 22px rgba(26,14,44,.10);
+    }
+    .btn:disabled{opacity:.55;cursor:not-allowed}
+
+    .btn.primary{
+      background:linear-gradient(180deg, var(--brand-2), var(--brand));
+      border-color:var(--brand-3);
+      color:#fff;
+      box-shadow:0 12px 26px rgba(103,36,119,.20);
+    }
+    .btn.primary:hover:not(:disabled){
+      box-shadow:0 16px 34px rgba(103,36,119,.28);
+    }
+
+    .btn.danger{
+      background:rgba(180,35,24,.08);
+      border-color:rgba(180,35,24,.25);
+      color:var(--danger);
+    }
+
+    .back-btn{
+      background:var(--surface);
+      border:1px solid var(--edge-2);
+      color:var(--text);
+      padding:9px 14px;
+      font-size:14px;
+      display:inline-flex;align-items:center;gap:8px;
+      box-shadow:0 1px 0 rgba(0,0,0,.02);
+    }
+    .back-btn:hover{background:var(--surface-2);box-shadow:0 10px 22px rgba(26,14,44,.10)}
+
+    /* Badges / Pills */
+    .badge{
+      background:rgba(103,36,119,.08);
+      border:1px solid rgba(103,36,119,.18);
+      color:var(--brand);
+      border-radius:999px;
+      padding:4px 10px;
+      font-size:12px;
+      font-weight:800;
+    }
+    .pill{
+      display:inline-flex;
+      background:rgba(103,36,119,.06);
+      border:1px solid rgba(103,36,119,.14);
+      border-radius:999px;
+      padding:6px 10px;
+      gap:8px;
+      align-items:center;
+    }
+
+    /* Lists / rows */
+    .list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto;padding-right:2px}
+    .el{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      justify-content:space-between;
+      padding:10px 12px;
+      border-radius:14px;
+      border:1px solid var(--edge);
+      background:var(--surface);
+      transition:background .15s, border-color .15s, transform .08s, box-shadow .18s;
+    }
+    .el:hover{
+      background:var(--surface-2);
+      border-color:rgba(103,36,119,.22);
+      box-shadow:0 12px 26px rgba(103,36,119,.10);
+    }
+    label.el{cursor:pointer}
+
+    .placeholder{
+      border:1px dashed var(--edge-2);
+      border-radius:14px;
+      padding:12px 12px;
+      color:var(--muted);
+      background:rgba(103,36,119,.05);
+      text-align:center
+    }
 
     /* Inputs */
-    --input:#fbf7fd;
-    --input-edge:#d7c6ea;
-    --focus:rgba(103,36,119,.28);
+    input[type="text"],input[type="email"],input[type="password"], input[type="date"]{
+      width:100%;
+      height:42px;
+      background:var(--input);
+      border:1px solid var(--input-edge);
+      color:var(--text);
+      border-radius:14px;
+      padding:10px 12px;
+      font-size:14px;
+      box-shadow:0 1px 0 rgba(0,0,0,.02);
+    }
+    input[type="number"]{
+      background:var(--input);
+      border:1px solid var(--input-edge);
+      color:var(--text);
+      border-radius:12px;
+      padding:6px 10px;
+      height:36px;
+    }
+    select{
+      height:42px;
+      background:var(--input);
+      border:1px solid var(--input-edge);
+      color:var(--text);
+      border-radius:14px;
+      padding:8px 12px;
+      width:100%;
+      box-shadow:0 1px 0 rgba(0,0,0,.02);
+    }
 
-    /* Layout */
-    --shadow:0 16px 40px rgba(26, 14, 44, .10);
-    --shadow-sm:0 10px 26px rgba(26, 14, 44, .08);
-    --radius:18px;
-  }
+    /* Focus */
+    :focus{outline:none}
+    .btn:focus-visible,
+    .back-btn:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    details>summary:focus-visible{
+      box-shadow:0 0 0 4px var(--focus);
+      border-color:rgba(103,36,119,.35);
+    }
 
-  *,:before,:after{box-sizing:border-box}
-  html,body{
-    background:var(--bg);
-    color:var(--text);
-    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;
-    margin:0;
-  }
+    input[type="radio"],input[type="checkbox"]{
+      width:18px;height:18px;cursor:pointer;
+      accent-color:var(--brand);
+    }
 
-  /* Header */
-  header{
-    border-bottom:1px solid var(--edge);
-    position:sticky;top:0;z-index:10;
-    background:rgba(239,230,245,.88);
-    backdrop-filter:blur(10px);
-  }
-  .wrap{max-width:1100px;margin:0 auto;padding:14px 16px}
-  h1{font-size:18px;margin:0;letter-spacing:.2px}
+    a{color:var(--brand);text-decoration:none}
+    a:hover{text-decoration:underline}
 
-  /* Grid / Cards */
-  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
-  .card{
-    background:var(--surface);
-    border:1px solid var(--edge);
-    border-radius:var(--radius);
-    padding:16px;
-    box-shadow:var(--shadow-sm);
-  }
-  .title{
-    font-size:12px;
-    letter-spacing:.14em;
-    text-transform:uppercase;
-    color:rgba(103,36,119,.72);
-    margin-bottom:10px;
-  }
+    .role-badge{
+      background:rgba(103,36,119,.08);
+      border:1px solid rgba(103,36,119,.18);
+      border-radius:999px;
+      padding:6px 10px;
+      font-size:12px;
+      color:var(--brand);
+      font-weight:800;
+    }
 
-  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-  .muted{color:var(--muted)}
-  .hidden{display:none !important}
+    /* Login */
+    #googleLoginScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:99999}
+    .login-card{
+      width:min(440px,92vw);
+      background:var(--surface);
+      color:var(--text);
+      border:1px solid var(--edge);
+      border-radius:20px;
+      padding:18px;
+      box-shadow:var(--shadow);
+      display:grid;gap:12px;text-align:center
+    }
+    /* Make the Google sign-in button match UI */
+    .google-btn{
+      width:100%;
+      height:44px;
+      border-radius:999px;
+      border:1px solid var(--edge-2);
+      background:linear-gradient(180deg, var(--brand-2), var(--brand));
+      color:#fff;
+      font-weight:800;
+      cursor:pointer;
+      box-shadow:0 12px 26px rgba(103,36,119,.20);
+    }
+    .google-btn:disabled{opacity:.6;cursor:not-allowed}
+    .google-btn:focus-visible{box-shadow:0 0 0 4px var(--focus); border-color:rgba(103,36,119,.35)}
 
-  /* Buttons */
-  .btn, .back-btn{
-    appearance:none;
-    border-radius:999px;
-    cursor:pointer;
-    font-weight:700;
-    letter-spacing:.2px;
-    transition:transform .08s ease, box-shadow .18s ease, background .18s ease, border-color .18s ease, color .18s ease;
-    user-select:none;
-    white-space:nowrap;
-  }
-  .btn:active:not(:disabled),
-  .back-btn:active:not(:disabled){transform:translateY(1px)}
-  .btn{
-    background:var(--surface);
-    color:var(--text);
-    border:1px solid var(--edge-2);
-    padding:9px 14px;
-    font-size:13px;
-    box-shadow:0 1px 0 rgba(0,0,0,.02);
-  }
-  .btn:hover:not(:disabled){
-    background:var(--surface-2);
-    box-shadow:0 10px 22px rgba(26,14,44,.10);
-  }
-  .btn:disabled{opacity:.55;cursor:not-allowed}
+    /* Modal */
+    .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:9999}
+    .modal-card{
+      width:min(560px,95vw);
+      background:var(--surface);
+      border:1px solid var(--edge);
+      border-radius:20px;
+      padding:16px;
+      box-shadow:var(--shadow);
+      display:grid;gap:12px
+    }
+    .modal-header{display:flex;justify-content:space-between;align-items:center}
+    .modal-close{padding:6px 10px;font-size:14px;line-height:1}
 
-  .btn.primary{
-    background:linear-gradient(180deg, var(--brand-2), var(--brand));
-    border-color:var(--brand-3);
-    color:#fff;
-    box-shadow:0 12px 26px rgba(103,36,119,.20);
-  }
-  .btn.primary:hover:not(:disabled){
-    box-shadow:0 16px 34px rgba(103,36,119,.28);
-  }
+    .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    @media (max-width:640px){.modal-grid{grid-template-columns:1fr}}
 
-  .btn.danger{
-    background:rgba(180,35,24,.08);
-    border-color:rgba(180,35,24,.25);
-    color:var(--danger);
-  }
+    .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    .req{color:var(--danger);font-weight:900;margin-left:4px}
+    .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
+    .modal-error{
+      margin:0;padding:10px 12px;border-radius:14px;
+      background:rgba(180,35,24,.08);
+      border:1px solid rgba(180,35,24,.22);
+      color:var(--danger);
+      font-size:12px
+    }
 
-  .back-btn{
-    background:var(--surface);
-    border:1px solid var(--edge-2);
-    color:var(--text);
-    padding:9px 14px;
-    font-size:14px;
-    display:inline-flex;align-items:center;gap:8px;
-    box-shadow:0 1px 0 rgba(0,0,0,.02);
-  }
-  .back-btn:hover{background:var(--surface-2);box-shadow:0 10px 22px rgba(26,14,44,.10)}
+    /* Responsive grid */
+    @media (max-width:980px){ .grid{grid-template-columns:1fr 1fr} }
+    @media (max-width:640px){ .grid{grid-template-columns:1fr} }
 
-  /* Badges / Pills */
-  .badge{
-    background:rgba(103,36,119,.08);
-    border:1px solid rgba(103,36,119,.18);
-    color:var(--brand);
-    border-radius:999px;
-    padding:4px 10px;
-    font-size:12px;
-    font-weight:800;
-  }
-  .pill{
-    display:inline-flex;
-    background:rgba(103,36,119,.06);
-    border:1px solid rgba(103,36,119,.14);
-    border-radius:999px;
-    padding:6px 10px;
-    gap:8px;
-    align-items:center;
-  }
+    .row>input,.row>select,.row>textarea{flex:1 1 auto;min-width:0;width:auto}
+    .row>.field,.row>.grow{flex:1 1 auto;min-width:0}
+    .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0}
 
-  /* Lists / rows */
-  .list{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow:auto;padding-right:2px}
-  .el{
-    display:flex;
-    align-items:center;
-    gap:10px;
-    justify-content:space-between;
-    padding:10px 12px;
-    border-radius:14px;
-    border:1px solid var(--edge);
-    background:var(--surface);
-    transition:background .15s, border-color .15s, transform .08s, box-shadow .18s;
-  }
-  .el:hover{
-    background:var(--surface-2);
-    border-color:rgba(103,36,119,.22);
-    box-shadow:0 12px 26px rgba(103,36,119,.10);
-  }
-  label.el{cursor:pointer}
+    #permissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    @media (max-width:820px){#permissionsCard .perm-grid{grid-template-columns:1fr}}
+    .perm-item{
+      display:flex;align-items:flex-start;gap:12px;
+      padding:12px;border:1px solid var(--edge);
+      border-radius:16px;background:var(--surface)
+    }
+    .perm-item .meta{display:flex;flex-direction:column;gap:3px}
+    .perm-item .meta .name{font-weight:900}
+    .perm-item .meta .desc{font-size:12px;color:var(--muted)}
 
-  .placeholder{
-    border:1px dashed var(--edge-2);
-    border-radius:14px;
-    padding:12px 12px;
-    color:var(--muted);
-    background:rgba(103,36,119,.05);
-    text-align:center
-  }
+    .subtle-divider{height:1px;background:rgba(211,192,231,.95);margin:12px 0}
 
-  /* Inputs */
-  input[type="text"],input[type="email"],input[type="password"], input[type="date"]{
-    width:100%;
-    height:42px;
-    background:var(--input);
-    border:1px solid var(--input-edge);
-    color:var(--text);
-    border-radius:14px;
-    padding:10px 12px;
-    font-size:14px;
-    box-shadow:0 1px 0 rgba(0,0,0,.02);
-  }
-  input[type="number"]{
-    background:var(--input);
-    border:1px solid var(--input-edge);
-    color:var(--text);
-    border-radius:12px;
-    padding:6px 10px;
-    height:36px;
-  }
-  select{
-    height:42px;
-    background:var(--input);
-    border:1px solid var(--input-edge);
-    color:var(--text);
-    border-radius:14px;
-    padding:8px 12px;
-    width:100%;
-    box-shadow:0 1px 0 rgba(0,0,0,.02);
-  }
+    details{border:1px solid var(--edge);border-radius:16px;padding:12px;background:var(--surface)}
+    details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}
+    details>summary::-webkit-details-marker{display:none}
 
-  /* Focus */
-  :focus{outline:none}
-  .btn:focus-visible,
-  .back-btn:focus-visible,
-  input:focus-visible,
-  select:focus-visible,
-  details>summary:focus-visible{
-    box-shadow:0 0 0 4px var(--focus);
-    border-color:rgba(103,36,119,.35);
-  }
+    .kbd{
+      font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
+      font-size:11px;padding:3px 8px;border-radius:10px;
+      border:1px solid var(--edge);
+      background:rgba(103,36,119,.06);
+      color:var(--text);
+    }
 
-  input[type="radio"],input[type="checkbox"]{
-    width:18px;height:18px;cursor:pointer;
-    accent-color:var(--brand);
-  }
+    /* =========================
+       LANDING: centered + smaller buttons
+       ========================= */
+    #landing .card{
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+      min-height:140px;
+    }
+    #landing .card .row{
+      margin-top:auto;
+      flex-direction:column;
+      align-items:center;
+      text-align:center;
+      gap:10px;
+    }
+    #landing .card .row .muted{max-width:28ch}
 
-  a{color:var(--brand);text-decoration:none}
-  a:hover{text-decoration:underline}
+    /* Landing buttons match Go to Radio, but smaller + centered */
+    #landing .btn{
+      padding:8px 14px;
+      font-size:13px;
+      min-width:180px;
+    }
+    #landing .btn:not(:disabled){
+      background:linear-gradient(180deg, var(--brand-2), var(--brand));
+      border-color:var(--brand-3);
+      color:#fff;
+      box-shadow:0 10px 22px rgba(103,36,119,.18);
+    }
+    #landing .btn:not(:disabled):hover{
+      box-shadow:0 14px 26px rgba(103,36,119,.24);
+    }
+    #landing .btn:disabled{
+      background:rgba(103,36,119,.06);
+      color:rgba(27,19,38,.45);
+      border-color:var(--edge);
+      box-shadow:none;
+    }
 
-  .role-badge{
-    background:rgba(103,36,119,.08);
-    border:1px solid rgba(103,36,119,.18);
-    border-radius:999px;
-    padding:6px 10px;
-    font-size:12px;
-    color:var(--brand);
-    font-weight:800;
-  }
+    /* =========================
+       DEALS: filter/search card should match light UI (no dark panel)
+       ========================= */
+    .filters-card{
+      background:var(--surface-2);
+      border:1px solid var(--edge);
+      border-radius:var(--radius);
+      box-shadow:var(--shadow-sm);
+      padding:14px;
+    }
+    .filters-card .title{margin-bottom:6px}
 
-  /* Login */
-  #googleLoginScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:99999}
-  .login-card{
-    width:min(440px,92vw);
-    background:var(--surface);
-    color:var(--text);
-    border:1px solid var(--edge);
-    border-radius:20px;
-    padding:18px;
-    box-shadow:var(--shadow);
-    display:grid;gap:12px;text-align:center
-  }
+    /* =========================
+       CASH SUMMARY + footer readability fixes
+       (Overrides the JS inline dark backgrounds)
+       ========================= */
+    #barterMinutesSection .el,
+    #barterBreakdown .el{
+      background:var(--surface) !important;
+      border-color:var(--edge) !important;
+      color:var(--text) !important;
+    }
+    #barterBreakdown .badge{
+      background:rgba(103,36,119,.08) !important;
+      border-color:rgba(103,36,119,.18) !important;
+      color:var(--brand) !important;
+    }
+    /* The generated footer blocks (cash summary + barter footer) */
+    #barterBreakdown > div[style*="background: rgba(15, 24, 35"]{
+      background:rgba(103,36,119,.06) !important;
+      color:var(--text) !important;
+      border-top:1px solid rgba(103,36,119,.18) !important;
+    }
+    #barterBreakdown > div[style*="background: rgba(15, 24, 35"] .muted{
+      color:var(--muted) !important;
+    }
 
-  /* Modal */
-  .modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:9999}
-  .modal-card{
-    width:min(560px,95vw);
-    background:var(--surface);
-    border:1px solid var(--edge);
-    border-radius:20px;
-    padding:16px;
-    box-shadow:var(--shadow);
-    display:grid;gap:12px
-  }
-  .modal-header{display:flex;justify-content:space-between;align-items:center}
-  .modal-close{padding:6px 10px;font-size:14px;line-height:1}
-
-  .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-  @media (max-width:640px){.modal-grid{grid-template-columns:1fr}}
-
-  .field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
-  .req{color:var(--danger);font-weight:900;margin-left:4px}
-  .modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:4px}
-  .modal-error{
-    margin:0;padding:10px 12px;border-radius:14px;
-    background:rgba(180,35,24,.08);
-    border:1px solid rgba(180,35,24,.22);
-    color:var(--danger);
-    font-size:12px
-  }
-
-  /* Responsive grid */
-  @media (max-width:980px){ .grid{grid-template-columns:1fr 1fr} }
-  @media (max-width:640px){ .grid{grid-template-columns:1fr} }
-
-  .row>input,.row>select,.row>textarea{flex:1 1 auto;min-width:0;width:auto}
-  .row>.field,.row>.grow{flex:1 1 auto;min-width:0}
-  .row>.field>input,.row>.field>select,.row>.grow>input,.row>.grow>select{width:100%;min-width:0}
-
-  #permissionsCard .perm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
-  @media (max-width:820px){#permissionsCard .perm-grid{grid-template-columns:1fr}}
-  .perm-item{
-    display:flex;align-items:flex-start;gap:12px;
-    padding:12px;border:1px solid var(--edge);
-    border-radius:16px;background:var(--surface)
-  }
-  .perm-item .meta{display:flex;flex-direction:column;gap:3px}
-  .perm-item .meta .name{font-weight:900}
-  .perm-item .meta .desc{font-size:12px;color:var(--muted)}
-
-  .subtle-divider{height:1px;background:rgba(211,192,231,.95);margin:12px 0}
-
-  details{border:1px solid var(--edge);border-radius:16px;padding:12px;background:var(--surface)}
-  details>summary{cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px}
-  details>summary::-webkit-details-marker{display:none}
-
-  .kbd{
-    font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;
-    font-size:11px;padding:3px 8px;border-radius:10px;
-    border:1px solid var(--edge);
-    background:rgba(103,36,119,.06);
-    color:var(--text);
-  }
-
-  /* =========================
-     LANDING: centered + smaller buttons
-     ========================= */
-  #landing .card{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    min-height:140px;
-  }
-  #landing .card .row{
-    margin-top:auto;
-    flex-direction:column;
-    align-items:center;
-    text-align:center;
-    gap:10px;
-  }
-  #landing .card .row .muted{max-width:28ch}
-
-  /* Landing buttons match Go to Radio, but smaller + centered */
-  #landing .btn{
-    padding:8px 14px;
-    font-size:13px;
-    min-width:180px;
-  }
-  #landing .btn:not(:disabled){
-    background:linear-gradient(180deg, var(--brand-2), var(--brand));
-    border-color:var(--brand-3);
-    color:#fff;
-    box-shadow:0 10px 22px rgba(103,36,119,.18);
-  }
-  #landing .btn:not(:disabled):hover{
-    box-shadow:0 14px 26px rgba(103,36,119,.24);
-  }
-  #landing .btn:disabled{
-    background:rgba(103,36,119,.06);
-    color:rgba(27,19,38,.45);
-    border-color:var(--edge);
-    box-shadow:none;
-  }
-
-  /* =========================
-     CASH SUMMARY + barter footer readability fixes
-     (Overrides the JS inline dark backgrounds)
-     ========================= */
-  #barterMinutesSection .el,
-  #barterBreakdown .el{
-    background:var(--surface) !important;
-    border-color:var(--edge) !important;
-    color:var(--text) !important;
-  }
-  #barterBreakdown .badge{
-    background:rgba(103,36,119,.08) !important;
-    border-color:rgba(103,36,119,.18) !important;
-    color:var(--brand) !important;
-  }
-  /* The generated footer blocks (cash summary + barter footer) */
-  #barterBreakdown > div[style*="background: rgba(15, 24, 35"]{
-    background:rgba(103,36,119,.06) !important;
-    color:var(--text) !important;
-    border-top:1px solid rgba(103,36,119,.18) !important;
-  }
-  #barterBreakdown > div[style*="background: rgba(15, 24, 35"] .muted{
-    color:var(--muted) !important;
-  }
-
-  /* =========================
-     PROPOSAL: make it match the light theme (fix dark inline styles)
-     ========================= */
-  #proposalOutput{
-    background:var(--surface) !important;
-    border:1px solid var(--edge) !important;
-    box-shadow:var(--shadow-sm) !important;
-    color:var(--text) !important;
-  }
-  /* override any inline dark backgrounds in proposal HTML */
-  #proposalTable *{
-    color:var(--text);
-  }
-  #proposalTable [style*="background:#0b121a"],
-  #proposalTable [style*="background: #0b121a"],
-  #proposalTable [style*="background:#0c131b"],
-  #proposalTable [style*="background: rgba(15, 24, 35"]{
-    background:rgba(103,36,119,.05) !important;
-  }
-  #proposalTable [style*="border-bottom:1px solid var(--edge)"],
-  #proposalTable [style*="border-bottom:1px solid rgba(34,50,68"]{
-    border-bottom:1px solid rgba(103,36,119,.18) !important;
-  }
-  #proposalTable table{
-    width:100%;
-    border-collapse:collapse;
-  }
-  #proposalTable th{
-    text-align:left;
-    color:rgba(103,36,119,.80) !important;
-  }
-  #proposalTable td, #proposalTable th{
-    padding:10px 8px;
-  }
-</style>
-
+    /* =========================
+       PROPOSAL: make it match the light theme (fix dark inline styles)
+       ========================= */
+    #proposalOutput{
+      background:var(--surface) !important;
+      border:1px solid var(--edge) !important;
+      box-shadow:var(--shadow-sm) !important;
+      color:var(--text) !important;
+    }
+    #proposalTable *{ color:var(--text); }
+    #proposalTable [style*="background:#0b121a"],
+    #proposalTable [style*="background: #0b121a"],
+    #proposalTable [style*="background:#0c131b"],
+    #proposalTable [style*="background: rgba(15, 24, 35"]{
+      background:rgba(103,36,119,.05) !important;
+    }
+    #proposalTable [style*="border-bottom:1px solid var(--edge)"],
+    #proposalTable [style*="border-bottom:1px solid rgba(34,50,68"]{
+      border-bottom:1px solid rgba(103,36,119,.18) !important;
+    }
+    #proposalTable table{
+      width:100%;
+      border-collapse:collapse;
+    }
+    #proposalTable th{
+      text-align:left;
+      color:rgba(103,36,119,.80) !important;
+    }
+    #proposalTable td, #proposalTable th{
+      padding:10px 8px;
+    }
+  </style>
 </head>
 
 <body>
@@ -425,10 +447,8 @@
       <div class="muted" style="font-size:12px;">
         Google-only access. Your Futuri account will be assigned a role automatically.
       </div>
-      <button class="google-btn" id="btnGoogleLogin" type="button">
-        Sign in with Google
-      </button>
-      <div id="googleLoginError" class="muted" style="display:none;color:#ff8a8a;font-size:12px;"></div>
+      <button class="google-btn" id="btnGoogleLogin" type="button">Sign in with Google</button>
+      <div id="googleLoginError" class="muted" style="display:none;color:#b42318;font-size:12px;"></div>
     </div>
   </div>
 
@@ -475,10 +495,10 @@
       </section>
 
       <section class="card">
-        <div class="title">My Saved Deals</div>
+        <div class="title">My Deals</div>
         <div class="row">
-          <div class="muted">Load My Saved Deals</div>
-          <button class="btn" id="btnOpenSnapshots" type="button">Go to Saved Deals</button>
+          <div class="muted">View + load my saved deals</div>
+          <button class="btn" id="btnOpenMyDeals" type="button">Go to My Deals</button>
         </div>
       </section>
 
@@ -493,16 +513,16 @@
       <section class="card">
         <div class="title">Admin Deal View</div>
         <div class="row">
-          <div class="muted">Browse All Other Users' Deals</div>
-          <button class="btn" id="btnOpenAdminUploads" type="button">Go to All Deals</button>
+          <div class="muted">Browse all users’ deals (including yours)</div>
+          <button class="btn" id="btnOpenAllDeals" type="button">Go to All Deals</button>
         </div>
       </section>
     </div>
 
-    <!-- SNAPSHOTS VIEW -->
-    <div id="snapshotsView" class="grid hidden" style="grid-template-columns:1fr;">
+    <!-- MY DEALS VIEW -->
+    <div id="myDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-        <button class="back-btn" id="btnBackFromSnapshots" type="button">← Back to Landing</button>
+        <button class="back-btn" id="btnBackFromMyDeals" type="button">← Back to Landing</button>
       </div>
 
       <section class="card">
@@ -511,25 +531,25 @@
           Create deals from <strong>Radio</strong>. Review + load them here.
         </div>
 
-        <div class="card" style="margin-top:6px; background:#0b121a;">
+        <div class="filters-card" style="margin-top:6px;">
           <div class="title" style="margin-bottom:6px;">Search Deals</div>
 
           <div class="row" style="margin-bottom:8px;">
             <div class="field grow">
-              <label for="uploadsSearchName">Name</label>
-              <input id="uploadsSearchName" type="text" placeholder="Search by deal name..." />
+              <label for="myDealsSearchName">Name</label>
+              <input id="myDealsSearchName" type="text" placeholder="Search by deal name..." />
             </div>
 
             <div class="field grow">
-              <label for="uploadsSearchParent">Parent Company</label>
-              <input id="uploadsSearchParent" type="text" placeholder="Search by parent company..." />
+              <label for="myDealsSearchParent">Parent Company</label>
+              <input id="myDealsSearchParent" type="text" placeholder="Search by parent company..." />
             </div>
           </div>
 
           <div class="row" style="margin-bottom:8px;">
             <div class="field" style="min-width:160px;">
-              <label for="uploadsPricingType">Pricing Type</label>
-              <select id="uploadsPricingType">
+              <label for="myDealsPricingType">Pricing Type</label>
+              <select id="myDealsPricingType">
                 <option value="">Any</option>
                 <option value="cash">Cash</option>
                 <option value="barter">Barter</option>
@@ -538,13 +558,13 @@
             </div>
 
             <div class="field grow">
-              <label for="uploadsSearchProduct">Has Product</label>
-              <input id="uploadsSearchProduct" type="text" placeholder='e.g. "TopicPulse" (matches selected products)' />
+              <label for="myDealsSearchProduct">Has Product</label>
+              <input id="myDealsSearchProduct" type="text" placeholder='e.g. "TopicPulse" (matches selected products)' />
             </div>
 
             <div class="field" style="min-width:160px;">
-              <label for="uploadsSortBy">Sort</label>
-              <select id="uploadsSortBy">
+              <label for="myDealsSortBy">Sort</label>
+              <select id="myDealsSortBy">
                 <option value="newest" selected>Newest first</option>
                 <option value="oldest">Oldest first</option>
                 <option value="name">Name A → Z</option>
@@ -554,27 +574,27 @@
 
           <div class="row">
             <div class="field" style="min-width:160px;">
-              <label for="uploadsDateFrom">Date From</label>
-              <input id="uploadsDateFrom" type="date" />
+              <label for="myDealsDateFrom">Date From</label>
+              <input id="myDealsDateFrom" type="date" />
             </div>
 
             <div class="field" style="min-width:160px;">
-              <label for="uploadsDateTo">Date To</label>
-              <input id="uploadsDateTo" type="date" />
+              <label for="myDealsDateTo">Date To</label>
+              <input id="myDealsDateTo" type="date" />
             </div>
 
             <div class="row" style="align-self:flex-end; margin-left:auto;">
-              <button class="btn" id="btnClearUploadsFilters" type="button">Clear Filters</button>
+              <button class="btn" id="btnClearMyDealsFilters" type="button">Clear Filters</button>
             </div>
           </div>
         </div>
 
         <div class="row" style="margin-top:10px;">
-          <span class="muted" id="uploadHint" style="font-size:12px;">Staff/Admin/SuperAdmin</span>
-          <span class="muted" id="uploadStatus" style="font-size:12px;"></span>
+          <span class="muted" id="myDealsHint" style="font-size:12px;">Staff/Admin/SuperAdmin</span>
+          <span class="muted" id="myDealsStatus" style="font-size:12px;"></span>
         </div>
 
-        <div id="uploadsList" class="list" style="margin-top:10px;"></div>
+        <div id="myDealsList" class="list" style="margin-top:10px;"></div>
       </section>
     </div>
 
@@ -609,16 +629,16 @@
       </section>
     </div>
 
-    <!-- ADMIN UPLOADS VIEW -->
-    <div id="adminUploadsView" class="grid hidden" style="grid-template-columns:1fr;">
+    <!-- ADMIN: ALL DEALS VIEW -->
+    <div id="allDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-        <button class="back-btn" id="btnBackFromAdminUploads" type="button">← Back to Landing</button>
+        <button class="back-btn" id="btnBackFromAllDeals" type="button">← Back to Landing</button>
       </div>
 
-      <section class="card" id="adminUsersUploadsCard">
-        <div class="title">Admin View Deals</div>
+      <section class="card" id="adminUsersDealsCard">
+        <div class="title">All Deals</div>
         <div class="muted" style="font-size:12px;margin-bottom:8px;">
-          Browse each user’s deals. (Role changes live in Permissions & Access.)
+          Browse each user’s deals (includes your own). (Role changes live in Permissions & Access.)
         </div>
         <div id="adminUsersList" class="list"></div>
       </section>
@@ -635,7 +655,7 @@
         <input id="parentSearch" type="text" placeholder="Search parent companies..." />
         <div class="row" style="gap:8px;align-items:center;margin-top:8px;">
           <button class="btn" id="btnAddCompany" type="button">Add Company</button>
-          <span id="userDataStatus" style="font-size:12px;color:#9bb3c7;"></span>
+          <span id="userDataStatus" style="font-size:12px;color:var(--muted);"></span>
         </div>
         <div id="parentResults" class="list"></div>
       </section>
@@ -772,93 +792,93 @@
       <section class="card hidden" id="proposalSection">
         <div class="title">Step 6: Generate Proposal</div>
 
-       <div id="dealMetaDetails" class="card" style="margin-bottom:12px; background:var(--surface-2);">
-  <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:10px;">
-    <div class="title" style="margin:0;">Deal Terms + Nielsen Season/Year</div>
-    <span class="badge">Always visible</span>
-  </div>
+        <div id="dealMetaDetails" class="card" style="margin-bottom:12px; background:var(--surface-2);">
+          <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div class="title" style="margin:0;">Deal Terms + Nielsen Season/Year</div>
+            <span class="badge">Always visible</span>
+          </div>
 
-  <div class="modal-grid">
-    <div class="field grow">
-      <label for="dealTermSelect">Term</label>
-      <select id="dealTermSelect">
-        <option value="12">12</option>
-        <option value="24">24</option>
-        <option value="36" selected>36</option>
-        <option value="48">48</option>
-        <option value="60">60</option>
-        <option value="custom">Fill-in</option>
-      </select>
-    </div>
+          <div class="modal-grid">
+            <div class="field grow">
+              <label for="dealTermSelect">Term</label>
+              <select id="dealTermSelect">
+                <option value="12">12</option>
+                <option value="24">24</option>
+                <option value="36" selected>36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+                <option value="custom">Fill-in</option>
+              </select>
+            </div>
 
-    <div class="field grow" id="dealTermCustomWrap" style="display:none;">
-      <label for="dealTermCustomMonths">Custom Term (months)</label>
-      <input id="dealTermCustomMonths" type="number" min="1" step="1" placeholder="e.g. 18" />
-    </div>
-  </div>
+            <div class="field grow" id="dealTermCustomWrap" style="display:none;">
+              <label for="dealTermCustomMonths">Custom Term (months)</label>
+              <input id="dealTermCustomMonths" type="number" min="1" step="1" placeholder="e.g. 18" />
+            </div>
+          </div>
 
-  <div class="row" style="margin-top:10px;">
-    <label style="display:flex;align-items:center;gap:8px;">
-      <input type="checkbox" id="autoRenewEnabled">
-      <span>Auto Renewal</span>
-    </label>
+          <div class="row" style="margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="autoRenewEnabled">
+              <span>Auto Renewal</span>
+            </label>
 
-    <div class="field grow">
-      <label for="autoRenewTermSelect">Auto-Renew Term (months)</label>
-      <select id="autoRenewTermSelect">
-        <option value="12" selected>12</option>
-        <option value="24">24</option>
-        <option value="36">36</option>
-        <option value="48">48</option>
-        <option value="60">60</option>
-        <option value="custom">Fill-in</option>
-      </select>
-    </div>
+            <div class="field grow">
+              <label for="autoRenewTermSelect">Auto-Renew Term (months)</label>
+              <select id="autoRenewTermSelect">
+                <option value="12" selected>12</option>
+                <option value="24">24</option>
+                <option value="36">36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+                <option value="custom">Fill-in</option>
+              </select>
+            </div>
 
-    <div class="field grow" id="autoRenewCustomWrap" style="display:none;">
-      <label for="autoRenewCustomMonths">Custom Auto-Renew (months)</label>
-      <input id="autoRenewCustomMonths" type="number" min="1" step="1" placeholder="e.g. 12" />
-    </div>
-  </div>
+            <div class="field grow" id="autoRenewCustomWrap" style="display:none;">
+              <label for="autoRenewCustomMonths">Custom Auto-Renew (months)</label>
+              <input id="autoRenewCustomMonths" type="number" min="1" step="1" placeholder="e.g. 12" />
+            </div>
+          </div>
 
-  <div class="modal-grid" style="margin-top:10px;">
-    <div class="field grow">
-      <label for="nielsenSeason">Nielsen Book (Season)</label>
-      <select id="nielsenSeason">
-        <option value="Spring">Spring</option>
-        <option value="Fall" selected>Fall</option>
-      </select>
-    </div>
+          <div class="modal-grid" style="margin-top:10px;">
+            <div class="field grow">
+              <label for="nielsenSeason">Nielsen Book (Season)</label>
+              <select id="nielsenSeason">
+                <option value="Spring">Spring</option>
+                <option value="Fall" selected>Fall</option>
+              </select>
+            </div>
 
-    <div class="field grow">
-      <label for="nielsenYear">Nielsen Book (Year)</label>
-      <input id="nielsenYear" type="number" min="2024" step="1" value="2030" />
-    </div>
-  </div>
+            <div class="field grow">
+              <label for="nielsenYear">Nielsen Book (Year)</label>
+              <input id="nielsenYear" type="number" min="2024" step="1" value="2030" />
+            </div>
+          </div>
 
-  <div class="subtle-divider"></div>
+          <div class="subtle-divider"></div>
 
-  <div class="row">
-    <div class="muted" style="font-size:12px;">
-      Approval email: <span class="kbd" id="approvalEmailText">sabrinacarlo@futurimedia.com</span>
-    </div>
-    <button class="btn" id="btnCopyApprovalEmail" type="button">Copy Email</button>
-    <button class="btn" id="btnOpenApprovalDraft" type="button">Open Email Draft</button>
-  </div>
+          <div class="row">
+            <div class="muted" style="font-size:12px;">
+              Approval email: <span class="kbd" id="approvalEmailText">sabrinacarlo@futurimedia.com</span>
+            </div>
+            <button class="btn" id="btnCopyApprovalEmail" type="button">Copy Email</button>
+            <button class="btn" id="btnOpenApprovalDraft" type="button">Open Email Draft</button>
+          </div>
 
-  <div class="muted" style="font-size:11px;margin-top:8px;">
-    Note: This tool does not send email; it prepares a draft (mailto) or copies text for you.
-  </div>
-</div>
+          <div class="muted" style="font-size:11px;margin-top:8px;">
+            Note: This tool does not send email; it prepares a draft (mailto) or copies text for you.
+          </div>
+        </div>
 
         <div class="row" style="margin-bottom:12px;">
           <button class="btn primary" id="btnGenerateProposal" type="button">Generate Proposal</button>
           <button class="btn" id="btnCopyProposal" type="button">Copy to Clipboard</button>
         </div>
 
-        <div id="proposalOutput" class="hidden" style="background:#0c131b;border:1px solid #223244;border-radius:10px;padding:16px;margin-top:12px;">
+        <div id="proposalOutput" class="hidden" style="border-radius:10px;padding:16px;margin-top:12px;">
           <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
-            <strong style="color:#5fb584;">Proposal Ready</strong>
+            <strong style="color:var(--success);">Proposal Ready</strong>
             <span class="badge" id="proposalMode">Cash Deal</span>
           </div>
           <div id="proposalTable" style="overflow-x:auto;"></div>
@@ -868,18 +888,16 @@
       <section class="card">
         <div class="title">Deals</div>
         <div class="row">
-          <button class="btn" id="btnUpload" type="button">Save Deal</button>
-          <span class="muted" style="font-size:12px;">Create from Radio • View on Saved Deals</span>
+          <button class="btn" id="btnSaveDeal" type="button">Save Deal</button>
+          <span class="muted" style="font-size:12px;">Create from Radio • View in My Deals</span>
         </div>
       </section>
     </div>
   </main>
+
   <!-- ===========================
        FIREBASE (Modules)
-       =========================== 
-  
-  
-  Beginning of Javascript-->
+       =========================== -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
     import {
@@ -929,6 +947,12 @@
       "sabrinacarlo@futurimedia.com"
     ]);
 
+    // Firestore subcollection name(s)
+    // - Read from BOTH for backward compatibility
+    // - Save to "deals" going forward
+    const DEALS_WRITE_COLLECTION = "deals";
+    const DEALS_READ_COLLECTIONS = ["deals", "uploads"]; // supports old "uploads" data
+
     // Base permissions by role
     const PERMS_BASE = {
       superadmin: {
@@ -936,8 +960,8 @@
         import_export:true,
         pricing_override:true,
         generate_proposal:true,
-        upload_files:true,
-        view_all_deals:true,
+        upload_files:true,         // keep as-is (controls saving)
+        view_all_deals:true,       // admins/superadmins can view all deals
         manage_roles:true
       },
       admin: {
@@ -965,8 +989,8 @@
       { key:"import_export",         name:"Import/Export",          desc:"Reserved for future (data export/import workflows)." },
       { key:"pricing_override",      name:"Pricing Override",       desc:"Edit product pricing override inputs." },
       { key:"generate_proposal",     name:"Generate Proposal",      desc:"Generate + copy proposal output tables." },
-      { key:"upload_files",          name:"Save Deals",         desc:"Create deal records in Firestore." },
-      { key:"view_all_uploads",      name:"View All Deals",       desc:"Admin view: browse other users’ deals." },
+      { key:"upload_files",          name:"Save Deals",             desc:"Create deal records in Firestore." },
+      { key:"view_all_deals",        name:"View All Deals",         desc:"Admin view: browse all users’ deals (including yours)." },
       { key:"manage_roles",          name:"Manage Roles",           desc:"SuperAdmin: change user role selection." }
     ];
 
@@ -974,8 +998,8 @@
     let CURRENT_UID  = null;   // Auth uid
     let CURRENT_ROLE = "staff";
 
-    // cache of my snapshots for client-side search
-    let MY_UPLOADS_CACHE = [];
+    // cache of my deals for client-side search
+    let MY_DEALS_CACHE = [];
 
     function getOverrides(){
       return (CURRENT_USER && CURRENT_USER.permOverrides && typeof CURRENT_USER.permOverrides === "object")
@@ -1029,6 +1053,7 @@
       if (!data.email) patch.email = user.email || "";
       if (!data.name) patch.name = user.displayName || "";
       if (!data.permOverrides) patch.permOverrides = {};
+      if (!data.createdAt) patch.createdAt = serverTimestamp(); // <- ensures ordering queries include older users
 
       // migrate legacy role "view" -> "staff"
       if (data.role === "view") patch.role = "staff";
@@ -1042,7 +1067,7 @@
     }
 
     function showView(viewId){
-      ["landing","radioView","snapshotsView","permissionsView","adminUploadsView"].forEach(id=>{
+      ["landing","radioView","myDealsView","permissionsView","allDealsView"].forEach(id=>{
         const node = el(id);
         if (!node) return;
         node.classList.toggle("hidden", id !== viewId);
@@ -1053,14 +1078,13 @@
     function applyRoleUI(){
       el("whois").textContent = `Role: ${CURRENT_ROLE}`;
 
-      // snapshots hint + save snapshot button
-      el("uploadHint").textContent = can("upload_files") ? "Staff/Admin/SuperAdmin" : "No upload access";
-      el("btnUpload").disabled = !can("upload_files");
+      // deals hint + save deal button
+      el("myDealsHint").textContent = can("upload_files") ? "Staff/Admin/SuperAdmin" : "No save access";
+      el("btnSaveDeal").disabled = !can("upload_files");
 
       // landing nav buttons (hard-gate Permissions)
-     const permBtn = el("btnOpenPermissions");
-     if (permBtn) permBtn.disabled = (CURRENT_ROLE !== "superadmin");
-
+      const permBtn = el("btnOpenPermissions");
+      if (permBtn) permBtn.disabled = (CURRENT_ROLE !== "superadmin");
 
       // permissions mode badge
       const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
@@ -1215,6 +1239,7 @@
       });
     }
   </script>
+
   <script>
     /**********************
      * Deal meta state (term, auto-renew, nielsen)
@@ -1229,8 +1254,6 @@
       nielsenYear: 2024,
       approvalEmail: "sabrinacarlo@futurimedia.com"
     };
-
-    // IMPORTANT: proposal code reads window.dealMetaState — export it
     window.dealMetaState = dealMetaState;
 
     function parsePositiveInt(v){
@@ -1263,7 +1286,7 @@
       dealMetaState.nielsenYear = parsePositiveInt(el("nielsenYear")?.value) || dealMetaState.nielsenYear;
       dealMetaState.approvalEmail = (el("approvalEmailText")?.textContent || dealMetaState.approvalEmail);
 
-      window.dealMetaState = dealMetaState; // keep exported copy up to date
+      window.dealMetaState = dealMetaState;
     }
 
     function applyDealMetaToUI(){
@@ -1358,9 +1381,9 @@
     }
 
     /**********************
-     * Snapshots (save + load + list)
+     * Deals (save + load + list)
      **********************/
-    function buildSnapshotPayload(){
+    function buildDealPayload(){
       syncDealMetaFromUI();
       return {
         parent: window.state?.parent || "",
@@ -1380,13 +1403,12 @@
       };
     }
 
-    function loadSnapshot(payload){
+    function loadDeal(payload){
       if (!payload) return;
 
       showView("radioView");
       window.scrollTo(0,0);
 
-      // restore selection state
       window.state.parent = payload.parent || "";
       window.state.markets = new Set(payload.markets || []);
       window.state.stations = new Set(payload.stations || []);
@@ -1398,19 +1420,16 @@
       window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
       window.productState.cpm = payload.cpm ?? 2.0;
 
-      // restore deal meta
       if (payload.dealMeta && typeof payload.dealMeta === "object") {
         Object.assign(dealMetaState, payload.dealMeta);
         window.dealMetaState = dealMetaState;
       }
       setTimeout(() => { applyDealMetaToUI(); syncDealMetaFromUI(); }, 0);
 
-      // set pricing radios
       document.querySelectorAll('input[name="pricingType"]').forEach(r => {
         r.checked = (r.value === window.productState.pricingType);
       });
 
-      // re-render everything (calculator functions exist in Chunk 5)
       if (typeof window.setMarketsEnabled === "function") window.setMarketsEnabled(!!window.state.parent);
       if (typeof window.setStationsEnabled === "function") window.setStationsEnabled(!!window.state.parent);
       if (typeof window.renderParents === "function") window.renderParents(el("parentSearch")?.value || "");
@@ -1420,7 +1439,6 @@
       if (typeof window.updatePreview === "function") window.updatePreview();
       if (typeof window.updateProductSummary === "function") window.updateProductSummary();
 
-      // restore proposal HTML if present
       if (payload.proposalHTML){
         el("proposalSection")?.classList.remove("hidden");
         el("proposalOutput")?.classList.remove("hidden");
@@ -1430,9 +1448,9 @@
       alert("Deal Loaded (Radio view).");
     }
 
-    async function saveSnapshot(){
+    async function saveDeal(){
       if (!CURRENT_USER) return alert("Not signed in.");
-      if (!can("upload_files")) return alert("Your permissions do not allow saving snapshots.");
+      if (!can("upload_files")) return alert("Your permissions do not allow saving deals.");
 
       const { db, collection, addDoc, serverTimestamp } = window.fb;
 
@@ -1441,50 +1459,50 @@
       name = name.trim();
       if (!name){
         const now = new Date();
-        name = `Snapshot ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+        name = `Deal ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
       }
 
-      const payload = buildSnapshotPayload();
+      const payload = buildDealPayload();
 
-      await addDoc(collection(db, "users", CURRENT_USER.uid, "uploads"), {
-        type: "snapshot",
+      await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
+        type: "deal",
         name,
         payload,
         createdAt: serverTimestamp()
       });
 
-      el("uploadStatus").textContent = "Saved!";
-      setTimeout(() => (el("uploadStatus").textContent = ""), 1500);
+      el("myDealsStatus").textContent = "Saved!";
+      setTimeout(() => (el("myDealsStatus").textContent = ""), 1500);
 
-      if (!el("snapshotsView").classList.contains("hidden")) await renderMyUploads();
-      if (!el("adminUploadsView").classList.contains("hidden") && can("view_all_uploads")) await renderAdminUsers();
+      if (!el("myDealsView").classList.contains("hidden")) await renderMyDeals();
+      if (!el("allDealsView").classList.contains("hidden") && can("view_all_deals")) await renderAllUsersDeals();
     }
 
-    function applyUploadsFilters(list){
-      const nameQ   = (el("uploadsSearchName")?.value || "").trim().toLowerCase();
-      const parentQ = (el("uploadsSearchParent")?.value || "").trim().toLowerCase();
-      const prodQ   = (el("uploadsSearchProduct")?.value || "").trim().toLowerCase();
-      const pType   = (el("uploadsPricingType")?.value || "").trim().toLowerCase();
-      const sortBy  = (el("uploadsSortBy")?.value || "newest");
+    function applyMyDealsFilters(list){
+      const nameQ   = (el("myDealsSearchName")?.value || "").trim().toLowerCase();
+      const parentQ = (el("myDealsSearchParent")?.value || "").trim().toLowerCase();
+      const prodQ   = (el("myDealsSearchProduct")?.value || "").trim().toLowerCase();
+      const pType   = (el("myDealsPricingType")?.value || "").trim().toLowerCase();
+      const sortBy  = (el("myDealsSortBy")?.value || "newest");
 
-      const fromStr = el("uploadsDateFrom")?.value || "";
-      const toStr   = el("uploadsDateTo")?.value || "";
+      const fromStr = el("myDealsDateFrom")?.value || "";
+      const toStr   = el("myDealsDateTo")?.value || "";
 
       const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
       const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
 
-      let out = list.filter(snap => {
-        const name   = (snap.name || "").toLowerCase();
-        const parent = (snap.payload?.parent || "").toLowerCase();
-        const pricingType = (snap.payload?.pricingType || "").toLowerCase();
+      let out = list.filter(deal => {
+        const name   = (deal.name || "").toLowerCase();
+        const parent = (deal.payload?.parent || "").toLowerCase();
+        const pricingType = (deal.payload?.pricingType || "").toLowerCase();
 
-        const productIds = Array.isArray(snap.payload?.products) ? snap.payload.products : [];
+        const productIds = Array.isArray(deal.payload?.products) ? deal.payload.products : [];
         const productNames = productIds
           .map(pid => (window.PRODUCTS?.find(p => p.id === pid)?.name || pid))
           .join(" ")
           .toLowerCase();
 
-        const created = snap.createdAt?.toDate ? snap.createdAt.toDate() : null;
+        const created = deal.createdAt?.toDate ? deal.createdAt.toDate() : null;
 
         if (nameQ && !name.includes(nameQ)) return false;
         if (parentQ && !parent.includes(parentQ)) return false;
@@ -1516,25 +1534,51 @@
       return out;
     }
 
-    async function renderMyUploads(){
+    async function getDealsForUser(uid){
       const { db, collection, getDocs, query, orderBy } = window.fb;
-      const root = el("uploadsList");
+
+      // Read from all known collections and merge
+      const all = [];
+      for (const colName of DEALS_READ_COLLECTIONS){
+        const q = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"));
+        const snap = await getDocs(q);
+        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+      }
+
+      // De-dupe best-effort (same name+createdAt)
+      const seen = new Set();
+      const out = [];
+      for (const d of all){
+        const t = d.createdAt?.toDate ? d.createdAt.toDate().getTime() : 0;
+        const key = `${d.name||""}|${t}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(d);
+      }
+
+      // Sort newest first
+      out.sort((a,b)=>{
+        const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+        const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+        return bd-ad;
+      });
+
+      return out;
+    }
+
+    async function renderMyDeals(){
+      const root = el("myDealsList");
       root.innerHTML = "";
 
       if (!CURRENT_USER){
-        root.innerHTML = `<div class="placeholder">Sign In to View Deals.</div>`;
+        root.innerHTML = `<div class="placeholder">Sign in to view your deals.</div>`;
         return;
       }
 
-      const uq = query(
-        collection(db, "users", CURRENT_USER.uid, "uploads"),
-        orderBy("createdAt", "desc")
-      );
+      const deals = await getDealsForUser(CURRENT_USER.uid);
+      MY_DEALS_CACHE = deals.slice();
 
-      const snaps = await getDocs(uq);
-
-      MY_UPLOADS_CACHE = snaps.docs.map(d => ({ id: d.id, ...d.data() }));
-      const filtered = applyUploadsFilters(MY_UPLOADS_CACHE);
+      const filtered = applyMyDealsFilters(MY_DEALS_CACHE);
 
       if (!filtered.length){
         root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
@@ -1556,13 +1600,13 @@
           </div>
           <button class="btn" type="button">Load</button>
         `;
-        row.querySelector("button").onclick = () => loadSnapshot(d.payload);
+        row.querySelector("button").onclick = () => loadDeal(d.payload);
         root.appendChild(row);
       });
     }
 
-    async function renderAdminUsers(){
-      if (!can("view_all_uploads")) return;
+    async function renderAllUsersDeals(){
+      if (!can("view_all_deals")) return;
 
       const { db, collection, getDocs, query, orderBy } = window.fb;
 
@@ -1572,22 +1616,30 @@
       const root = el("adminUsersList");
       root.innerHTML = "";
       if (usersSnap.empty){
-        root.innerHTML = `<div class="placeholder">No Users Yet.</div>`;
+        root.innerHTML = `<div class="placeholder">No users yet.</div>`;
         return;
       }
 
-      for (const udocSnap of usersSnap.docs){
-        const u = udocSnap.data();
+      // Ensure current user appears first (if present)
+      const docs = usersSnap.docs.slice();
+      docs.sort((a,b)=>{
+        if (a.id === CURRENT_UID) return -1;
+        if (b.id === CURRENT_UID) return 1;
+        return 0;
+      });
+
+      for (const udocSnap of docs){
+        const u = udocSnap.data() || {};
         const uid = udocSnap.id;
 
         const card = document.createElement("div");
         card.style.border = "1px solid var(--edge)";
-        card.style.background = "var(--card)";
-        card.style.borderRadius = "12px";
-        card.style.padding = "10px";
+        card.style.background = "var(--surface)";
+        card.style.borderRadius = "16px";
+        card.style.padding = "12px";
         card.style.display = "flex";
         card.style.flexDirection = "column";
-        card.style.gap = "8px";
+        card.style.gap = "10px";
 
         const header = document.createElement("div");
         header.style.display = "flex";
@@ -1603,25 +1655,25 @@
 
         const roleBadge = document.createElement("span");
         roleBadge.className = "badge";
-        roleBadge.textContent = `Role: ${u.role || "staff"}`;
+        roleBadge.textContent = uid === CURRENT_UID ? `You • ${u.role || "staff"}` : `Role: ${u.role || "staff"}`;
         header.appendChild(roleBadge);
 
         card.appendChild(header);
 
-        const uploadsBox = document.createElement("div");
-        uploadsBox.className = "list";
+        const dealsBox = document.createElement("div");
+        dealsBox.className = "list";
 
-        const uq = query(
-          collection(db, "users", uid, "uploads"),
-          orderBy("createdAt","desc")
-        );
-        const usnaps = await getDocs(uq);
+        let deals = [];
+        try{
+          deals = await getDealsForUser(uid);
+        }catch(e){
+          console.warn("Could not load deals for user", uid, e);
+        }
 
-        if (usnaps.empty){
-          uploadsBox.innerHTML = `<div class="placeholder">No uploads</div>`;
+        if (!deals.length){
+          dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
         } else {
-          usnaps.forEach(snap => {
-            const d = snap.data();
+          deals.forEach(d => {
             const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
             const label = when ? when.toLocaleString() : "(pending)";
 
@@ -1629,21 +1681,23 @@
             row.className = "el";
             row.innerHTML = `
               <div>
-                <strong>${d.name || d.type || "Snapshot"}</strong>
+                <strong>${d.name || "Deal"}</strong>
                 <div class="muted" style="font-size:11px">${label}</div>
               </div>
               <button class="btn" type="button">Load</button>
             `;
-            row.querySelector("button").onclick = () => loadSnapshot(d.payload);
-            uploadsBox.appendChild(row);
+            row.querySelector("button").onclick = () => loadDeal(d.payload);
+            dealsBox.appendChild(row);
           });
         }
 
-        card.appendChild(uploadsBox);
+        card.appendChild(dealsBox);
         root.appendChild(card);
       }
     }
+  </script>
 
+  <script>
     /**********************
      * Google-only Login wiring + Nav
      **********************/
@@ -1681,70 +1735,68 @@
         location.reload();
       };
 
-      el("btnUpload").onclick = async () => {
-        await saveSnapshot();
+      el("btnSaveDeal").onclick = async () => {
+        await saveDeal();
       };
 
       // Landing nav
       el("btnOpenRadio").onclick = () => showView("radioView");
 
-      el("btnOpenSnapshots").onclick = async () => {
-        showView("snapshotsView");
-        await renderMyUploads();
+      el("btnOpenMyDeals").onclick = async () => {
+        showView("myDealsView");
+        await renderMyDeals();
       };
 
       el("btnOpenPermissions").onclick = async () => {
-  // SuperAdmin only
-  if (CURRENT_ROLE !== "superadmin") {
-    alert("SuperAdmin only.");
-    return;
-  }
-  showView("permissionsView");
-  renderPermissionsCard();
-  await renderAdminAccessUsers();
-};
+        if (CURRENT_ROLE !== "superadmin") {
+          alert("SuperAdmin only.");
+          return;
+        }
+        showView("permissionsView");
+        renderPermissionsCard();
+        await renderAdminAccessUsers();
+      };
 
-
-      el("btnOpenAdminUploads").onclick = async () => {
-        if (!can("view_all_uploads")) {
+      el("btnOpenAllDeals").onclick = async () => {
+        if (!can("view_all_deals")) {
           alert("Admin only.");
           return;
         }
-        showView("adminUploadsView");
-        await renderAdminUsers();
+        showView("allDealsView");
+        await renderAllUsersDeals();
       };
 
       // Back buttons
       el("btnBack").onclick = () => showView("landing");
-      el("btnBackFromSnapshots").onclick = () => showView("landing");
+      el("btnBackFromMyDeals").onclick = () => showView("landing");
       el("btnBackFromPermissions").onclick = () => showView("landing");
-      el("btnBackFromAdminUploads").onclick = () => showView("landing");
+      el("btnBackFromAllDeals").onclick = () => showView("landing");
 
-      // Snapshots filters: re-render on change
+      // My Deals filters: re-render on change
       [
-        "uploadsSearchName",
-        "uploadsSearchParent",
-        "uploadsSearchProduct",
-        "uploadsPricingType",
-        "uploadsSortBy",
-        "uploadsDateFrom",
-        "uploadsDateTo"
+        "myDealsSearchName",
+        "myDealsSearchParent",
+        "myDealsSearchProduct",
+        "myDealsPricingType",
+        "myDealsSortBy",
+        "myDealsDateFrom",
+        "myDealsDateTo"
       ].forEach(id => {
         const node = el(id);
         if (!node) return;
-        node.addEventListener("input", () => renderMyUploads());
-        node.addEventListener("change", () => renderMyUploads());
+        node.addEventListener("input", () => renderMyDeals());
+        node.addEventListener("change", () => renderMyDeals());
       });
 
-      el("btnClearUploadsFilters").onclick = () => {
-        el("uploadsSearchName").value = "";
-        el("uploadsSearchParent").value = "";
-        el("uploadsSearchProduct").value = "";
-        el("uploadsPricingType").value = "";
-        el("uploadsSortBy").value = "newest";
-        el("uploadsDateFrom").value = "";
-        el("uploadsDateTo").value = "";
-        renderMyUploads();
+      el("btnClearMyDealsFilters").onclick = () => {
+        el("myDealsSearchName").value = "";
+        el("myDealsSearchParent").value = "";
+        el("myDealsSearchProduct").value = "";
+        el("myDealsPricingType").value = "";
+        el("myDealsSortBy").value = "newest";
+        el("myDealsDateFrom").value = "";
+        el("myDealsDateTo").value = "";
+        renderMyDeals();
       };
 
       onAuthStateChanged(auth, async (user) => {
@@ -1766,7 +1818,6 @@
         hideGoogleLogin();
         el("btnLogout").style.display = "";
 
-        // FIX: use `user` (not authUser)
         CURRENT_UID = user.uid;
         CURRENT_USER = await ensureUserDoc(user);
         CURRENT_ROLE = CURRENT_USER.role || "staff";
@@ -1774,7 +1825,7 @@
         applyRoleUI();
         renderPermissionsCard();
 
-        // init calculator (defined in Chunk 5)
+        // init calculator (defined in MAIN CALCULATOR JS)
         await window.initApp();
 
         // wire deal meta after calculator init (elements exist)
@@ -1784,6 +1835,7 @@
       });
     });
   </script>
+
   <script>
     /** =======================
      *  Deal Calc — UserData (Static Option A)
@@ -1795,7 +1847,6 @@
       const clone = o => JSON.parse(JSON.stringify(o));
 
       function normalizeSchema(any){
-        // If already v1 schema
         if (any && Array.isArray(any.parents)) {
           return {
             parents: any.parents.map(p => ({
@@ -1809,7 +1860,6 @@
           };
         }
 
-        // Legacy object schema: { Parent: { Market: [stations] } }
         if (any && typeof any === 'object' && !Array.isArray(any)) {
           const parents = [];
           for (const [parentName, marketsObj] of Object.entries(any)) {
@@ -1862,7 +1912,6 @@
           }
         }
 
-        // keep tidy
         out.parents.sort((a,b)=>a.name.localeCompare(b.name));
         out.parents.forEach(p => {
           p.markets.sort((a,b)=>a.name.localeCompare(b.name));
@@ -1986,17 +2035,15 @@
       return out;
     }
   </script>
+
   <script>
     /**************************************
      * MAIN CALCULATOR JS (radio + products)
      **************************************/
 
-    // Expose some state globally for other scripts (deal meta / snapshots)
     window.BASE_DS = { parents: [], markets: [], stations: [] };
-
     const DATA_URL = './radio_data.json';
 
-    // Dataset + Index
     window.DS = { parents: [], markets: [], stations: [] };
     window.IDX = {
       parentSet: new Set(),
@@ -2006,10 +2053,8 @@
       stationsByParentMarket: new Map(),
     };
 
-    // Selection state
     window.state = { parent: '', markets: new Set(), stations: new Set() };
 
-    // Products configuration
     window.PRODUCTS = [
       { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
       { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
@@ -2031,11 +2076,11 @@
 
     window.productState = {
       selectedProducts: new Set(),
-      pricingType: 'cash',        // cash | barter | mixed
-      customPrices: new Map(),     // productId -> number
+      pricingType: 'cash',
+      customPrices: new Map(),
       cpm: 2.00,
-      manualMinutes: new Map(),    // stationKey -> {prime, ros}
-      stationCashValues: new Map() // stationKey -> number
+      manualMinutes: new Map(),
+      stationCashValues: new Map()
     };
 
     async function loadDataset() {
@@ -2071,7 +2116,6 @@
       });
     }
 
-    // UI enable/disable helpers
     window.setMarketsEnabled = function(enabled) {
       const sel = el('btnSelAllMarkets');
       const clr = el('btnClrAllMarkets');
@@ -2094,7 +2138,6 @@
       if (list && !enabled) list.innerHTML = '';
     };
 
-    // initApp() called after login
     window.initApp = async function initApp() {
       if (window.initApp._ran) return;
       window.initApp._ran = true;
@@ -2142,7 +2185,6 @@
         window.updatePreview();
       };
 
-      // Add company modal open
       el('btnAddCompany').onclick = () => {
         const modal = el('addCompanyModal');
         modal.style.display = 'flex';
@@ -2159,7 +2201,6 @@
         el('ac_parent').focus();
       };
 
-      // cancel
       el('ac_cancel').onclick = () => {
         el('addCompanyModal').style.display = 'none';
         const err = el('ac_error');
@@ -2167,7 +2208,6 @@
         err.textContent = '';
       };
 
-      // save
       el('ac_save').onclick = () => {
         if (!can('manage_custom_parents')) {
           const err = el('ac_error');
@@ -2202,12 +2242,10 @@
         setParent(P);
       };
 
-      // backdrop close
       el('addCompanyModal').addEventListener('click', (e) => {
         if (e.target.id === 'addCompanyModal') el('ac_cancel').click();
       });
 
-      // esc close
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape' && el('addCompanyModal').style.display === 'flex') {
           el('ac_cancel').click();
@@ -2217,9 +2255,6 @@
       attachProductEventListeners();
     }
 
-    /**********************
-     * Parent / Market / Station
-     **********************/
     window.renderParents = function renderParents(q='') {
       const list = el('parentResults');
       list.innerHTML = '';
@@ -2272,8 +2307,6 @@
             del.className = 'btn';
             del.type = "button";
             del.textContent = 'Remove';
-            del.style.background = '#3a0d0d';
-            del.style.borderColor = '#5a1e1e';
             del.onclick = () => {
               if (!confirm(`Remove "${p}" from your custom companies?`)) return;
               const removed = window.UserData.removeParent(p);
@@ -2426,731 +2459,768 @@
       updateProductCalculations();
     };
 
-    /**********************
-     * Products + Pricing
-     **********************/
-    window.renderProducts = function renderProducts() {
-      const list = el('productsList');
-      list.innerHTML = '';
-      const q = el('productSearch').value.trim().toLowerCase();
-      const pricingType = window.productState.pricingType;
+    <script>
+  /**********************
+   * Products + Pricing
+   **********************/
+  window.renderProducts = function renderProducts() {
+    const list = el('productsList');
+    list.innerHTML = '';
+    const q = el('productSearch').value.trim().toLowerCase();
+    const pricingType = window.productState.pricingType;
 
-      window.PRODUCTS
-        .filter(p => (p.name || '').toLowerCase().includes(q))
-        .sort((a,b)=>a.name.localeCompare(b.name))
-        .forEach(product => {
-          const row = document.createElement('div');
-          row.className = 'el';
-          row.style.flexDirection = 'column';
-          row.style.alignItems = 'stretch';
-          row.style.gap = '8px';
+    window.PRODUCTS
+      .filter(p => (p.name || '').toLowerCase().includes(q))
+      .sort((a,b)=>a.name.localeCompare(b.name))
+      .forEach(product => {
+        const row = document.createElement('div');
+        row.className = 'el';
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'stretch';
+        row.style.gap = '8px';
 
-          const topRow = document.createElement('label');
-          topRow.style.display = 'flex';
-          topRow.style.alignItems = 'center';
-          topRow.style.gap = '8px';
-          topRow.style.justifyContent = 'space-between';
+        const topRow = document.createElement('label');
+        topRow.style.display = 'flex';
+        topRow.style.alignItems = 'center';
+        topRow.style.gap = '8px';
+        topRow.style.justifyContent = 'space-between';
 
-          const leftSide = document.createElement('div');
-          leftSide.style.display = 'flex';
-          leftSide.style.alignItems = 'center';
-          leftSide.style.gap = '8px';
+        const leftSide = document.createElement('div');
+        leftSide.style.display = 'flex';
+        leftSide.style.alignItems = 'center';
+        leftSide.style.gap = '8px';
 
-          const cb = document.createElement('input');
-          cb.type = 'checkbox';
-          cb.checked = window.productState.selectedProducts.has(product.id);
-          cb.onchange = () => {
-            if (cb.checked) window.productState.selectedProducts.add(product.id);
-            else {
-              window.productState.selectedProducts.delete(product.id);
-              window.productState.customPrices.delete(product.id);
-            }
-            window.renderProducts();
-            window.updateProductSummary();
-          };
-
-          const name = document.createElement('span');
-          name.innerHTML = `<strong>${product.name}</strong>`;
-
-          leftSide.appendChild(cb);
-          leftSide.appendChild(name);
-
-          const priceContainer = document.createElement('div');
-          priceContainer.style.display = 'flex';
-          priceContainer.style.alignItems = 'center';
-          priceContainer.style.gap = '8px';
-
-          const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
-          const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
-
-          if (rateCardValue === null || rateCardValue === undefined) {
-            const tbdBadge = document.createElement('span');
-            tbdBadge.className = 'badge';
-            tbdBadge.textContent = 'TBD';
-            priceContainer.appendChild(tbdBadge);
-          } else {
-            const rateCardBadge = document.createElement('span');
-            rateCardBadge.className = 'badge';
-            rateCardBadge.textContent = `Rate Card: $${Number(rateCardValue).toLocaleString()}`;
-            priceContainer.appendChild(rateCardBadge);
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = window.productState.selectedProducts.has(product.id);
+        cb.onchange = () => {
+          if (cb.checked) window.productState.selectedProducts.add(product.id);
+          else {
+            window.productState.selectedProducts.delete(product.id);
+            window.productState.customPrices.delete(product.id);
           }
-
-          topRow.appendChild(leftSide);
-          topRow.appendChild(priceContainer);
-          row.appendChild(topRow);
-
-          // pricing override: permission-gated
-          if (
-            window.productState.selectedProducts.has(product.id) &&
-            rateCardValue !== null &&
-            rateCardValue !== undefined &&
-            can('pricing_override')
-          ) {
-            const overrideRow = document.createElement('div');
-            overrideRow.style.display = 'flex';
-            overrideRow.style.alignItems = 'center';
-            overrideRow.style.gap = '8px';
-            overrideRow.style.marginLeft = '28px';
-
-            const label = document.createElement('span');
-            label.className = 'muted';
-            label.textContent = 'Override:';
-
-            const input = document.createElement('input');
-            input.type = 'number';
-            input.min = '0';
-            input.step = (pricingType === 'cash') ? '1' : '10';
-            input.value = (currentValue ?? 0);
-            input.style.width = '120px';
-            input.style.height = '32px';
-
-            input.onchange = () => {
-              const val = parseFloat(input.value);
-              if (Number.isFinite(val) && val >= 0) {
-                window.productState.customPrices.set(product.id, val);
-                window.updateProductSummary();
-              }
-            };
-
-            overrideRow.appendChild(label);
-            overrideRow.appendChild(input);
-            row.appendChild(overrideRow);
-          }
-
-          list.appendChild(row);
-        });
-    };
-
-    window.updateProductSummary = function updateProductSummary() {
-      const pricingType = window.productState.pricingType;
-      let totalMonthlyPerStation = 0;
-      let productCount = 0;
-
-      window.productState.selectedProducts.forEach(productId => {
-        const product = window.PRODUCTS.find(p => p.id === productId);
-        if (!product) return;
-
-        const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
-        if (rateCardValue === null || rateCardValue === undefined) return;
-
-        const value = window.productState.customPrices.get(productId) ?? rateCardValue;
-        totalMonthlyPerStation += Number(value || 0);
-        productCount++;
-      });
-
-      const numStations = window.state.stations.size;
-      const totalMonthlyAllStations = totalMonthlyPerStation * numStations;
-
-      el('productCount').textContent = String(productCount);
-      el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
-
-      // Show proposal section only if both stations & products exist
-      const proposalSection = el('proposalSection');
-      if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
-      else proposalSection.classList.add('hidden');
-
-      // CPM visible for barter/mixed only
-      el('cpmDisplay').classList.toggle('hidden', !(pricingType === 'barter' || pricingType === 'mixed'));
-
-      // Clear proposal output whenever pricing changes/selection changes
-      el("proposalOutput").classList.add("hidden");
-      el("proposalTable").innerHTML = "";
-
-      if (pricingType === 'barter') {
-        el('cashValuesSection').classList.add('hidden');
-        const annualBarterValue = totalMonthlyAllStations * 12;
-        calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
-      } else if (pricingType === 'mixed') {
-        el('cashValuesSection').classList.remove('hidden');
-        renderCashValues(totalMonthlyAllStations);
-      } else {
-        el('cashValuesSection').classList.add('hidden');
-        showCashSummary(totalMonthlyAllStations);
-      }
-    };
-
-    function updateProductCalculations(){
-      window.updateProductSummary();
-    }
-
-    function attachProductEventListeners() {
-      // pricing type radios
-      document.querySelectorAll('input[name="pricingType"]').forEach(r => {
-        r.addEventListener('change', () => {
-          window.productState.pricingType = r.value;
-
-          if (window.productState.pricingType !== 'mixed') {
-            window.productState.stationCashValues.clear();
-          }
-
-          if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
-          else el('cashValuesSection').classList.add('hidden');
-
           window.renderProducts();
           window.updateProductSummary();
-        });
-      });
+        };
 
-      el('productSearch').addEventListener('input', window.renderProducts);
+        const name = document.createElement('span');
+        name.innerHTML = `<strong>${product.name}</strong>`;
 
-      el('btnSelAllProducts').onclick = () => {
-        window.PRODUCTS.forEach(p => window.productState.selectedProducts.add(p.id));
-        window.renderProducts();
-        window.updateProductSummary();
-      };
+        leftSide.appendChild(cb);
+        leftSide.appendChild(name);
 
-      el('btnClrAllProducts').onclick = () => {
-        window.productState.selectedProducts.clear();
-        window.productState.customPrices.clear();
-        window.renderProducts();
-        window.updateProductSummary();
-      };
+        const priceContainer = document.createElement('div');
+        priceContainer.style.display = 'flex';
+        priceContainer.style.alignItems = 'center';
+        priceContainer.style.gap = '8px';
 
-      el('btnResetPricing').onclick = () => {
-        window.productState.customPrices.clear();
-        window.renderProducts();
-        window.updateProductSummary();
-      };
+        const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+        const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
 
-      el('btnResetMinutes').onclick = () => {
-        window.productState.manualMinutes.clear();
-        window.updateProductSummary();
-      };
-
-      el('btnGenerateProposal').onclick = () => {
-        if (!can('generate_proposal')) return alert("Your permissions do not allow proposal generation.");
-        generateProposal();
-      };
-
-      el('btnCopyProposal').onclick = async () => {
-        if (!el('proposalTable')?.innerHTML) return alert("Generate the proposal first.");
-        try{
-          const text = buildProposalText();
-          await navigator.clipboard.writeText(text);
-          const b = el('btnCopyProposal');
-          const t = b.textContent;
-          b.textContent = "✓ Copied";
-          setTimeout(()=>b.textContent=t, 1200);
-        }catch{
-          alert("Could not copy proposal. Try again or use manual select/copy.");
+        if (rateCardValue === null || rateCardValue === undefined) {
+          const tbdBadge = document.createElement('span');
+          tbdBadge.className = 'badge';
+          tbdBadge.textContent = 'TBD';
+          priceContainer.appendChild(tbdBadge);
+        } else {
+          const rateCardBadge = document.createElement('span');
+          rateCardBadge.className = 'badge';
+          rateCardBadge.textContent = `Rate Card: $${Number(rateCardValue).toLocaleString()}`;
+          priceContainer.appendChild(rateCardBadge);
         }
+
+        topRow.appendChild(leftSide);
+        topRow.appendChild(priceContainer);
+        row.appendChild(topRow);
+
+        // pricing override: permission-gated
+        if (
+          window.productState.selectedProducts.has(product.id) &&
+          rateCardValue !== null &&
+          rateCardValue !== undefined &&
+          can('pricing_override')
+        ) {
+          const overrideRow = document.createElement('div');
+          overrideRow.style.display = 'flex';
+          overrideRow.style.alignItems = 'center';
+          overrideRow.style.gap = '8px';
+          overrideRow.style.marginLeft = '28px';
+
+          const label = document.createElement('span');
+          label.className = 'muted';
+          label.textContent = 'Override:';
+
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.step = '1'; // whole numbers only
+          input.value = String(Math.round(Number(currentValue ?? 0)));
+          input.style.width = '120px';
+          input.style.height = '32px';
+
+          input.onchange = () => {
+            const val = parseFloat(input.value);
+            if (Number.isFinite(val) && val >= 0) {
+              window.productState.customPrices.set(product.id, Math.round(val));
+              window.updateProductSummary();
+            }
+          };
+
+          overrideRow.appendChild(label);
+          overrideRow.appendChild(input);
+          row.appendChild(overrideRow);
+        }
+
+        list.appendChild(row);
+      });
+  };
+
+  window.updateProductSummary = function updateProductSummary() {
+    const pricingType = window.productState.pricingType;
+    let totalMonthlyPerStation = 0;
+    let productCount = 0;
+
+    window.productState.selectedProducts.forEach(productId => {
+      const product = window.PRODUCTS.find(p => p.id === productId);
+      if (!product) return;
+
+      const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+      if (rateCardValue === null || rateCardValue === undefined) return;
+
+      const value = window.productState.customPrices.get(productId) ?? rateCardValue;
+      totalMonthlyPerStation += Number(value || 0);
+      productCount++;
+    });
+
+    const numStations = window.state.stations.size;
+    const totalMonthlyAllStations = totalMonthlyPerStation * numStations;
+
+    el('productCount').textContent = String(productCount);
+    el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
+
+    // Show proposal section only if both stations & products exist
+    const proposalSection = el('proposalSection');
+    if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
+    else proposalSection.classList.add('hidden');
+
+    // CPM visible for barter/mixed only
+    el('cpmDisplay').classList.toggle('hidden', !(pricingType === 'barter' || pricingType === 'mixed'));
+
+    // Clear proposal output whenever pricing changes/selection changes
+    el("proposalOutput").classList.add("hidden");
+    el("proposalTable").innerHTML = "";
+
+    if (pricingType === 'barter') {
+      el('cashValuesSection').classList.add('hidden');
+      const annualBarterValue = totalMonthlyAllStations * 12;
+      calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
+    } else if (pricingType === 'mixed') {
+      el('cashValuesSection').classList.remove('hidden');
+      renderCashValues(totalMonthlyAllStations);
+    } else {
+      el('cashValuesSection').classList.add('hidden');
+      showCashSummary(totalMonthlyAllStations);
+    }
+  };
+
+  function updateProductCalculations(){
+    window.updateProductSummary();
+  }
+
+  function attachProductEventListeners() {
+    // pricing type radios
+    document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+      r.addEventListener('change', () => {
+        window.productState.pricingType = r.value;
+
+        if (window.productState.pricingType !== 'mixed') {
+          window.productState.stationCashValues.clear();
+        }
+
+        if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
+        else el('cashValuesSection').classList.add('hidden');
+
+        window.renderProducts();
+        window.updateProductSummary();
+      });
+    });
+
+    el('productSearch').addEventListener('input', window.renderProducts);
+
+    el('btnSelAllProducts').onclick = () => {
+      window.PRODUCTS.forEach(p => window.productState.selectedProducts.add(p.id));
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    el('btnClrAllProducts').onclick = () => {
+      window.productState.selectedProducts.clear();
+      window.productState.customPrices.clear();
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    el('btnResetPricing').onclick = () => {
+      window.productState.customPrices.clear();
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    el('btnResetMinutes').onclick = () => {
+      window.productState.manualMinutes.clear();
+      window.updateProductSummary();
+    };
+
+    el('btnGenerateProposal').onclick = () => {
+      if (!can('generate_proposal')) return alert("Your permissions do not allow proposal generation.");
+      generateProposal();
+    };
+
+    el('btnCopyProposal').onclick = async () => {
+      if (!el('proposalTable')?.innerHTML) return alert("Generate the proposal first.");
+      try{
+        const text = buildProposalText();
+        await navigator.clipboard.writeText(text);
+        const b = el('btnCopyProposal');
+        const t = b.textContent;
+        b.textContent = "✓ Copied";
+        setTimeout(()=>b.textContent=t, 1200);
+      }catch{
+        alert("Could not copy proposal. Try again or use manual select/copy.");
+      }
+    };
+  }
+
+  /**********************
+   * Money + selection helpers
+   **********************/
+  function money(n){
+    const x = Number(n || 0);
+    return `$${Math.round(x).toLocaleString()}`;
+  }
+
+  function getSelectedStationsDetailed(){
+    const out = [];
+    (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
+      const key = s.parent + '|' + s.market + '|' + s.station;
+      if (window.state.stations.has(key)) out.push({ ...s, key });
+    });
+    return out;
+  }
+
+  function getSelectedProductsDetailed(){
+    const pricingType = window.productState.pricingType;
+    const out = [];
+    window.productState.selectedProducts.forEach(pid => {
+      const p = window.PRODUCTS.find(pp => pp.id === pid);
+      if (!p) return;
+      const rate = (pricingType === 'cash') ? p.cash : p.barter;
+      const val = (rate === null || rate === undefined) ? null : (window.productState.customPrices.get(pid) ?? rate);
+      out.push({ ...p, rateCard: rate, value: val });
+    });
+    out.sort((a,b)=>a.name.localeCompare(b.name));
+    return out;
+  }
+
+  function computeMonthlyValuePerStation(){
+    const pricingType = window.productState.pricingType;
+    let total = 0;
+    window.productState.selectedProducts.forEach(pid => {
+      const p = window.PRODUCTS.find(pp => pp.id === pid);
+      if (!p) return;
+      const rate = (pricingType === 'cash') ? p.cash : p.barter;
+      if (rate === null || rate === undefined) return;
+      total += (window.productState.customPrices.get(pid) ?? rate);
+    });
+    return total;
+  }
+
+  /**********************
+   * Cash-only summary block
+   **********************/
+  function showCashSummary(totalMonthlyAllStations) {
+    const barterSection = el('barterMinutesSection');
+    const breakdown = el('barterBreakdown');
+    const sectionTitle = el('barterSectionTitle');
+    const barterControls = el('barterControls');
+    const barterTotals = el('barterTotals');
+
+    if (totalMonthlyAllStations === 0 || window.state.stations.size === 0) {
+      barterSection.classList.add('hidden');
+      return;
+    }
+
+    barterSection.classList.remove('hidden');
+    breakdown.innerHTML = '';
+
+    if (sectionTitle) sectionTitle.textContent = 'CASH DEAL SUMMARY';
+    if (barterControls) barterControls.classList.add('hidden');
+    if (barterTotals) barterTotals.classList.add('hidden');
+
+    const selectedStations = getSelectedStationsDetailed();
+    if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
+
+    const perStationMonthly = totalMonthlyAllStations / selectedStations.length;
+
+    selectedStations.forEach(station => {
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.padding = '8px 10px';
+      row.style.justifyContent = 'space-between';
+
+      const stationName = document.createElement('div');
+      stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+
+      const stationValue = document.createElement('div');
+      stationValue.className = 'badge';
+      stationValue.textContent = `${money(perStationMonthly)}/mo`;
+
+      row.appendChild(stationName);
+      row.appendChild(stationValue);
+      breakdown.appendChild(row);
+    });
+
+    const annualValue = totalMonthlyAllStations * 12;
+
+    const summaryRow = document.createElement('div');
+    summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 10px; background: rgba(15, 24, 35, 0.5);';
+    summaryRow.innerHTML = `
+      <div><strong>Per Station:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
+        </div>
+      </div>
+      <div><strong>Total Monthly Value:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${money(totalMonthlyAllStations)}
+        </div>
+      </div>
+      <div><strong>Total Annual Value:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${money(annualValue)}
+        </div>
+      </div>
+    `;
+    breakdown.appendChild(summaryRow);
+  }
+
+  /**********************
+   * Mixed cash allocation UI
+   **********************/
+  function renderCashValues(monthlyProductValueAllStations){
+    const root = el('cashValuesList');
+    root.innerHTML = '';
+
+    const stations = getSelectedStationsDetailed();
+    if (!stations.length) {
+      root.innerHTML = `<div class="placeholder">Select stations first.</div>`;
+      el('totalCashInput').textContent = "0";
+      el('remainingForBarter').textContent = Math.round(monthlyProductValueAllStations).toLocaleString();
+      el('barterMinutesSection').classList.add('hidden');
+      return;
+    }
+
+    stations.forEach(st => {
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.justifyContent = 'space-between';
+      row.style.alignItems = 'center';
+
+      const left = document.createElement('div');
+      left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '1';
+      input.value = String(Math.round(window.productState.stationCashValues.get(st.key) || 0));
+      input.style.width = '140px';
+
+      input.oninput = () => {
+        const v = parseFloat(input.value);
+        window.productState.stationCashValues.set(st.key, Number.isFinite(v) && v >= 0 ? Math.round(v) : 0);
+        updateMixedPricing(monthlyProductValueAllStations);
       };
+
+      row.appendChild(left);
+      row.appendChild(input);
+      root.appendChild(row);
+    });
+
+    updateMixedPricing(monthlyProductValueAllStations);
+  }
+
+  function updateMixedPricing(monthlyProductValueAllStations) {
+    const stations = getSelectedStationsDetailed();
+    let totalCash = 0;
+    stations.forEach(st => totalCash += (window.productState.stationCashValues.get(st.key) || 0));
+
+    el('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
+
+    const remainingMonthly = Math.max(0, monthlyProductValueAllStations - totalCash);
+    el('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
+
+    if (remainingMonthly > 0 && stations.length > 0) {
+      calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
+    } else {
+      el('barterMinutesSection').classList.add('hidden');
+    }
+  }
+
+  /**********************
+   * Barter spots calculator (NO SPLITTING)
+   **********************/
+  function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue){
+    const section = el('barterMinutesSection');
+    const breakdown = el('barterBreakdown');
+    const sectionTitle = el('barterSectionTitle');
+    const barterControls = el('barterControls');
+    const barterTotals = el('barterTotals');
+
+    const stations = getSelectedStationsDetailed();
+    if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) {
+      section.classList.add('hidden');
+      return;
     }
 
-    /**********************
-     * Money + selection helpers
-     **********************/
-    function money(n){
-      const x = Number(n || 0);
-      return `$${Math.round(x).toLocaleString()}`;
+    section.classList.remove('hidden');
+    breakdown.innerHTML = '';
+    if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
+    if (barterControls) barterControls.classList.remove('hidden');
+    if (barterTotals) barterTotals.classList.remove('hidden');
+
+    let totalPrime = 0;
+    let totalRos = 0;
+    stations.forEach(s => {
+      totalPrime += (Number(s.primeAQH) || 0);
+      totalRos   += (Number(s.rosAQH) || 0);
+    });
+
+    const hasAQH = (totalPrime + totalRos) > 0;
+    const cpm = Number(window.productState.cpm || 2.0);
+
+    let totalSpotsPerMonth = 0;
+    if (hasAQH && cpm > 0) {
+      totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
+    } else {
+      totalSpotsPerMonth = stations.length; // fallback
     }
 
-    function getSelectedStationsDetailed(){
-      const out = [];
-      (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
-        const key = s.parent + '|' + s.market + '|' + s.station;
-        if (window.state.stations.has(key)) out.push({ ...s, key });
+    // FORCE WHOLE total spots (no fractional minutes)
+    totalSpotsPerMonth = Math.max(0, Math.round(totalSpotsPerMonth));
+
+    let primeShare = 0.5;
+    if (hasAQH) {
+      const denom = (totalPrime + totalRos);
+      primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
+    }
+    const rosShare = 1 - primeShare;
+
+    // WHOLE split: prime gets rounded share, ROS gets remainder
+    const totalPrimeSpots = Math.round(totalSpotsPerMonth * primeShare);
+    const totalRosSpots   = totalSpotsPerMonth - totalPrimeSpots;
+
+    // Largest remainder integer distribution helper
+    function distributeIntegers(total, entries, rawKey, outKey){
+      entries.forEach(x => {
+        x[outKey] = Math.floor(x[rawKey]);
+        x._frac = x[rawKey] - x[outKey];
       });
-      return out;
+      let used = entries.reduce((sum,x)=>sum + x[outKey], 0);
+      let remaining = total - used;
+
+      entries
+        .slice()
+        .sort((a,b)=> b._frac - a._frac)
+        .forEach(x => {
+          if (remaining > 0) { x[outKey] += 1; remaining -= 1; }
+        });
+
+      entries.forEach(x => delete x._frac);
     }
 
-    function getSelectedProductsDetailed(){
-      const pricingType = window.productState.pricingType;
-      const out = [];
-      window.productState.selectedProducts.forEach(pid => {
-        const p = window.PRODUCTS.find(pp => pp.id === pid);
-        if (!p) return;
-        const rate = (pricingType === 'cash') ? p.cash : p.barter;
-        const val = (rate === null || rate === undefined) ? null : (window.productState.customPrices.get(pid) ?? rate);
-        out.push({ ...p, rateCard: rate, value: val });
-      });
-      out.sort((a,b)=>a.name.localeCompare(b.name));
-      return out;
-    }
+    // Build allocation weights
+    const alloc = stations.map(st => {
+      const pAQH = Number(st.primeAQH) || 0;
+      const rAQH = Number(st.rosAQH) || 0;
 
-    function computeMonthlyValuePerStation(){
-      const pricingType = window.productState.pricingType;
-      let total = 0;
-      window.productState.selectedProducts.forEach(pid => {
-        const p = window.PRODUCTS.find(pp => pp.id === pid);
-        if (!p) return;
-        const rate = (pricingType === 'cash') ? p.cash : p.barter;
-        if (rate === null || rate === undefined) return;
-        total += (window.productState.customPrices.get(pid) ?? rate);
-      });
-      return total;
-    }
+      const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
+      const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
 
-    /**********************
-     * Cash-only summary block
-     **********************/
-    function showCashSummary(totalMonthlyAllStations) {
-      const barterSection = el('barterMinutesSection');
-      const breakdown = el('barterBreakdown');
-      const sectionTitle = el('barterSectionTitle');
-      const barterControls = el('barterControls');
-      const barterTotals = el('barterTotals');
+      return {
+        st,
+        rawPrime: totalPrimeSpots * pWeight,
+        rawRos:   totalRosSpots   * rWeight
+      };
+    });
 
-      if (totalMonthlyAllStations === 0 || window.state.stations.size === 0) {
-        barterSection.classList.add('hidden');
-        return;
-      }
+    distributeIntegers(totalPrimeSpots, alloc, 'rawPrime', 'autoPrimeInt');
+    distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
 
-      barterSection.classList.remove('hidden');
-      breakdown.innerHTML = '';
+    let sumPrime = 0;
+    let sumRos = 0;
 
-      if (sectionTitle) sectionTitle.textContent = 'CASH DEAL SUMMARY';
-      if (barterControls) barterControls.classList.add('hidden');
-      if (barterTotals) barterTotals.classList.add('hidden');
+    alloc.forEach(({ st, autoPrimeInt, autoRosInt }) => {
+      const manual = window.productState.manualMinutes.get(st.key);
 
-      const selectedStations = getSelectedStationsDetailed();
-      if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
+      // manual overrides are forced whole; otherwise use whole autos
+      const primeSpots = (manual?.prime != null) ? Math.round(manual.prime) : autoPrimeInt;
+      const rosSpots   = (manual?.ros   != null) ? Math.round(manual.ros)   : autoRosInt;
 
-      const perStationMonthly = totalMonthlyAllStations / selectedStations.length;
+      sumPrime += primeSpots;
+      sumRos   += rosSpots;
 
-      selectedStations.forEach(station => {
-        const row = document.createElement('div');
-        row.className = 'el';
-        row.style.padding = '8px 10px';
-        row.style.justifyContent = 'space-between';
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
 
-        const stationName = document.createElement('div');
-        stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+      const left = document.createElement('div');
+      left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
 
-        const stationValue = document.createElement('div');
-        stationValue.className = 'badge';
-        stationValue.textContent = `${money(perStationMonthly)}/mo`;
+      const right = document.createElement('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '10px';
 
-        row.appendChild(stationName);
-        row.appendChild(stationValue);
-        breakdown.appendChild(row);
-      });
+      const primeInput = document.createElement('input');
+      primeInput.type = 'number';
+      primeInput.min = '0';
+      primeInput.step = '1'; // whole only
+      primeInput.value = String(Math.round(primeSpots));
+      primeInput.style.width = '84px';
 
-      const annualValue = totalMonthlyAllStations * 12;
+      const rosInput = document.createElement('input');
+      rosInput.type = 'number';
+      rosInput.min = '0';
+      rosInput.step = '1'; // whole only
+      rosInput.value = String(Math.round(rosSpots));
+      rosInput.style.width = '84px';
 
-      const summaryRow = document.createElement('div');
-      summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 10px; background: rgba(15, 24, 35, 0.5);';
-      summaryRow.innerHTML = `
-        <div><strong>Per Station:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-            ${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
-          </div>
+      const primeLbl = document.createElement('span');
+      primeLbl.className = 'muted';
+      primeLbl.style.fontSize = '12px';
+      primeLbl.textContent = 'Prime';
+
+      const rosLbl = document.createElement('span');
+      rosLbl.className = 'muted';
+      rosLbl.style.fontSize = '12px';
+      rosLbl.textContent = 'ROS';
+
+      const saveManual = () => {
+        const p = parseFloat(primeInput.value);
+        const r = parseFloat(rosInput.value);
+        window.productState.manualMinutes.set(st.key, {
+          prime: Number.isFinite(p) && p >= 0 ? Math.round(p) : 0,
+          ros:   Number.isFinite(r) && r >= 0 ? Math.round(r) : 0
+        });
+        calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
+      };
+
+      primeInput.onchange = saveManual;
+      rosInput.onchange = saveManual;
+
+      right.appendChild(primeLbl);
+      right.appendChild(primeInput);
+      right.appendChild(rosLbl);
+      right.appendChild(rosInput);
+
+      row.appendChild(left);
+      row.appendChild(right);
+      breakdown.appendChild(row);
+    });
+
+    // totals as WHOLE numbers
+    el('totalPrimeMinutes').textContent = String(Math.round(sumPrime));
+    el('totalROSMinutes').textContent = String(Math.round(sumRos));
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-direction:column; gap:10px; background: rgba(15, 24, 35, 0.5);';
+    footer.innerHTML = `
+      <div><strong>Remaining Value:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          Monthly: ${money(monthlyRemainingValue)} • Annual: ${money(annualRemainingValue)}
         </div>
-        <div><strong>Total Monthly Value:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-            ${money(totalMonthlyAllStations)}
-          </div>
+      </div>
+      <div><strong>CPM:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          $${Number(window.productState.cpm || 2).toFixed(2)}
         </div>
-        <div><strong>Total Annual Value:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-            ${money(annualValue)}
-          </div>
+      </div>
+      <div><strong>Estimated Total Spots/Month:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${Math.round(sumPrime + sumRos)}
         </div>
-      `;
-      breakdown.appendChild(summaryRow);
-    }
+      </div>
+    `;
+    breakdown.appendChild(footer);
+  }
 
-    /**********************
-     * Mixed cash allocation UI
-     **********************/
-    function renderCashValues(monthlyProductValueAllStations){
-      const root = el('cashValuesList');
-      root.innerHTML = '';
+  /**********************
+   * Proposal generation
+   **********************/
+  function generateProposal(){
+    if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
-      const stations = getSelectedStationsDetailed();
-      if (!stations.length) {
-        root.innerHTML = `<div class="placeholder">Select stations first.</div>`;
-        el('totalCashInput').textContent = "0";
-        el('remainingForBarter').textContent = Math.round(monthlyProductValueAllStations).toLocaleString();
-        el('barterMinutesSection').classList.add('hidden');
-        return;
-      }
+    const stations = getSelectedStationsDetailed();
+    const products = getSelectedProductsDetailed();
+    const pricingType = window.productState.pricingType;
 
-      stations.forEach(st => {
-        const row = document.createElement('div');
-        row.className = 'el';
-        row.style.justifyContent = 'space-between';
-        row.style.alignItems = 'center';
+    if (!window.state.parent) return alert("Select a parent company first.");
+    if (!stations.length) return alert("Select at least one station.");
+    if (!products.length) return alert("Select at least one product.");
 
-        const left = document.createElement('div');
-        left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+    const monthlyPerStation = computeMonthlyValuePerStation();
+    const monthlyAllStations = monthlyPerStation * stations.length;
+    const annualAllStations  = monthlyAllStations * 12;
 
-        const input = document.createElement('input');
-        input.type = 'number';
-        input.min = '0';
-        input.step = '1';
-        input.value = String(Math.round(window.productState.stationCashValues.get(st.key) || 0));
-        input.style.width = '140px';
+    // use the real global dealMetaState (from Chunk 3)
+    const termMonths = dealMetaState.termMonths || 36;
+    const arEnabled  = !!dealMetaState.autoRenewEnabled;
+    const arMonths   = dealMetaState.autoRenewMonths || 12;
+    const nSeason    = dealMetaState.nielsenSeason || "—";
+    const nYear      = dealMetaState.nielsenYear || "—";
 
-        input.oninput = () => {
-          const v = parseFloat(input.value);
-          window.productState.stationCashValues.set(st.key, Number.isFinite(v) && v >= 0 ? v : 0);
-          updateMixedPricing(monthlyProductValueAllStations);
-        };
+    const lines = [];
+    lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+    lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
+    lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+    lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
+    lines.push(`<span class="pill">Monthly Total: <span>${money(monthlyAllStations)}</span></span>`);
+    lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStations)}</span></span>`);
+    lines.push(`</div>`);
 
-        row.appendChild(left);
-        row.appendChild(input);
-        root.appendChild(row);
-      });
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="card" style="background:#0b121a;">`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
+    lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
+    lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
+    lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
+    lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
+    lines.push(`<span class="badge">Nielsen: ${nSeason} ${nYear}</span>`);
+    lines.push(`</div>`);
+    lines.push(`</div>`);
 
-      updateMixedPricing(monthlyProductValueAllStations);
-    }
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Products</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Per Station / Month</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">All Stations / Month</th>
+    </tr></thead>`);
+    lines.push(`<tbody>`);
+    products.forEach(p => {
+      const perStation = (p.value === null) ? null : p.value;
+      const allStations = (perStation === null) ? null : perStation * stations.length;
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+          <strong>${p.name}</strong> ${(p.rateCard === null || p.rateCard === undefined) ? `<span class="badge" style="margin-left:6px;">TBD</span>` : ``}
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+          ${perStation === null ? "TBD" : money(perStation)}
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+          ${allStations === null ? "TBD" : money(allStations)}
+        </td>
+      </tr>`);
+    });
+    lines.push(`</tbody>`);
+    lines.push(`<tfoot><tr>
+      <td style="padding:10px 8px; text-align:right;"><strong>Totals</strong></td>
+      <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyPerStation)}</strong></td>
+      <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyAllStations)}</strong></td>
+    </tr></tfoot>`);
+    lines.push(`</table>`);
+    lines.push(`</div>`);
 
-    function updateMixedPricing(monthlyProductValueAllStations) {
-      const stations = getSelectedStationsDetailed();
-      let totalCash = 0;
-      stations.forEach(st => totalCash += (window.productState.stationCashValues.get(st.key) || 0));
-
-      el('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
-
-      const remainingMonthly = Math.max(0, monthlyProductValueAllStations - totalCash);
-      el('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
-
-      if (remainingMonthly > 0 && stations.length > 0) {
-        calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
-      } else {
-        el('barterMinutesSection').classList.add('hidden');
-      }
-    }
-
-    /**********************
-     * Barter spots calculator
-     **********************/
-    function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue){
-      const section = el('barterMinutesSection');
-      const breakdown = el('barterBreakdown');
-      const sectionTitle = el('barterSectionTitle');
-      const barterControls = el('barterControls');
-      const barterTotals = el('barterTotals');
-
-      const stations = getSelectedStationsDetailed();
-      if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) {
-        section.classList.add('hidden');
-        return;
-      }
-
-      section.classList.remove('hidden');
-      breakdown.innerHTML = '';
-      if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
-      if (barterControls) barterControls.classList.remove('hidden');
-      if (barterTotals) barterTotals.classList.remove('hidden');
-
-      let totalPrime = 0;
-      let totalRos = 0;
-      stations.forEach(s => {
-        totalPrime += (Number(s.primeAQH) || 0);
-        totalRos   += (Number(s.rosAQH) || 0);
-      });
-
-      const hasAQH = (totalPrime + totalRos) > 0;
-      const cpm = Number(window.productState.cpm || 2.0);
-
-      let totalSpotsPerMonth = 0;
-      if (hasAQH && cpm > 0) {
-        totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
-      } else {
-        totalSpotsPerMonth = stations.length; // fallback
-      }
-
-      let primeShare = 0.5;
-      if (hasAQH) {
-        const denom = (totalPrime + totalRos);
-        primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
-      }
-      const rosShare = 1 - primeShare;
-
-      const totalPrimeSpots = totalSpotsPerMonth * primeShare;
-      const totalRosSpots   = totalSpotsPerMonth * rosShare;
-
-      let sumPrime = 0;
-      let sumRos = 0;
-
-      stations.forEach(st => {
-        const pAQH = Number(st.primeAQH) || 0;
-        const rAQH = Number(st.rosAQH) || 0;
-
-        const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
-        const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
-
-        const autoPrime = totalPrimeSpots * pWeight;
-        const autoRos   = totalRosSpots   * rWeight;
-
-        const manual = window.productState.manualMinutes.get(st.key);
-        const primeSpots = manual?.prime ?? autoPrime;
-        const rosSpots   = manual?.ros   ?? autoRos;
-
-        sumPrime += primeSpots;
-        sumRos   += rosSpots;
-
-        const row = document.createElement('div');
-        row.className = 'el';
-        row.style.alignItems = 'center';
-        row.style.justifyContent = 'space-between';
-
-        const left = document.createElement('div');
-        left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
-
-        const right = document.createElement('div');
-        right.style.display = 'flex';
-        right.style.alignItems = 'center';
-        right.style.gap = '10px';
-
-        const primeInput = document.createElement('input');
-        primeInput.type = 'number';
-        primeInput.min = '0';
-        primeInput.step = '0.1';
-        primeInput.value = String(Math.round(primeSpots * 10) / 10);
-        primeInput.style.width = '84px';
-
-        const rosInput = document.createElement('input');
-        rosInput.type = 'number';
-        rosInput.min = '0';
-        rosInput.step = '0.1';
-        rosInput.value = String(Math.round(rosSpots * 10) / 10);
-        rosInput.style.width = '84px';
-
-        const primeLbl = document.createElement('span');
-        primeLbl.className = 'muted';
-        primeLbl.style.fontSize = '12px';
-        primeLbl.textContent = 'Prime';
-
-        const rosLbl = document.createElement('span');
-        rosLbl.className = 'muted';
-        rosLbl.style.fontSize = '12px';
-        rosLbl.textContent = 'ROS';
-
-        const saveManual = () => {
-          const p = parseFloat(primeInput.value);
-          const r = parseFloat(rosInput.value);
-          window.productState.manualMinutes.set(st.key, {
-            prime: Number.isFinite(p) && p >= 0 ? p : 0,
-            ros: Number.isFinite(r) && r >= 0 ? r : 0
-          });
-          calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
-        };
-
-        primeInput.onchange = saveManual;
-        rosInput.onchange = saveManual;
-
-        right.appendChild(primeLbl);
-        right.appendChild(primeInput);
-        right.appendChild(rosLbl);
-        right.appendChild(rosInput);
-
-        row.appendChild(left);
-        row.appendChild(right);
-        breakdown.appendChild(row);
-      });
-
-      el('totalPrimeMinutes').textContent = String(Math.round(sumPrime * 10) / 10);
-      el('totalROSMinutes').textContent = String(Math.round(sumRos * 10) / 10);
-
-      const footer = document.createElement('div');
-      footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-direction:column; gap:10px; background: rgba(15, 24, 35, 0.5);';
-      footer.innerHTML = `
-        <div><strong>Remaining Value:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-            Monthly: ${money(monthlyRemainingValue)} • Annual: ${money(annualRemainingValue)}
-          </div>
-        </div>
-        <div><strong>CPM:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-            $${Number(window.productState.cpm || 2).toFixed(2)}
-          </div>
-        </div>
-        <div><strong>Estimated Total Spots/Month:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-            ${Math.round((sumPrime + sumRos) * 10) / 10}
-          </div>
-        </div>
-      `;
-      breakdown.appendChild(footer);
-    }
-
-    /**********************
-     * Proposal generation
-     **********************/
-    function generateProposal(){
-      if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
-
-      const stations = getSelectedStationsDetailed();
-      const products = getSelectedProductsDetailed();
-      const pricingType = window.productState.pricingType;
-
-      if (!window.state.parent) return alert("Select a parent company first.");
-      if (!stations.length) return alert("Select at least one station.");
-      if (!products.length) return alert("Select at least one product.");
-
-      const monthlyPerStation = computeMonthlyValuePerStation();
-      const monthlyAllStations = monthlyPerStation * stations.length;
-      const annualAllStations  = monthlyAllStations * 12;
-
-      // use the real global dealMetaState (from Chunk 3)
-      const termMonths = dealMetaState.termMonths || 36;
-      const arEnabled  = !!dealMetaState.autoRenewEnabled;
-      const arMonths   = dealMetaState.autoRenewMonths || 12;
-      const nSeason    = dealMetaState.nielsenSeason || "—";
-      const nYear      = dealMetaState.nielsenYear || "—";
-
-      const lines = [];
-      lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
-      lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
-      lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
-      lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
-      lines.push(`<span class="pill">Monthly Total: <span>${money(monthlyAllStations)}</span></span>`);
-      lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStations)}</span></span>`);
-      lines.push(`</div>`);
-
-      lines.push(`<div class="subtle-divider"></div>`);
-      lines.push(`<div class="card" style="background:#0b121a;">`);
-      lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
-      lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
-      lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
-      lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
-      lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
-      lines.push(`<span class="badge">Nielsen: ${nSeason} ${nYear}</span>`);
-      lines.push(`</div>`);
-      lines.push(`</div>`);
-
-      lines.push(`<div class="subtle-divider"></div>`);
-      lines.push(`<div class="title" style="margin-bottom:6px;">Products</div>`);
-      lines.push(`<div style="overflow-x:auto;">`);
-      lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-      lines.push(`<thead><tr>
-        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
-        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Per Station / Month</th>
-        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">All Stations / Month</th>
-      </tr></thead>`);
-      lines.push(`<tbody>`);
-      products.forEach(p => {
-        const perStation = (p.value === null) ? null : p.value;
-        const allStations = (perStation === null) ? null : perStation * stations.length;
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Stations Included</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:12px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
+    </tr></thead><tbody>`);
+    stations
+      .slice()
+      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+      .forEach(s => {
         lines.push(`<tr>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-            <strong>${p.name}</strong> ${(p.rateCard === null || p.rateCard === undefined) ? `<span class="badge" style="margin-left:6px;">TBD</span>` : ``}
-          </td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-            ${perStation === null ? "TBD" : money(perStation)}
-          </td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-            ${allStations === null ? "TBD" : money(allStations)}
-          </td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${s.station}</strong></td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${s.market || ""}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.primeAQH||0)}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.rosAQH||0)}</td>
         </tr>`);
       });
-      lines.push(`</tbody>`);
-      lines.push(`<tfoot><tr>
-        <td style="padding:10px 8px; text-align:right;"><strong>Totals</strong></td>
-        <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyPerStation)}</strong></td>
-        <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyAllStations)}</strong></td>
-      </tr></tfoot>`);
-      lines.push(`</table>`);
-      lines.push(`</div>`);
+    lines.push(`</tbody></table></div>`);
 
-      lines.push(`<div class="subtle-divider"></div>`);
-      lines.push(`<div class="title" style="margin-bottom:6px;">Stations Included</div>`);
-      lines.push(`<div style="overflow-x:auto;">`);
-      lines.push(`<table style="width:100%; border-collapse:collapse; font-size:12px;">`);
-      lines.push(`<thead><tr>
-        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
-        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
-        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
-        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
-      </tr></thead><tbody>`);
-      stations
-        .slice()
-        .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
-        .forEach(s => {
-          lines.push(`<tr>
-            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${s.station}</strong></td>
-            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${s.market || ""}</td>
-            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.primeAQH||0)}</td>
-            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.rosAQH||0)}</td>
-          </tr>`);
-        });
-      lines.push(`</tbody></table></div>`);
-
-      const modeBadge = el('proposalMode');
-      if (modeBadge){
-        modeBadge.textContent =
-          pricingType === 'cash'  ? "Cash Deal" :
-          pricingType === 'barter'? "Barter Deal" :
-          "Mixed Deal";
-      }
-
-      el('proposalOutput').classList.remove('hidden');
-      el('proposalTable').innerHTML = lines.join("\n");
-      el('proposalSection').classList.remove('hidden');
+    const modeBadge = el('proposalMode');
+    if (modeBadge){
+      modeBadge.textContent =
+        pricingType === 'cash'  ? "Cash Deal" :
+        pricingType === 'barter'? "Barter Deal" :
+        "Mixed Deal";
     }
 
-    function buildProposalText(){
-      if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+    el('proposalOutput').classList.remove('hidden');
+    el('proposalTable').innerHTML = lines.join("\n");
+    el('proposalSection').classList.remove('hidden');
+  }
 
-      const stations = getSelectedStationsDetailed();
-      const products = getSelectedProductsDetailed();
-      const pricingType = window.productState.pricingType;
+  function buildProposalText(){
+    if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
-      const monthlyPerStation = computeMonthlyValuePerStation();
-      const monthlyAllStations = monthlyPerStation * stations.length;
+    const stations = getSelectedStationsDetailed();
+    const products = getSelectedProductsDetailed();
+    const pricingType = window.productState.pricingType;
 
-      const termMonths = dealMetaState.termMonths || 36;
-      const arEnabled  = !!dealMetaState.autoRenewEnabled;
-      const arMonths   = dealMetaState.autoRenewMonths || 12;
-      const nSeason    = dealMetaState.nielsenSeason || "—";
-      const nYear      = dealMetaState.nielsenYear || "—";
+    const monthlyPerStation = computeMonthlyValuePerStation();
+    const monthlyAllStations = monthlyPerStation * stations.length;
 
-      const lines = [];
-      lines.push(`Futuri Media Deal Calc — Proposal`);
-      lines.push(`--------------------------------`);
-      lines.push(`Parent: ${window.state.parent || "—"}`);
-      lines.push(`Pricing Type: ${pricingType}`);
-      lines.push(`Stations: ${stations.length}`);
-      lines.push(`Products: ${products.length}`);
-      lines.push(`Monthly Total (all stations): ${money(monthlyAllStations)}`);
-      lines.push(`Annual Total (all stations): ${money(monthlyAllStations*12)}`);
-      lines.push(``);
-      lines.push(`Deal Terms`);
-      lines.push(`- Term: ${termMonths} months`);
-      lines.push(`- Auto-Renew: ${arEnabled ? "Yes" : "No"}`);
-      lines.push(`- Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}`);
-      lines.push(`- Nielsen: ${nSeason} ${nYear}`);
-      lines.push(``);
-      lines.push(`Products (per station / month)`);
-      products.forEach(p => {
-        const v = (p.value === null) ? "TBD" : money(p.value);
-        lines.push(`- ${p.name}: ${v}`);
+    const termMonths = dealMetaState.termMonths || 36;
+    const arEnabled  = !!dealMetaState.autoRenewEnabled;
+    const arMonths   = dealMetaState.autoRenewMonths || 12;
+    const nSeason    = dealMetaState.nielsenSeason || "—";
+    const nYear      = dealMetaState.nielsenYear || "—";
+
+    const lines = [];
+    lines.push(`Futuri Media Deal Calc — Proposal`);
+    lines.push(`--------------------------------`);
+    lines.push(`Parent: ${window.state.parent || "—"}`);
+    lines.push(`Pricing Type: ${pricingType}`);
+    lines.push(`Stations: ${stations.length}`);
+    lines.push(`Products: ${products.length}`);
+    lines.push(`Monthly Total (all stations): ${money(monthlyAllStations)}`);
+    lines.push(`Annual Total (all stations): ${money(monthlyAllStations*12)}`);
+    lines.push(``);
+    lines.push(`Deal Terms`);
+    lines.push(`- Term: ${termMonths} months`);
+    lines.push(`- Auto-Renew: ${arEnabled ? "Yes" : "No"}`);
+    lines.push(`- Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}`);
+    lines.push(`- Nielsen: ${nSeason} ${nYear}`);
+    lines.push(``);
+    lines.push(`Products (per station / month)`);
+    products.forEach(p => {
+      const v = (p.value === null) ? "TBD" : money(p.value);
+      lines.push(`- ${p.name}: ${v}`);
+    });
+    lines.push(``);
+    lines.push(`Stations Included`);
+    stations
+      .slice()
+      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+      .forEach(s => {
+        lines.push(`- ${s.station} — ${s.market} (Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)})`);
       });
-      lines.push(``);
-      lines.push(`Stations Included`);
-      stations
-        .slice()
-        .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
-        .forEach(s => {
-          lines.push(`- ${s.station} — ${s.market} (Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)})`);
-        });
 
-      return lines.join("\n");
-    }
-  </script>
+    return lines.join("\n");
+  }
+</script>
 
-  </body>
+</body>
 </html>
+
