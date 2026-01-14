@@ -241,10 +241,7 @@
     }
 
     /* Login */
-    #googleLoginScreen{
-      position:fixed;inset:0;display:none;align-items:center;justify-content:center;
-      background:rgba(26,21,35,.45);z-index:99999
-    }
+    #googleLoginScreen{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(26,21,35,.45);z-index:99999}
     .login-card{
       width:min(440px,92vw);
       background:var(--surface);
@@ -255,6 +252,7 @@
       box-shadow:var(--shadow);
       display:grid;gap:12px;text-align:center
     }
+    /* Make the Google sign-in button match UI */
     .google-btn{
       width:100%;
       height:44px;
@@ -330,7 +328,9 @@
       color:var(--text);
     }
 
-    /* Landing: centered + smaller buttons */
+    /* =========================
+       LANDING: centered + smaller buttons
+       ========================= */
     #landing .card{
       display:flex;
       flex-direction:column;
@@ -346,6 +346,7 @@
     }
     #landing .card .row .muted{max-width:28ch}
 
+    /* Landing buttons match Go to Radio, but smaller + centered */
     #landing .btn{
       padding:8px 14px;
       font-size:13px;
@@ -367,7 +368,9 @@
       box-shadow:none;
     }
 
-    /* Filters card */
+    /* =========================
+       DEALS: filter/search card should match light UI (no dark panel)
+       ========================= */
     .filters-card{
       background:var(--surface-2);
       border:1px solid var(--edge);
@@ -377,7 +380,10 @@
     }
     .filters-card .title{margin-bottom:6px}
 
-    /* Light theme overrides for generated dark inline blocks */
+    /* =========================
+       CASH SUMMARY + footer readability fixes
+       (Overrides the JS inline dark backgrounds)
+       ========================= */
     #barterMinutesSection .el,
     #barterBreakdown .el{
       background:var(--surface) !important;
@@ -389,6 +395,7 @@
       border-color:rgba(103,36,119,.18) !important;
       color:var(--brand) !important;
     }
+    /* The generated footer blocks (cash summary + barter footer) */
     #barterBreakdown > div[style*="background: rgba(15, 24, 35"]{
       background:rgba(103,36,119,.06) !important;
       color:var(--text) !important;
@@ -398,6 +405,9 @@
       color:var(--muted) !important;
     }
 
+    /* =========================
+       PROPOSAL: make it match the light theme (fix dark inline styles)
+       ========================= */
     #proposalOutput{
       background:var(--surface) !important;
       border:1px solid var(--edge) !important;
@@ -426,9 +436,6 @@
     #proposalTable td, #proposalTable th{
       padding:10px 8px;
     }
-
-    /* NEW: calc alerts container spacing */
-    #calcAlerts .alert{margin:0}
   </style>
 </head>
 
@@ -453,12 +460,13 @@
     <div class="wrap" style="padding:12px 16px;">
       <h1 style="margin-bottom:4px;">Futuri Media Deal Calculator</h1>
       <div class="muted" style="font-size:11px;">
-        <span style="opacity:.7;">v4.0 (Google-only)</span>
+        <span style="opacity:.7;">v3.2 (Google-only)</span>
         <span style="margin:0 8px;">•</span>
         <span style="opacity:.7;">Radio dataset loaded from <span class="kbd">radio_data.json</span></span>
       </div>
     </div>
   </header>
+
   <main class="wrap">
     <!-- LANDING -->
     <div id="landing" class="grid">
@@ -487,10 +495,10 @@
       </section>
 
       <section class="card">
-        <div class="title">My Deal Calcs</div>
+        <div class="title">My Deals</div>
         <div class="row">
-          <div class="muted">View + load my saved deal calcs</div>
-          <button class="btn" id="btnOpenMyDeals" type="button">Go to My Deal Calcs</button>
+          <div class="muted">View + load my saved deals</div>
+          <button class="btn" id="btnOpenMyDeals" type="button">Go to My Deals</button>
         </div>
       </section>
 
@@ -503,33 +511,33 @@
       </section>
 
       <section class="card">
-        <div class="title">Admin Deal Calcs View</div>
+        <div class="title">Admin Deal View</div>
         <div class="row">
-          <div class="muted">Browse all users’ deal calcs (including yours)</div>
-          <button class="btn" id="btnOpenAllDeals" type="button">Go to Admin Deal Calcs</button>
+          <div class="muted">Browse all users’ deals (including yours)</div>
+          <button class="btn" id="btnOpenAllDeals" type="button">Go to All Deals</button>
         </div>
       </section>
     </div>
 
-    <!-- MY DEAL CALCS VIEW (keeps IDs for compatibility) -->
+    <!-- MY DEALS VIEW -->
     <div id="myDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
         <button class="back-btn" id="btnBackFromMyDeals" type="button">← Back to Landing</button>
       </div>
 
       <section class="card">
-        <div class="title">My Deal Calcs</div>
+        <div class="title">My Deals</div>
         <div class="muted" style="font-size:12px;margin-bottom:10px;">
-          Create deal calcs from <strong>Radio</strong>. Review + load them here.
+          Create deals from <strong>Radio</strong>. Review + load them here.
         </div>
 
         <div class="filters-card" style="margin-top:6px;">
-          <div class="title" style="margin-bottom:6px;">Search Deal Calcs</div>
+          <div class="title" style="margin-bottom:6px;">Search Deals</div>
 
           <div class="row" style="margin-bottom:8px;">
             <div class="field grow">
               <label for="myDealsSearchName">Name</label>
-              <input id="myDealsSearchName" type="text" placeholder="Search by calc name..." />
+              <input id="myDealsSearchName" type="text" placeholder="Search by deal name..." />
             </div>
 
             <div class="field grow">
@@ -540,7 +548,7 @@
 
           <div class="row" style="margin-bottom:8px;">
             <div class="field" style="min-width:160px;">
-              <label for="myDealsPricingType">Payment Type</label>
+              <label for="myDealsPricingType">Pricing Type</label>
               <select id="myDealsPricingType">
                 <option value="">Any</option>
                 <option value="cash">Cash</option>
@@ -621,16 +629,16 @@
       </section>
     </div>
 
-    <!-- ADMIN: ALL DEAL CALCS VIEW (keeps IDs for compatibility) -->
+    <!-- ADMIN: ALL DEALS VIEW -->
     <div id="allDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
         <button class="back-btn" id="btnBackFromAllDeals" type="button">← Back to Landing</button>
       </div>
 
       <section class="card" id="adminUsersDealsCard">
-        <div class="title">All Deal Calcs</div>
+        <div class="title">All Deals</div>
         <div class="muted" style="font-size:12px;margin-bottom:8px;">
-          Browse each user’s deal calcs (includes your own). (Role changes live in Permissions & Access.)
+          Browse each user’s deals (includes your own). (Role changes live in Permissions & Access.)
         </div>
         <div id="adminUsersList" class="list"></div>
       </section>
@@ -718,228 +726,2501 @@
           <div class="pill">Total ROS AQH: <span id="rosSum">0</span></div>
         </div>
       </section>
+
       <section class="card">
-        <div class="title">Step 5: Products, Inventory & Payment</div>
+        <div class="title">Step 5: Select Products & Pricing</div>
 
-        <!-- Inventory Summary -->
-        <div class="row" style="margin-bottom:10px;">
-          <div class="pill">Total AQH: <strong><span id="totalAQH">0</span></strong></div>
-          <div class="pill">Available Value: <strong>$<span id="availableValue">0</span></strong></div>
-          <div class="pill">Allocated Product Value: <strong>$<span id="allocatedValue">0</span></strong></div>
-          <div class="pill">Remaining Value: <strong>$<span id="remainingValue">0</span></strong></div>
-        </div>
-
-        <!-- Validation Alerts -->
-        <div id="calcAlerts" class="row" style="flex-direction:column;gap:6px;margin-bottom:10px;"></div>
-
-        <!-- Payment Type -->
         <div class="row" style="margin-bottom:12px;">
-          <label><input type="radio" name="pricingType" value="cash" checked> Cash</label>
-          <label><input type="radio" name="pricingType" value="barter"> Barter</label>
-          <label><input type="radio" name="pricingType" value="mixed"> Mixed</label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="radio" name="pricingType" value="cash" checked>
+            <span>Cash</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="radio" name="pricingType" value="barter">
+            <span>Barter</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;">
+            <input type="radio" name="pricingType" value="mixed">
+            <span>Mixed (Cash + Barter)</span>
+          </label>
         </div>
 
-        <!-- Mixed Split -->
-        <div id="mixedSplit" class="row hidden" style="margin-bottom:12px;">
-          <div class="field">
-            <label>Cash %</label>
-            <input id="cashPct" type="number" min="0" max="100" value="50">
-          </div>
-          <div class="field">
-            <label>Barter %</label>
-            <input id="barterPct" type="number" min="0" max="100" value="50">
+        <div id="cpmDisplay" class="hidden" style="margin-bottom:12px;">
+          <div class="row">
+            <span class="muted">CPM:</span>
+            <span class="badge">$2.00</span>
           </div>
         </div>
 
-        <!-- Product Selection -->
         <div class="row" style="margin-bottom:8px;">
           <input id="productSearch" type="text" placeholder="Search products..."/>
           <button class="btn" id="btnSelAllProducts" type="button">Select All</button>
           <button class="btn" id="btnClrAllProducts" type="button">Clear All</button>
+          <button class="btn" id="btnResetPricing" type="button">Reset to Rate Card</button>
         </div>
-
         <div id="productsList" class="list"></div>
 
-        <!-- Payment Summary -->
         <div class="row" style="margin-top:12px;">
-          <div class="pill">Cash Obligation: $<span id="cashObligation">0</span></div>
-          <div class="pill">Barter Obligation: $<span id="barterObligation">0</span></div>
+          <div class="pill">Products Selected: <span id="productCount">0</span></div>
+          <div class="pill">Total Value: $<span id="totalValue">0</span></div>
         </div>
       </section>
-      <section class="card">
-        <div class="title">Step 6: Proposal</div>
+
+      <section class="card hidden" id="cashValuesSection">
+        <div class="title">Cash Values by Station (All Selected Stations)</div>
+        <div class="muted" style="margin-bottom:12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
+        <div id="cashValuesList" class="list"></div>
+        <div class="row" style="margin-top:12px;">
+          <div class="pill">Total Cash (Monthly): $<span id="totalCashInput">0</span></div>
+          <div class="pill">Remaining for Barter (Monthly): $<span id="remainingForBarter">0</span></div>
+        </div>
+      </section>
+
+      <section class="card hidden" id="barterMinutesSection">
+        <div class="title" id="barterSectionTitle">Barter Spots Required (Distributed)</div>
+        <div class="row" style="margin-bottom:12px;" id="barterControls">
+          <div class="muted">Spots distributed proportionally across all stations. Edit manually if needed.</div>
+          <button class="btn" id="btnResetMinutes" type="button">Reset to Auto</button>
+        </div>
+        <div id="barterBreakdown" class="list"></div>
+        <div class="row" style="margin-top:12px;" id="barterTotals">
+          <div class="pill">Total Prime: <span id="totalPrimeMinutes">0</span></div>
+          <div class="pill">Total ROS: <span id="totalROSMinutes">0</span></div>
+        </div>
+      </section>
+
+      <section class="card hidden" id="proposalSection">
+        <div class="title">Step 6: Generate Proposal</div>
+
+        <div id="dealMetaDetails" class="card" style="margin-bottom:12px; background:var(--surface-2);">
+          <div class="row" style="justify-content:space-between; align-items:center; margin-bottom:10px;">
+            <div class="title" style="margin:0;">Deal Terms + Nielsen Season/Year</div>
+            <span class="badge">Always visible</span>
+          </div>
+
+          <div class="modal-grid">
+            <div class="field grow">
+              <label for="dealTermSelect">Term</label>
+              <select id="dealTermSelect">
+                <option value="12">12</option>
+                <option value="24">24</option>
+                <option value="36" selected>36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+                <option value="custom">Fill-in</option>
+              </select>
+            </div>
+
+            <div class="field grow" id="dealTermCustomWrap" style="display:none;">
+              <label for="dealTermCustomMonths">Custom Term (months)</label>
+              <input id="dealTermCustomMonths" type="number" min="1" step="1" placeholder="e.g. 18" />
+            </div>
+          </div>
+
+          <div class="row" style="margin-top:10px;">
+            <label style="display:flex;align-items:center;gap:8px;">
+              <input type="checkbox" id="autoRenewEnabled">
+              <span>Auto Renewal</span>
+            </label>
+
+            <div class="field grow">
+              <label for="autoRenewTermSelect">Auto-Renew Term (months)</label>
+              <select id="autoRenewTermSelect">
+                <option value="12" selected>12</option>
+                <option value="24">24</option>
+                <option value="36">36</option>
+                <option value="48">48</option>
+                <option value="60">60</option>
+                <option value="custom">Fill-in</option>
+              </select>
+            </div>
+
+            <div class="field grow" id="autoRenewCustomWrap" style="display:none;">
+              <label for="autoRenewCustomMonths">Custom Auto-Renew (months)</label>
+              <input id="autoRenewCustomMonths" type="number" min="1" step="1" placeholder="e.g. 12" />
+            </div>
+          </div>
+
+          <div class="modal-grid" style="margin-top:10px;">
+            <div class="field grow">
+              <label for="nielsenSeason">Nielsen Book (Season)</label>
+              <select id="nielsenSeason">
+                <option value="Spring">Spring</option>
+                <option value="Fall" selected>Fall</option>
+              </select>
+            </div>
+
+            <div class="field grow">
+              <label for="nielsenYear">Nielsen Book (Year)</label>
+              <input id="nielsenYear" type="number" min="2024" step="1" value="2030" />
+            </div>
+          </div>
+
+          <div class="subtle-divider"></div>
+
+          <div class="row">
+            <div class="muted" style="font-size:12px;">
+              Approval email: <span class="kbd" id="approvalEmailText">sabrinacarlo@futurimedia.com</span>
+            </div>
+            <button class="btn" id="btnCopyApprovalEmail" type="button">Copy Email</button>
+            <button class="btn" id="btnOpenApprovalDraft" type="button">Open Email Draft</button>
+          </div>
+
+          <div class="muted" style="font-size:11px;margin-top:8px;">
+            Note: This tool does not send email; it prepares a draft (mailto) or copies text for you.
+          </div>
+        </div>
 
         <div class="row" style="margin-bottom:12px;">
           <button class="btn primary" id="btnGenerateProposal" type="button">Generate Proposal</button>
-          <button class="btn" id="btnCopyProposal" type="button">Copy Proposal</button>
+          <button class="btn" id="btnCopyProposal" type="button">Copy to Clipboard</button>
         </div>
 
-        <div id="proposalOutput" class="hidden" style="padding:16px;border-radius:12px;">
-          <strong style="color:var(--success);">Proposal Ready</strong>
-          <div id="proposalTable" style="margin-top:10px;"></div>
+        <div id="proposalOutput" class="hidden" style="border-radius:10px;padding:16px;margin-top:12px;">
+          <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+            <strong style="color:var(--success);">Proposal Ready</strong>
+            <span class="badge" id="proposalMode">Cash Deal</span>
+          </div>
+          <div id="proposalTable" style="overflow-x:auto;"></div>
         </div>
       </section>
 
       <section class="card">
-        <div class="title">Deal Calcs</div>
-        <div class="row" style="gap:8px;">
-          <button class="btn" id="btnSaveDeal" type="button">Save Deal Calc</button>
-          <button class="btn" id="btnGoToDealCalcs" type="button">View Deal Calcs</button>
+        <div class="title">Deals</div>
+        <div class="row">
+          <button class="btn" id="btnSaveDeal" type="button">Save Deal</button>
+          <span class="muted" style="font-size:12px;">Create from Radio • View in My Deals</span>
         </div>
       </section>
     </div>
   </main>
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-  import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
-  import { getFirestore, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyAYZcQGPWjokOiCD-kC9F7QB64Bm-SMmpE",
-    authDomain: "deal-calculator-bf40d.firebaseapp.com",
-    projectId: "deal-calculator-bf40d",
-    storageBucket: "deal-calculator-bf40d.firebasestorage.app",
-    messagingSenderId: "1068500491090",
-    appId: "1:1068500491090:web:6654b26d72ad40b1eb388b"
+  <!-- ===========================
+       FIREBASE (Modules)
+       =========================== -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getAuth, onAuthStateChanged,
+      GoogleAuthProvider, signInWithPopup,
+      signOut
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, updateDoc,
+      collection, addDoc, getDocs,
+      query, orderBy, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAYZcQGPWjokOiCD-kC9F7QB64Bm-SMmpE",
+      authDomain: "deal-calculator-bf40d.firebaseapp.com",
+      projectId: "deal-calculator-bf40d",
+      storageBucket: "deal-calculator-bf40d.firebasestorage.app",
+      messagingSenderId: "1068500491090",
+      appId: "1:1068500491090:web:6654b26d72ad40b1eb388b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+
+    // Expose minimal Firebase handles to non-module scripts
+    window.fb = {
+      app, auth, db,
+      onAuthStateChanged,
+      GoogleAuthProvider, signInWithPopup,
+      signOut,
+      doc, getDoc, setDoc, updateDoc,
+      collection, addDoc, getDocs,
+      query, orderBy, serverTimestamp
+    };
+  </script>
+
+  <script>
+    /****************************
+     * Core helpers + Permissions
+     ****************************/
+    const el = (id) => document.getElementById(id);
+
+    // IMPORTANT: Sabrina is always SuperAdmin
+    const SUPERADMIN_EMAILS = new Set([
+      "sabrinacarlo@futurimedia.com"
+    ]);
+
+    // Firestore subcollection name(s)
+    // - Read from BOTH for backward compatibility
+    // - Save to "deals" going forward
+    const DEALS_WRITE_COLLECTION = "deals";
+    const DEALS_READ_COLLECTIONS = ["deals", "uploads"]; // supports old "uploads" data
+
+    // Base permissions by role
+    const PERMS_BASE = {
+      superadmin: {
+        manage_custom_parents:true,
+        import_export:true,
+        pricing_override:true,
+        generate_proposal:true,
+        upload_files:true,         // keep as-is (controls saving)
+        view_all_deals:true,       // admins/superadmins can view all deals
+        manage_roles:true
+      },
+      admin: {
+        manage_custom_parents:true,
+        import_export:true,
+        pricing_override:true,
+        generate_proposal:true,
+        upload_files:true,
+        view_all_deals:true,
+        manage_roles:false
+      },
+      staff: {
+        manage_custom_parents:true,
+        import_export:true,
+        pricing_override:true,
+        generate_proposal:true,
+        upload_files:true,
+        view_all_deals:false,
+        manage_roles:false
+      }
+    };
+
+    const PERM_META = [
+      { key:"manage_custom_parents", name:"Manage Custom Companies", desc:"Add/remove custom parent + market + station entries." },
+      { key:"import_export",         name:"Import/Export",          desc:"Reserved for future (data export/import workflows)." },
+      { key:"pricing_override",      name:"Pricing Override",       desc:"Edit product pricing override inputs." },
+      { key:"generate_proposal",     name:"Generate Proposal",      desc:"Generate + copy proposal output tables." },
+      { key:"upload_files",          name:"Save Deals",             desc:"Create deal records in Firestore." },
+      { key:"view_all_deals",        name:"View All Deals",         desc:"Admin view: browse all users’ deals (including yours)." },
+      { key:"manage_roles",          name:"Manage Roles",           desc:"SuperAdmin: change user role selection." }
+    ];
+
+    let CURRENT_USER = null;   // Firestore user doc data
+    let CURRENT_UID  = null;   // Auth uid
+    let CURRENT_ROLE = "staff";
+
+    // cache of my deals for client-side search
+    let MY_DEALS_CACHE = [];
+
+    function getOverrides(){
+      return (CURRENT_USER && CURRENT_USER.permOverrides && typeof CURRENT_USER.permOverrides === "object")
+        ? CURRENT_USER.permOverrides
+        : {};
+    }
+
+    function can(action){
+      const base = !!PERMS_BASE[CURRENT_ROLE]?.[action];
+      const ov = getOverrides();
+      if (Object.prototype.hasOwnProperty.call(ov, action)) return !!ov[action];
+      return base;
+    }
+
+    function showGoogleLogin(){ el("googleLoginScreen").style.display = "flex"; }
+    function hideGoogleLogin(){ el("googleLoginScreen").style.display = "none"; }
+
+    function isFuturiEmail(user){
+      const email = (user?.email || "").toLowerCase().trim();
+      return email.endsWith("@futurimedia.com");
+    }
+
+    // Ensure Firestore user doc exists + enforce roles
+    async function ensureUserDoc(user){
+      const { db, doc, getDoc, setDoc, serverTimestamp } = window.fb;
+      const ref = doc(db, "users", user.uid);
+      const snap = await getDoc(ref);
+
+      const email = (user.email || "").toLowerCase().trim();
+      const isSuper = SUPERADMIN_EMAILS.has(email);
+
+      // First login: create doc
+      if (!snap.exists()){
+        const payload = {
+          uid: user.uid,
+          email: user.email || "",
+          name: user.displayName || "",
+          role: isSuper ? "superadmin" : "staff",
+          permOverrides: {},
+          createdAt: serverTimestamp()
+        };
+        await setDoc(ref, payload);
+        return payload;
+      }
+
+      // Existing doc: patch/migrate
+      const data = snap.data() || {};
+      const patch = {};
+
+      if (!data.uid) patch.uid = user.uid;
+      if (!data.email) patch.email = user.email || "";
+      if (!data.name) patch.name = user.displayName || "";
+      if (!data.permOverrides) patch.permOverrides = {};
+      if (!data.createdAt) patch.createdAt = serverTimestamp(); // <- ensures ordering queries include older users
+
+      // migrate legacy role "view" -> "staff"
+      if (data.role === "view") patch.role = "staff";
+
+      // enforce Sabrina superadmin always
+      if (isSuper && data.role !== "superadmin") patch.role = "superadmin";
+
+      if (Object.keys(patch).length) await setDoc(ref, patch, { merge:true });
+
+      return { ...data, ...patch };
+    }
+
+    function showView(viewId){
+      ["landing","radioView","myDealsView","permissionsView","allDealsView"].forEach(id=>{
+        const node = el(id);
+        if (!node) return;
+        node.classList.toggle("hidden", id !== viewId);
+      });
+      window.scrollTo(0,0);
+    }
+
+    function applyRoleUI(){
+      el("whois").textContent = `Role: ${CURRENT_ROLE}`;
+
+      // deals hint + save deal button
+      el("myDealsHint").textContent = can("upload_files") ? "Staff/Admin/SuperAdmin" : "No save access";
+      el("btnSaveDeal").disabled = !can("upload_files");
+
+      // landing nav buttons (hard-gate Permissions)
+      const permBtn = el("btnOpenPermissions");
+      if (permBtn) permBtn.disabled = (CURRENT_ROLE !== "superadmin");
+
+      // permissions mode badge
+      const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+      el("permModeBadge").textContent = `Mode: ${editable ? "Editable" : "View"}`;
+      el("permModeHelp").textContent =
+        editable ? "Changes are saved to your user records." : "Your role is view-only.";
+
+      // user access (roles) inside permissions page
+      if (can("manage_roles")) el("userAccessCard").classList.remove("hidden");
+      else el("userAccessCard").classList.add("hidden");
+    }
+
+    async function saveMyPermissionOverride(key, value){
+      if (!CURRENT_USER) return;
+      const { db, doc, updateDoc } = window.fb;
+      const ref = doc(db, "users", CURRENT_USER.uid);
+      const next = { ...(CURRENT_USER.permOverrides || {}) };
+      next[key] = !!value;
+      await updateDoc(ref, { permOverrides: next });
+      CURRENT_USER.permOverrides = next;
+    }
+
+    function renderPermissionsCard(){
+      const grid = el("permissionsGrid");
+      if (!grid) return;
+      grid.innerHTML = "";
+
+      const editable = (CURRENT_ROLE === "superadmin" || CURRENT_ROLE === "admin" || CURRENT_ROLE === "staff");
+      const overrides = getOverrides();
+
+      PERM_META.forEach(meta => {
+        const baseVal = !!PERMS_BASE[CURRENT_ROLE]?.[meta.key];
+        const effective = can(meta.key);
+        const overridden = Object.prototype.hasOwnProperty.call(overrides, meta.key);
+
+        const item = document.createElement("div");
+        item.className = "perm-item";
+
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = effective;
+        cb.disabled = !editable;
+        cb.title = editable ? "Toggle permission" : "View only";
+
+        cb.onchange = async () => {
+          try{
+            await saveMyPermissionOverride(meta.key, cb.checked);
+            applyRoleUI();
+            if (typeof window.renderProducts === "function") window.renderProducts();
+            if (typeof window.updateProductSummary === "function") window.updateProductSummary();
+          }catch(e){
+            console.warn("Failed saving", e);
+            cb.checked = effective;
+            alert("Could not save permission change.");
+          }
+        };
+
+        const metaBox = document.createElement("div");
+        metaBox.className = "meta";
+
+        const line1 = document.createElement("div");
+        line1.className = "name";
+        line1.innerHTML =
+          `${meta.name}
+           ${overridden ? `<span class="badge" style="margin-left:6px;">Override</span>` : ""}
+           ${baseVal ? `<span class="badge" style="margin-left:6px;">Role</span>` : ""}`;
+
+        const line2 = document.createElement("div");
+        line2.className = "desc";
+        line2.textContent = meta.desc;
+
+        metaBox.appendChild(line1);
+        metaBox.appendChild(line2);
+
+        item.appendChild(cb);
+        item.appendChild(metaBox);
+        grid.appendChild(item);
+      });
+    }
+
+    async function renderAdminAccessUsers(){
+      // only superadmin can manage roles
+      if (CURRENT_ROLE !== "superadmin") {
+        el("userAccessCard").classList.add("hidden");
+        return;
+      }
+      el("userAccessCard").classList.remove("hidden");
+
+      const { db, collection, getDocs, query, orderBy, doc, updateDoc } = window.fb;
+      const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
+      const usersSnap = await getDocs(userQ);
+
+      const root = el("adminAccessUsersList");
+      root.innerHTML = "";
+
+      if (usersSnap.empty){
+        root.innerHTML = `<div class="placeholder">No users yet.</div>`;
+        return;
+      }
+
+      usersSnap.forEach(udocSnap => {
+        const u = udocSnap.data() || {};
+        const uid = udocSnap.id;
+
+        const row = document.createElement("div");
+        row.className = "el";
+        row.style.alignItems = "center";
+
+        row.innerHTML = `
+          <div style="display:flex;flex-direction:column;gap:2px;">
+            <strong>${u.name || "(no name)"}</strong>
+            <span class="muted" style="font-size:11px">${u.email || ""}</span>
+          </div>
+          <select style="max-width:180px;">
+            <option value="superadmin" ${u.role==="superadmin"?"selected":""}>SuperAdmin</option>
+            <option value="admin" ${u.role==="admin"?"selected":""}>Admin</option>
+            <option value="staff" ${u.role==="staff"?"selected":""}>Staff</option>
+          </select>
+        `;
+
+        const sel = row.querySelector("select");
+        sel.onchange = async (e) => {
+          const newRole = e.target.value;
+
+          // hard rule: Sabrina cannot be downgraded
+          const email = (u.email || "").toLowerCase().trim();
+          if (SUPERADMIN_EMAILS.has(email) && newRole !== "superadmin") {
+            alert("This account is locked as SuperAdmin.");
+            sel.value = "superadmin";
+            return;
+          }
+
+          try{
+            await updateDoc(doc(db, "users", uid), { role: newRole });
+
+            if (uid === CURRENT_UID){
+              CURRENT_ROLE = newRole;
+              if (CURRENT_USER) CURRENT_USER.role = newRole;
+              applyRoleUI();
+              renderPermissionsCard();
+              if (typeof window.renderProducts === "function") window.renderProducts();
+              if (typeof window.updateProductSummary === "function") window.updateProductSummary();
+            }
+          }catch(err){
+            console.warn("Failed updating role", err);
+            alert("Could not update role.");
+            sel.value = u.role || "staff";
+          }
+        };
+
+        root.appendChild(row);
+      });
+    }
+  </script>
+
+  <script>
+    /**********************
+     * Deal meta state (term, auto-renew, nielsen)
+     **********************/
+    const dealMetaState = {
+      termMonths: 36,
+      termCustomMonths: null,
+      autoRenewEnabled: false,
+      autoRenewMonths: 12,
+      autoRenewCustomMonths: null,
+      nielsenSeason: "Fall",
+      nielsenYear: 2024,
+      approvalEmail: "sabrinacarlo@futurimedia.com"
+    };
+    window.dealMetaState = dealMetaState;
+
+    function parsePositiveInt(v){
+      const n = Math.floor(parseFloat(v));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    }
+
+    function getEffectiveTermMonths(){
+      const sel = el("dealTermSelect")?.value || "36";
+      if (sel === "custom") return parsePositiveInt(el("dealTermCustomMonths")?.value) || dealMetaState.termMonths;
+      return parsePositiveInt(sel) || dealMetaState.termMonths;
+    }
+
+    function getEffectiveAutoRenewMonths(){
+      const sel = el("autoRenewTermSelect")?.value || "12";
+      if (sel === "custom") return parsePositiveInt(el("autoRenewCustomMonths")?.value) || dealMetaState.autoRenewMonths;
+      return parsePositiveInt(sel) || dealMetaState.autoRenewMonths;
+    }
+
+    function syncDealMetaFromUI(){
+      if (!el("dealTermSelect")) return;
+      dealMetaState.termMonths = getEffectiveTermMonths();
+      dealMetaState.termCustomMonths = parsePositiveInt(el("dealTermCustomMonths")?.value);
+
+      dealMetaState.autoRenewEnabled = !!el("autoRenewEnabled")?.checked;
+      dealMetaState.autoRenewMonths = getEffectiveAutoRenewMonths();
+      dealMetaState.autoRenewCustomMonths = parsePositiveInt(el("autoRenewCustomMonths")?.value);
+
+      dealMetaState.nielsenSeason = el("nielsenSeason")?.value || dealMetaState.nielsenSeason;
+      dealMetaState.nielsenYear = parsePositiveInt(el("nielsenYear")?.value) || dealMetaState.nielsenYear;
+      dealMetaState.approvalEmail = (el("approvalEmailText")?.textContent || dealMetaState.approvalEmail);
+
+      window.dealMetaState = dealMetaState;
+    }
+
+    function applyDealMetaToUI(){
+      if (!el("dealTermSelect")) return;
+
+      const preset = new Set(["12","24","36","48","60"]);
+
+      if (preset.has(String(dealMetaState.termMonths))) {
+        el("dealTermSelect").value = String(dealMetaState.termMonths);
+        el("dealTermCustomWrap").style.display = "none";
+      } else {
+        el("dealTermSelect").value = "custom";
+        el("dealTermCustomWrap").style.display = "";
+        el("dealTermCustomMonths").value = String(dealMetaState.termMonths || "");
+      }
+
+      el("autoRenewEnabled").checked = !!dealMetaState.autoRenewEnabled;
+
+      if (preset.has(String(dealMetaState.autoRenewMonths))) {
+        el("autoRenewTermSelect").value = String(dealMetaState.autoRenewMonths);
+        el("autoRenewCustomWrap").style.display = "none";
+      } else {
+        el("autoRenewTermSelect").value = "custom";
+        el("autoRenewCustomWrap").style.display = "";
+        el("autoRenewCustomMonths").value = String(dealMetaState.autoRenewMonths || "");
+      }
+
+      el("nielsenSeason").value = dealMetaState.nielsenSeason || "Fall";
+      el("nielsenYear").value = String(dealMetaState.nielsenYear || 2024);
+      if (el("approvalEmailText")) el("approvalEmailText").textContent = dealMetaState.approvalEmail;
+    }
+
+    function wireDealMetaUI(){
+      const termSel = el("dealTermSelect");
+      const termCustomWrap = el("dealTermCustomWrap");
+      const termCustom = el("dealTermCustomMonths");
+
+      const arSel = el("autoRenewTermSelect");
+      const arCustomWrap = el("autoRenewCustomWrap");
+      const arCustom = el("autoRenewCustomMonths");
+
+      if (!termSel) return;
+
+      const toggleWraps = () => {
+        termCustomWrap.style.display = (termSel.value === "custom") ? "" : "none";
+        arCustomWrap.style.display = (arSel.value === "custom") ? "" : "none";
+      };
+
+      termSel.addEventListener("change", () => { toggleWraps(); syncDealMetaFromUI(); });
+      termCustom.addEventListener("input", () => syncDealMetaFromUI());
+
+      el("autoRenewEnabled").addEventListener("change", () => syncDealMetaFromUI());
+      arSel.addEventListener("change", () => { toggleWraps(); syncDealMetaFromUI(); });
+      arCustom.addEventListener("input", () => syncDealMetaFromUI());
+
+      el("nielsenSeason").addEventListener("change", () => syncDealMetaFromUI());
+      el("nielsenYear").addEventListener("input", () => syncDealMetaFromUI());
+
+      el("btnCopyApprovalEmail").addEventListener("click", async () => {
+        try{
+          syncDealMetaFromUI();
+          await navigator.clipboard.writeText(dealMetaState.approvalEmail);
+          const b = el("btnCopyApprovalEmail");
+          const t = b.textContent;
+          b.textContent = "✓ Copied";
+          setTimeout(()=>b.textContent=t,1200);
+        }catch{
+          alert("Could not copy. Email is: " + dealMetaState.approvalEmail);
+        }
+      });
+
+      el("btnOpenApprovalDraft").addEventListener("click", () => {
+        syncDealMetaFromUI();
+        const subject = encodeURIComponent("Deal Calc approval request");
+        const body = encodeURIComponent(
+          `Hi,\n\nPlease approve this deal.\n\n` +
+          `Parent: ${(window.state?.parent) || "—"}\n` +
+          `Pricing: ${(window.productState?.pricingType) || "—"}\n` +
+          `Term (months): ${dealMetaState.termMonths || "—"}\n` +
+          `Auto Renew: ${dealMetaState.autoRenewEnabled ? "Yes" : "No"}\n` +
+          `Auto Renew Term (months): ${dealMetaState.autoRenewEnabled ? dealMetaState.autoRenewMonths : "—"}\n` +
+          `Nielsen Book: ${dealMetaState.nielsenSeason || "—"} ${dealMetaState.nielsenYear || "—"}\n\n` +
+          `Thanks.`
+        );
+        const href = `mailto:${dealMetaState.approvalEmail}?subject=${subject}&body=${body}`;
+        window.location.href = href;
+      });
+
+      toggleWraps();
+      applyDealMetaToUI();
+      syncDealMetaFromUI();
+    }
+
+    /**********************
+     * Deals (save + load + list)
+     **********************/
+    function buildDealPayload(){
+      syncDealMetaFromUI();
+      return {
+        parent: window.state?.parent || "",
+        markets: Array.from(window.state?.markets || []),
+        stations: Array.from(window.state?.stations || []),
+
+        pricingType: window.productState?.pricingType || "cash",
+        products: Array.from(window.productState?.selectedProducts || []),
+        customPrices: Object.fromEntries(window.productState?.customPrices || []),
+        manualMinutes: Object.fromEntries(window.productState?.manualMinutes || []),
+        stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
+        cpm: window.productState?.cpm ?? 2.0,
+
+        dealMeta: { ...dealMetaState },
+
+        proposalHTML: el("proposalTable")?.innerHTML || null
+      };
+    }
+
+    function loadDeal(payload){
+      if (!payload) return;
+
+      showView("radioView");
+      window.scrollTo(0,0);
+
+      window.state.parent = payload.parent || "";
+      window.state.markets = new Set(payload.markets || []);
+      window.state.stations = new Set(payload.stations || []);
+
+      window.productState.pricingType = payload.pricingType || "cash";
+      window.productState.selectedProducts = new Set(payload.products || []);
+      window.productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
+      window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
+      window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
+      window.productState.cpm = payload.cpm ?? 2.0;
+
+      if (payload.dealMeta && typeof payload.dealMeta === "object") {
+        Object.assign(dealMetaState, payload.dealMeta);
+        window.dealMetaState = dealMetaState;
+      }
+      setTimeout(() => { applyDealMetaToUI(); syncDealMetaFromUI(); }, 0);
+
+      document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+        r.checked = (r.value === window.productState.pricingType);
+      });
+
+      if (typeof window.setMarketsEnabled === "function") window.setMarketsEnabled(!!window.state.parent);
+      if (typeof window.setStationsEnabled === "function") window.setStationsEnabled(!!window.state.parent);
+      if (typeof window.renderParents === "function") window.renderParents(el("parentSearch")?.value || "");
+      if (typeof window.renderMarkets === "function") window.renderMarkets();
+      if (typeof window.renderStations === "function") window.renderStations();
+      if (typeof window.renderProducts === "function") window.renderProducts();
+      if (typeof window.updatePreview === "function") window.updatePreview();
+      if (typeof window.updateProductSummary === "function") window.updateProductSummary();
+
+      if (payload.proposalHTML){
+        el("proposalSection")?.classList.remove("hidden");
+        el("proposalOutput")?.classList.remove("hidden");
+        if (el("proposalTable")) el("proposalTable").innerHTML = payload.proposalHTML;
+      }
+
+      alert("Deal Loaded (Radio view).");
+    }
+
+    async function saveDeal(){
+      if (!CURRENT_USER) return alert("Not signed in.");
+      if (!can("upload_files")) return alert("Your permissions do not allow saving deals.");
+
+      const { db, collection, addDoc, serverTimestamp } = window.fb;
+
+      let name = prompt("Name This Deal:", "");
+      if (name === null) return;
+      name = name.trim();
+      if (!name){
+        const now = new Date();
+        name = `Deal ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+      }
+
+      const payload = buildDealPayload();
+
+      await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
+        type: "deal",
+        name,
+        payload,
+        createdAt: serverTimestamp()
+      });
+
+      el("myDealsStatus").textContent = "Saved!";
+      setTimeout(() => (el("myDealsStatus").textContent = ""), 1500);
+
+      if (!el("myDealsView").classList.contains("hidden")) await renderMyDeals();
+      if (!el("allDealsView").classList.contains("hidden") && can("view_all_deals")) await renderAllUsersDeals();
+    }
+
+    function applyMyDealsFilters(list){
+      const nameQ   = (el("myDealsSearchName")?.value || "").trim().toLowerCase();
+      const parentQ = (el("myDealsSearchParent")?.value || "").trim().toLowerCase();
+      const prodQ   = (el("myDealsSearchProduct")?.value || "").trim().toLowerCase();
+      const pType   = (el("myDealsPricingType")?.value || "").trim().toLowerCase();
+      const sortBy  = (el("myDealsSortBy")?.value || "newest");
+
+      const fromStr = el("myDealsDateFrom")?.value || "";
+      const toStr   = el("myDealsDateTo")?.value || "";
+
+      const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
+      const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
+
+      let out = list.filter(deal => {
+        const name   = (deal.name || "").toLowerCase();
+        const parent = (deal.payload?.parent || "").toLowerCase();
+        const pricingType = (deal.payload?.pricingType || "").toLowerCase();
+
+        const productIds = Array.isArray(deal.payload?.products) ? deal.payload.products : [];
+        const productNames = productIds
+          .map(pid => (window.PRODUCTS?.find(p => p.id === pid)?.name || pid))
+          .join(" ")
+          .toLowerCase();
+
+        const created = deal.createdAt?.toDate ? deal.createdAt.toDate() : null;
+
+        if (nameQ && !name.includes(nameQ)) return false;
+        if (parentQ && !parent.includes(parentQ)) return false;
+        if (pType && pricingType !== pType) return false;
+        if (prodQ && !productNames.includes(prodQ)) return false;
+
+        if (fromDate && created && created < fromDate) return false;
+        if (toDate && created && created > toDate) return false;
+
+        return true;
+      });
+
+      if (sortBy === "oldest") {
+        out.sort((a,b)=>{
+          const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+          const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+          return ad-bd;
+        });
+      } else if (sortBy === "name") {
+        out.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+      } else {
+        out.sort((a,b)=>{
+          const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+          const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+          return bd-ad;
+        });
+      }
+
+      return out;
+    }
+
+    async function getDealsForUser(uid){
+      const { db, collection, getDocs, query, orderBy } = window.fb;
+
+      // Read from all known collections and merge
+      const all = [];
+      for (const colName of DEALS_READ_COLLECTIONS){
+        const q = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"));
+        const snap = await getDocs(q);
+        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
+      }
+
+      // De-dupe best-effort (same name+createdAt)
+      const seen = new Set();
+      const out = [];
+      for (const d of all){
+        const t = d.createdAt?.toDate ? d.createdAt.toDate().getTime() : 0;
+        const key = `${d.name||""}|${t}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push(d);
+      }
+
+      // Sort newest first
+      out.sort((a,b)=>{
+        const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+        const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+        return bd-ad;
+      });
+
+      return out;
+    }
+
+    async function renderMyDeals(){
+      const root = el("myDealsList");
+      root.innerHTML = "";
+
+      if (!CURRENT_USER){
+        root.innerHTML = `<div class="placeholder">Sign in to view your deals.</div>`;
+        return;
+      }
+
+      const deals = await getDealsForUser(CURRENT_USER.uid);
+      MY_DEALS_CACHE = deals.slice();
+
+      const filtered = applyMyDealsFilters(MY_DEALS_CACHE);
+
+      if (!filtered.length){
+        root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
+        return;
+      }
+
+      filtered.forEach(d => {
+        const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+        const label = when ? when.toLocaleString() : "(pending)";
+
+        const row = document.createElement("div");
+        row.className = "el";
+        row.innerHTML = `
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <strong>${d.name || "Untitled Deal"}</strong>
+            <div class="muted" style="font-size:11px">${label}</div>
+            ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+            ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+          </div>
+          <button class="btn" type="button">Load</button>
+        `;
+        row.querySelector("button").onclick = () => loadDeal(d.payload);
+        root.appendChild(row);
+      });
+    }
+
+    async function renderAllUsersDeals(){
+      if (!can("view_all_deals")) return;
+
+      const { db, collection, getDocs, query, orderBy } = window.fb;
+
+      const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
+      const usersSnap = await getDocs(userQ);
+
+      const root = el("adminUsersList");
+      root.innerHTML = "";
+      if (usersSnap.empty){
+        root.innerHTML = `<div class="placeholder">No users yet.</div>`;
+        return;
+      }
+
+      // Ensure current user appears first (if present)
+      const docs = usersSnap.docs.slice();
+      docs.sort((a,b)=>{
+        if (a.id === CURRENT_UID) return -1;
+        if (b.id === CURRENT_UID) return 1;
+        return 0;
+      });
+
+      for (const udocSnap of docs){
+        const u = udocSnap.data() || {};
+        const uid = udocSnap.id;
+
+        const card = document.createElement("div");
+        card.style.border = "1px solid var(--edge)";
+        card.style.background = "var(--surface)";
+        card.style.borderRadius = "16px";
+        card.style.padding = "12px";
+        card.style.display = "flex";
+        card.style.flexDirection = "column";
+        card.style.gap = "10px";
+
+        const header = document.createElement("div");
+        header.style.display = "flex";
+        header.style.justifyContent = "space-between";
+        header.style.gap = "10px";
+        header.style.alignItems = "center";
+        header.innerHTML = `
+          <div>
+            <strong>${u.name || "(no name)"}</strong><br>
+            <span class="muted" style="font-size:12px">${u.email || ""}</span>
+          </div>
+        `;
+
+        const roleBadge = document.createElement("span");
+        roleBadge.className = "badge";
+        roleBadge.textContent = uid === CURRENT_UID ? `You • ${u.role || "staff"}` : `Role: ${u.role || "staff"}`;
+        header.appendChild(roleBadge);
+
+        card.appendChild(header);
+
+        const dealsBox = document.createElement("div");
+        dealsBox.className = "list";
+
+        let deals = [];
+        try{
+          deals = await getDealsForUser(uid);
+        }catch(e){
+          console.warn("Could not load deals for user", uid, e);
+        }
+
+        if (!deals.length){
+          dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
+        } else {
+          deals.forEach(d => {
+            const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+            const label = when ? when.toLocaleString() : "(pending)";
+
+            const row = document.createElement("div");
+            row.className = "el";
+            row.innerHTML = `
+              <div>
+                <strong>${d.name || "Deal"}</strong>
+                <div class="muted" style="font-size:11px">${label}</div>
+              </div>
+              <button class="btn" type="button">Load</button>
+            `;
+            row.querySelector("button").onclick = () => loadDeal(d.payload);
+            dealsBox.appendChild(row);
+          });
+        }
+
+        card.appendChild(dealsBox);
+        root.appendChild(card);
+      }
+    }
+  </script>
+
+  <script>
+    /**********************
+     * Google-only Login wiring + Nav
+     **********************/
+    document.addEventListener("DOMContentLoaded", () => {
+      const { auth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = window.fb;
+
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account", hd: "futurimedia.com" });
+
+      el("btnGoogleLogin").onclick = async () => {
+        const btn = el("btnGoogleLogin");
+        const err = el("googleLoginError");
+        err.style.display = "none";
+
+        if (btn.dataset.busy === "1") return;
+        btn.dataset.busy = "1";
+        btn.disabled = true;
+
+        try{
+          await signInWithPopup(auth, provider);
+        }catch(e){
+          if (e.code === "auth/cancelled-popup-request") return;
+          if (e.code === "auth/popup-closed-by-user") return;
+          err.textContent = "Sign-in failed. Please try again.";
+          err.style.display = "block";
+          console.warn("Google sign-in error:", e.code, e.message);
+        }finally{
+          btn.dataset.busy = "0";
+          btn.disabled = false;
+        }
+      };
+
+      el("btnLogout").onclick = async () => {
+        await signOut(auth);
+        location.reload();
+      };
+
+      el("btnSaveDeal").onclick = async () => {
+        await saveDeal();
+      };
+
+      // Landing nav
+      el("btnOpenRadio").onclick = () => showView("radioView");
+
+      el("btnOpenMyDeals").onclick = async () => {
+        showView("myDealsView");
+        await renderMyDeals();
+      };
+
+      el("btnOpenPermissions").onclick = async () => {
+        if (CURRENT_ROLE !== "superadmin") {
+          alert("SuperAdmin only.");
+          return;
+        }
+        showView("permissionsView");
+        renderPermissionsCard();
+        await renderAdminAccessUsers();
+      };
+
+      el("btnOpenAllDeals").onclick = async () => {
+        if (!can("view_all_deals")) {
+          alert("Admin only.");
+          return;
+        }
+        showView("allDealsView");
+        await renderAllUsersDeals();
+      };
+
+      // Back buttons
+      el("btnBack").onclick = () => showView("landing");
+      el("btnBackFromMyDeals").onclick = () => showView("landing");
+      el("btnBackFromPermissions").onclick = () => showView("landing");
+      el("btnBackFromAllDeals").onclick = () => showView("landing");
+
+      // My Deals filters: re-render on change
+      [
+        "myDealsSearchName",
+        "myDealsSearchParent",
+        "myDealsSearchProduct",
+        "myDealsPricingType",
+        "myDealsSortBy",
+        "myDealsDateFrom",
+        "myDealsDateTo"
+      ].forEach(id => {
+        const node = el(id);
+        if (!node) return;
+        node.addEventListener("input", () => renderMyDeals());
+        node.addEventListener("change", () => renderMyDeals());
+      });
+
+      el("btnClearMyDealsFilters").onclick = () => {
+        el("myDealsSearchName").value = "";
+        el("myDealsSearchParent").value = "";
+        el("myDealsSearchProduct").value = "";
+        el("myDealsPricingType").value = "";
+        el("myDealsSortBy").value = "newest";
+        el("myDealsDateFrom").value = "";
+        el("myDealsDateTo").value = "";
+        renderMyDeals();
+      };
+
+      onAuthStateChanged(auth, async (user) => {
+        if (!user){
+          el("btnLogout").style.display = "none";
+          showGoogleLogin();
+          return;
+        }
+
+        if (!isFuturiEmail(user)){
+          await signOut(auth);
+          showGoogleLogin();
+          const err = el("googleLoginError");
+          err.textContent = "Please sign in with your Futuri Media Google account (@futurimedia.com).";
+          err.style.display = "block";
+          return;
+        }
+
+        hideGoogleLogin();
+        el("btnLogout").style.display = "";
+
+        CURRENT_UID = user.uid;
+        CURRENT_USER = await ensureUserDoc(user);
+        CURRENT_ROLE = CURRENT_USER.role || "staff";
+
+        applyRoleUI();
+        renderPermissionsCard();
+
+        // init calculator (defined in MAIN CALCULATOR JS)
+        await window.initApp();
+
+        // wire deal meta after calculator init (elements exist)
+        wireDealMetaUI();
+
+        showView("landing");
+      });
+    });
+  </script>
+
+  <script>
+    /** =======================
+     *  Deal Calc — UserData (Static Option A)
+     *  Stores custom parent/market/station entries in localStorage.
+     * ======================= */
+    window.UserData = (function () {
+      const USER_KEY = 'dealcalc_user_data_v1';
+      const norm = s => (s ?? '').toString().trim().replace(/\s+/g,' ').toLowerCase();
+      const clone = o => JSON.parse(JSON.stringify(o));
+
+      function normalizeSchema(any){
+        if (any && Array.isArray(any.parents)) {
+          return {
+            parents: any.parents.map(p => ({
+              name: String(p.name ?? ''),
+              country: p.country ?? null,
+              markets: Array.isArray(p.markets) ? p.markets.map(m => ({
+                name: String(m.name ?? ''),
+                stations: Array.isArray(m.stations) ? m.stations.map(String) : []
+              })) : []
+            }))
+          };
+        }
+
+        if (any && typeof any === 'object' && !Array.isArray(any)) {
+          const parents = [];
+          for (const [parentName, marketsObj] of Object.entries(any)) {
+            const markets = [];
+            if (marketsObj && typeof marketsObj === 'object') {
+              for (const [marketName, stations] of Object.entries(marketsObj)) {
+                markets.push({
+                  name: String(marketName),
+                  stations: Array.isArray(stations) ? stations.map(String) : []
+                });
+              }
+            }
+            parents.push({ name: String(parentName), country: null, markets });
+          }
+          return { parents };
+        }
+
+        return { parents: [] };
+      }
+
+      function readUser(){
+        try {
+          const raw = localStorage.getItem(USER_KEY);
+          if (!raw) return { parents: [] };
+          return normalizeSchema(JSON.parse(raw));
+        } catch {
+          return { parents: [] };
+        }
+      }
+
+      function writeUser(data){
+        localStorage.setItem(USER_KEY, JSON.stringify(data));
+      }
+
+      function mergeBaseAndUser(base, user){
+        const out = clone(base);
+        for (const up of user.parents){
+          let p = out.parents.find(pp => norm(pp.name) === norm(up.name));
+          if (!p){ out.parents.push(clone(up)); continue; }
+          if (!p.country && up.country) p.country = up.country;
+
+          for (const um of up.markets){
+            let m = p.markets.find(mm => norm(mm.name) === norm(um.name));
+            if (!m){ p.markets.push(clone(um)); continue; }
+
+            const set = new Set(m.stations.map(norm));
+            for (const st of um.stations){
+              if (!set.has(norm(st))) m.stations.push(st);
+            }
+          }
+        }
+
+        out.parents.sort((a,b)=>a.name.localeCompare(b.name));
+        out.parents.forEach(p => {
+          p.markets.sort((a,b)=>a.name.localeCompare(b.name));
+          p.markets.forEach(m => m.stations.sort());
+        });
+
+        return out;
+      }
+
+      let baseData = { parents: [] };
+
+      async function init(baseUrl){
+        try {
+          const res = await fetch(baseUrl || 'radio_data.json', { cache: 'no-store' });
+          baseData = normalizeSchema(await res.json());
+        } catch (e){
+          console.warn('Could not load base radio_data.json; using empty base.', e);
+          baseData = { parents: [] };
+        }
+      }
+
+      function getMerged(){
+        return mergeBaseAndUser(baseData, readUser());
+      }
+
+      function addEntry({ parent, country, market, station }){
+        const u = readUser();
+        if (!parent?.trim() || !market?.trim() || !station?.trim()) return false;
+
+        const pKey = norm(parent), mKey = norm(market), sKey = norm(station);
+
+        let p = u.parents.find(pp => norm(pp.name) === pKey);
+        if (!p){
+          p = { name: parent.trim(), country: country?.trim() || null, markets: [] };
+          u.parents.push(p);
+        } else if (!p.country && country?.trim()){
+          p.country = country.trim();
+        }
+
+        let m = p.markets.find(mm => norm(mm.name) === mKey);
+        if (!m){
+          m = { name: market.trim(), stations: [] };
+          p.markets.push(m);
+        }
+
+        if (!m.stations.map(norm).includes(sKey)) m.stations.push(station.trim());
+
+        writeUser(u);
+        return true;
+      }
+
+      function removeParent(parentName){
+        const u = readUser();
+        const key = norm(parentName);
+        const before = u.parents.length;
+        u.parents = u.parents.filter(p => norm(p.name) !== key);
+        writeUser(u);
+        return u.parents.length !== before;
+      }
+
+      return { init, getMerged, addEntry, removeParent };
+    })();
+  </script>
+
+  <script>
+    /**************************************
+     * Merge user custom companies into base dataset
+     **************************************/
+    function mergeUserIntoDataset(baseDS, userMerged){
+      const out = JSON.parse(JSON.stringify(baseDS || {parents:[],markets:[],stations:[]}));
+      const norm = s => (s||'').trim().toLowerCase();
+
+      const parentSet = new Set((out.parents||[]).map(norm));
+      const marketSet = new Set((out.markets||[]).map(norm));
+      const stationKeySet = new Set(
+        (out.stations||[]).map(s => `${norm(s.parent)}|${norm(s.market)}|${norm(s.station)}`)
+      );
+
+      (userMerged?.parents || []).forEach(p => {
+        const parentName = (p.name || '').trim();
+        if (!parentName) return;
+
+        if (!parentSet.has(norm(parentName))){
+          out.parents.push(parentName);
+          parentSet.add(norm(parentName));
+        }
+
+        (p.markets || []).forEach(m => {
+          const marketName = (m.name || '').trim();
+          if (!marketName) return;
+
+          if (!marketSet.has(norm(marketName))){
+            out.markets.push(marketName);
+            marketSet.add(norm(marketName));
+          }
+
+          (m.stations || []).forEach(st => {
+            const stationName = (st || '').trim();
+            if (!stationName) return;
+
+            const key = `${norm(parentName)}|${norm(marketName)}|${norm(stationName)}`;
+            if (stationKeySet.has(key)) return;
+
+            out.stations.push({
+              parent: parentName,
+              market: marketName,
+              station: stationName,
+              primeAQH: 0,
+              rosAQH: 0,
+              format: ''
+            });
+            stationKeySet.add(key);
+          });
+        });
+      });
+
+      out.parents.sort((a,b)=>a.localeCompare(b));
+      out.markets.sort((a,b)=>a.localeCompare(b));
+      out.stations.sort((a,b)=> a.station.localeCompare(b.station) || a.market.localeCompare(b.market));
+
+      return out;
+    }
+  </script>
+
+  <script>
+    /**************************************
+     * MAIN CALCULATOR JS (radio + products)
+     **************************************/
+
+    window.BASE_DS = { parents: [], markets: [], stations: [] };
+    const DATA_URL = './radio_data.json';
+
+    window.DS = { parents: [], markets: [], stations: [] };
+    window.IDX = {
+      parentSet: new Set(),
+      marketSet: new Set(),
+      stations: [],
+      stationsByParent: new Map(),
+      stationsByParentMarket: new Map(),
+    };
+
+    window.state = { parent: '', markets: new Set(), stations: new Set() };
+
+    window.PRODUCTS = [
+      { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
+      { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
+      { id: 'topline_podcast', name: 'TopLine - Podcast', cash: 2500, barter: 3400 },
+      { id: 'topline_agency', name: 'TopLine - Agency', cash: 2500, barter: 3400 },
+      { id: 'post', name: 'POST', cash: 1000, barter: 1360 },
+      { id: 'mobile', name: 'Mobile', cash: 750, barter: 1020 },
+      { id: 'streaming', name: 'Streaming', cash: 500, barter: 680 },
+      { id: 'ldr', name: 'LDR', cash: 750, barter: 1020 },
+      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680 },
+      { id: 'instant_video', name: 'Instant Video add-on', cash: 500, barter: 680 },
+      { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040 },
+      { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800 },
+      { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360 },
+      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020 },
+      { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null },
+      { id: 'topline', name: 'TopLine', cash: null, barter: null }
+    ];
+
+    window.productState = {
+      selectedProducts: new Set(),
+      pricingType: 'cash',
+      customPrices: new Map(),
+      cpm: 2.00,
+      manualMinutes: new Map(),
+      stationCashValues: new Map()
+    };
+
+    async function loadDataset() {
+      try {
+        const response = await fetch(DATA_URL, { cache:'no-store' });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        console.log(`Loaded ${data.stations?.length || 0} stations`);
+        return data;
+      } catch (error) {
+        console.error('Failed to load dataset:', error);
+        alert('Failed to load radio station data. Make sure radio_data.json is deployed next to index.html.');
+        return { parents: [], markets: [], stations: [] };
+      }
+    }
+
+    function rebuildIndex(){
+      window.IDX.parentSet = new Set(window.DS.parents || []);
+      window.IDX.marketSet = new Set(window.DS.markets || []);
+      window.IDX.stations = window.DS.stations || [];
+      window.IDX.stationsByParent.clear();
+      window.IDX.stationsByParentMarket.clear();
+
+      (window.IDX.stations || []).forEach(s => {
+        const p = s.parent || '';
+        const m = s.market || '';
+        if (!window.IDX.stationsByParent.has(p)) window.IDX.stationsByParent.set(p, []);
+        window.IDX.stationsByParent.get(p).push(s);
+
+        const key = p + '||' + m;
+        if (!window.IDX.stationsByParentMarket.has(key)) window.IDX.stationsByParentMarket.set(key, []);
+        window.IDX.stationsByParentMarket.get(key).push(s);
+      });
+    }
+
+    window.setMarketsEnabled = function(enabled) {
+      const sel = el('btnSelAllMarkets');
+      const clr = el('btnClrAllMarkets');
+      if (sel) sel.disabled = !enabled;
+      if (clr) clr.disabled = !enabled;
+      const ph = el('marketsPlaceholder');
+      if (ph) ph.style.display = enabled ? 'none' : '';
+      const list = el('marketsList');
+      if (list && !enabled) list.innerHTML = '';
+    };
+
+    window.setStationsEnabled = function(enabled) {
+      const sel = el('btnSelAllStations');
+      const clr = el('btnClrAllStations');
+      if (sel) sel.disabled = !enabled;
+      if (clr) clr.disabled = !enabled;
+      const ph = el('stationsPlaceholder');
+      if (ph) ph.style.display = enabled ? 'none' : '';
+      const list = el('stationsList');
+      if (list && !enabled) list.innerHTML = '';
+    };
+
+    window.initApp = async function initApp() {
+      if (window.initApp._ran) return;
+      window.initApp._ran = true;
+
+      await window.UserData.init(DATA_URL);
+
+      window.BASE_DS = await loadDataset();
+      window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
+      rebuildIndex();
+
+      setupEventListeners();
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    function setupEventListeners() {
+      window.setMarketsEnabled(false);
+      window.setStationsEnabled(false);
+
+      const ps = el('parentSearch');
+      ps.addEventListener('input', () => window.renderParents(ps.value));
+      window.renderParents('');
+
+      el('marketSearch').addEventListener('input', window.renderMarkets);
+      el('stationSearch').addEventListener('input', window.renderStations);
+
+      el('btnSelAllMarkets').onclick = () => {
+        (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => window.state.markets.add(s.market));
+        window.renderMarkets(); window.renderStations(); window.updatePreview();
+      };
+      el('btnClrAllMarkets').onclick = () => {
+        window.state.markets.clear(); window.renderMarkets(); window.renderStations(); window.updatePreview();
+      };
+
+      el('btnSelAllStations').onclick = () => {
+        document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
+          cb.checked = true; window.state.stations.add(cb.value);
+        });
+        window.updatePreview();
+      };
+      el('btnClrAllStations').onclick = () => {
+        document.querySelectorAll('#stationsList input[type="checkbox"]').forEach(cb => {
+          cb.checked = false; window.state.stations.delete(cb.value);
+        });
+        window.updatePreview();
+      };
+
+      el('btnAddCompany').onclick = () => {
+        const modal = el('addCompanyModal');
+        modal.style.display = 'flex';
+
+        el('ac_parent').value  = '';
+        el('ac_country').value = '';
+        el('ac_market').value  = '';
+        el('ac_station').value = '';
+
+        const err = el('ac_error');
+        err.style.display = 'none';
+        err.textContent = '';
+
+        el('ac_parent').focus();
+      };
+
+      el('ac_cancel').onclick = () => {
+        el('addCompanyModal').style.display = 'none';
+        const err = el('ac_error');
+        err.style.display = 'none';
+        err.textContent = '';
+      };
+
+      el('ac_save').onclick = () => {
+        if (!can('manage_custom_parents')) {
+          const err = el('ac_error');
+          err.textContent = 'Your role does not permit adding companies.';
+          err.style.display = 'block';
+          return;
+        }
+
+        const P = (el('ac_parent').value  || '').trim();
+        const C = (el('ac_country').value || '').trim();
+        const M = (el('ac_market').value  || '').trim();
+        const S = (el('ac_station').value || '').trim();
+
+        const err = el('ac_error');
+        if (!P || !M || !S) {
+          err.textContent = 'Parent, Market, and Station are required.';
+          err.style.display = 'block';
+          return;
+        }
+
+        err.style.display = 'none';
+        err.textContent = '';
+
+        window.UserData.addEntry({ parent: P, country: C, market: M, station: S });
+
+        el('addCompanyModal').style.display = 'none';
+
+        window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
+        rebuildIndex();
+        el('parentSearch').value = P;
+        window.renderParents(P);
+        setParent(P);
+      };
+
+      el('addCompanyModal').addEventListener('click', (e) => {
+        if (e.target.id === 'addCompanyModal') el('ac_cancel').click();
+      });
+
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && el('addCompanyModal').style.display === 'flex') {
+          el('ac_cancel').click();
+        }
+      });
+
+      attachProductEventListeners();
+    }
+
+    window.renderParents = function renderParents(q='') {
+      const list = el('parentResults');
+      list.innerHTML = '';
+      const qn = q.trim().toLowerCase();
+
+      const baseNames = (window.BASE_DS.parents || []).map(p => (p || '').toLowerCase());
+      const parents = Array.from(window.IDX.parentSet)
+        .filter(p => p.toLowerCase().includes(qn))
+        .sort();
+
+      parents.slice(0, 300).forEach(p => {
+        const row = document.createElement('div');
+        row.className = 'el';
+        row.style.display = 'flex';
+        row.style.alignItems = 'center';
+        row.style.justifyContent = 'space-between';
+        row.style.gap = '8px';
+
+        const left = document.createElement('label');
+        left.className = 'el';
+        left.style.flex = '1';
+        left.style.border = 'none';
+        left.style.padding = '0';
+        left.style.cursor = 'pointer';
+        left.style.gap = '8px';
+
+        const radio = document.createElement('input');
+        radio.type = 'radio';
+        radio.name = 'parentSelect';
+        radio.value = p;
+        radio.checked = (window.state.parent === p);
+        radio.onchange = () => setParent(p);
+
+        const name = document.createElement('span');
+        name.textContent = p;
+
+        left.appendChild(radio);
+        left.appendChild(name);
+        row.appendChild(left);
+
+        const isBase = baseNames.includes(p.toLowerCase());
+        if (!isBase) {
+          const tag = document.createElement('span');
+          tag.className = 'badge';
+          tag.textContent = 'Custom';
+          row.appendChild(tag);
+
+          if (can('manage_custom_parents')) {
+            const del = document.createElement('button');
+            del.className = 'btn';
+            del.type = "button";
+            del.textContent = 'Remove';
+            del.onclick = () => {
+              if (!confirm(`Remove "${p}" from your custom companies?`)) return;
+              const removed = window.UserData.removeParent(p);
+              if (removed) {
+                window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
+                rebuildIndex();
+                if (window.state.parent === p) {
+                  window.state.parent = '';
+                  window.setMarketsEnabled(false);
+                  window.setStationsEnabled(false);
+                }
+                window.renderParents(el('parentSearch').value || '');
+                window.updatePreview();
+                const s = el('userDataStatus');
+                if (s) { s.textContent = 'Removed custom parent'; setTimeout(() => s.textContent = '', 1800); }
+              }
+            };
+            row.appendChild(del);
+          }
+        }
+
+        list.appendChild(row);
+      });
+    };
+
+    function setParent(p) {
+      window.state.parent = p;
+      window.state.markets.clear();
+      window.state.stations.clear();
+      window.setMarketsEnabled(!!window.state.parent);
+      window.setStationsEnabled(!!window.state.parent);
+      window.renderMarkets();
+      window.renderStations();
+      window.updatePreview();
+    }
+
+    window.renderMarkets = function renderMarkets() {
+      if (!window.state.parent) { window.setMarketsEnabled(false); return; }
+      window.setMarketsEnabled(true);
+
+      const list = el('marketsList');
+      list.innerHTML = '';
+      const q = el('marketSearch').value.trim().toLowerCase();
+
+      const all = (window.IDX.stationsByParent.get(window.state.parent) || []).map(s => s.market);
+      const uniq = Array.from(new Set(all)).filter(m => m.toLowerCase().includes(q)).sort();
+
+      uniq.forEach(m => {
+        const row = document.createElement('label');
+        row.className = 'el';
+
+        const cb = document.createElement('input');
+        cb.type='checkbox';
+        cb.value=m;
+        cb.checked = window.state.markets.has(m);
+        cb.onchange = () => {
+          if (cb.checked) window.state.markets.add(m);
+          else window.state.markets.delete(m);
+          window.renderStations();
+          window.updatePreview();
+        };
+
+        const name = document.createElement('span');
+        name.textContent = m;
+
+        row.appendChild(cb);
+        row.appendChild(name);
+        list.appendChild(row);
+      });
+    };
+
+    window.renderStations = function renderStations() {
+      if (!window.state.parent) { window.setStationsEnabled(false); return; }
+      window.setStationsEnabled(true);
+
+      const list = el('stationsList');
+      list.innerHTML = '';
+      const q = el('stationSearch').value.trim().toLowerCase();
+
+      const markets = Array.from(window.state.markets);
+      let pool = [];
+      if (markets.length === 0) {
+        pool = window.IDX.stationsByParent.get(window.state.parent) || [];
+      } else {
+        markets.forEach(m => {
+          const key = window.state.parent + '||' + m;
+          (window.IDX.stationsByParentMarket.get(key) || []).forEach(s => pool.push(s));
+        });
+      }
+
+      pool
+        .filter(s => (s.station || '').toLowerCase().includes(q) || (s.format||'').toLowerCase().includes(q))
+        .sort((a,b)=> (a.station||'').localeCompare(b.station||''))
+        .forEach((s) => {
+          const key = s.parent + '|' + s.market + '|' + s.station;
+
+          const row = document.createElement('label');
+          row.className = 'el';
+
+          const cb = document.createElement('input');
+          cb.type='checkbox';
+          cb.value=key;
+          cb.checked = window.state.stations.has(key);
+          cb.onchange = () => {
+            if (cb.checked) window.state.stations.add(key);
+            else window.state.stations.delete(key);
+            window.updatePreview();
+          };
+
+          const name = document.createElement('span');
+          name.innerHTML = `<strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span>`;
+
+          const aqh = document.createElement('span');
+          aqh.className='badge';
+          aqh.textContent = `Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}`;
+
+          row.appendChild(cb);
+          row.appendChild(name);
+          row.appendChild(aqh);
+          list.appendChild(row);
+        });
+    };
+
+    window.updatePreview = function updatePreview() {
+      const list = el('selectedPreview');
+      list.innerHTML='';
+      let count = 0, prime = 0, ros = 0;
+
+      const keyset = new Set(Array.from(window.state.stations));
+      (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
+        const key = s.parent + '|' + s.market + '|' + s.station;
+        if (keyset.has(key)) {
+          count++;
+          prime += (s.primeAQH||0);
+          ros += (s.rosAQH||0);
+
+          const row = document.createElement('div');
+          row.className='el';
+          row.innerHTML =
+            `<span><strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span></span>` +
+            `<span class="badge">Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}</span>`;
+          list.appendChild(row);
+        }
+      });
+
+      el('selCount').textContent = String(count);
+      el('primeSum').textContent = String(Math.round(prime));
+      el('rosSum').textContent = String(Math.round(ros));
+
+      updateProductCalculations();
+    };
+
+  /**********************
+   * Products + Pricing
+   **********************/
+  window.renderProducts = function renderProducts() {
+    const list = el('productsList');
+    list.innerHTML = '';
+    const q = el('productSearch').value.trim().toLowerCase();
+    const pricingType = window.productState.pricingType;
+
+    window.PRODUCTS
+      .filter(p => (p.name || '').toLowerCase().includes(q))
+      .sort((a,b)=>a.name.localeCompare(b.name))
+      .forEach(product => {
+        const row = document.createElement('div');
+        row.className = 'el';
+        row.style.flexDirection = 'column';
+        row.style.alignItems = 'stretch';
+        row.style.gap = '8px';
+
+        const topRow = document.createElement('label');
+        topRow.style.display = 'flex';
+        topRow.style.alignItems = 'center';
+        topRow.style.gap = '8px';
+        topRow.style.justifyContent = 'space-between';
+
+        const leftSide = document.createElement('div');
+        leftSide.style.display = 'flex';
+        leftSide.style.alignItems = 'center';
+        leftSide.style.gap = '8px';
+
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = window.productState.selectedProducts.has(product.id);
+        cb.onchange = () => {
+          if (cb.checked) window.productState.selectedProducts.add(product.id);
+          else {
+            window.productState.selectedProducts.delete(product.id);
+            window.productState.customPrices.delete(product.id);
+          }
+          window.renderProducts();
+          window.updateProductSummary();
+        };
+
+        const name = document.createElement('span');
+        name.innerHTML = `<strong>${product.name}</strong>`;
+
+        leftSide.appendChild(cb);
+        leftSide.appendChild(name);
+
+        const priceContainer = document.createElement('div');
+        priceContainer.style.display = 'flex';
+        priceContainer.style.alignItems = 'center';
+        priceContainer.style.gap = '8px';
+
+        const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+        const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
+
+        if (rateCardValue === null || rateCardValue === undefined) {
+          const tbdBadge = document.createElement('span');
+          tbdBadge.className = 'badge';
+          tbdBadge.textContent = 'TBD';
+          priceContainer.appendChild(tbdBadge);
+        } else {
+          const rateCardBadge = document.createElement('span');
+          rateCardBadge.className = 'badge';
+          rateCardBadge.textContent = `Rate Card: $${Number(rateCardValue).toLocaleString()}`;
+          priceContainer.appendChild(rateCardBadge);
+        }
+
+        topRow.appendChild(leftSide);
+        topRow.appendChild(priceContainer);
+        row.appendChild(topRow);
+
+        // pricing override: permission-gated
+        if (
+          window.productState.selectedProducts.has(product.id) &&
+          rateCardValue !== null &&
+          rateCardValue !== undefined &&
+          can('pricing_override')
+        ) {
+          const overrideRow = document.createElement('div');
+          overrideRow.style.display = 'flex';
+          overrideRow.style.alignItems = 'center';
+          overrideRow.style.gap = '8px';
+          overrideRow.style.marginLeft = '28px';
+
+          const label = document.createElement('span');
+          label.className = 'muted';
+          label.textContent = 'Override:';
+
+          const input = document.createElement('input');
+          input.type = 'number';
+          input.min = '0';
+          input.step = '1'; // whole numbers only
+          input.value = String(Math.round(Number(currentValue ?? 0)));
+          input.style.width = '120px';
+          input.style.height = '32px';
+
+          input.onchange = () => {
+            const val = parseFloat(input.value);
+            if (Number.isFinite(val) && val >= 0) {
+              window.productState.customPrices.set(product.id, Math.round(val));
+              window.updateProductSummary();
+            }
+          };
+
+          overrideRow.appendChild(label);
+          overrideRow.appendChild(input);
+          row.appendChild(overrideRow);
+        }
+
+        list.appendChild(row);
+      });
   };
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
-  const db = getFirestore(app);
+  window.updateProductSummary = function updateProductSummary() {
+    const pricingType = window.productState.pricingType;
+    let totalMonthlyPerStation = 0;
+    let productCount = 0;
 
-  window.fb = { auth, db, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, doc, getDoc, setDoc, updateDoc, collection, addDoc, getDocs, query, orderBy, serverTimestamp };
-</script>
-<script>
-function computeInventoryMetrics(){
-  const stations = getSelectedStationsDetailed();
+    window.productState.selectedProducts.forEach(productId => {
+      const product = window.PRODUCTS.find(p => p.id === productId);
+      if (!product) return;
 
-  let totalPrime = 0;
-  let totalRos = 0;
+      const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+      if (rateCardValue === null || rateCardValue === undefined) return;
 
-  stations.forEach(s=>{
-    totalPrime += Number(s.primeAQH||0);
-    totalRos   += Number(s.rosAQH||0);
-  });
+      const value = window.productState.customPrices.get(productId) ?? rateCardValue;
+      totalMonthlyPerStation += Number(value || 0);
+      productCount++;
+    });
 
-  const PRIME_RATE = 1.0;
-  const ROS_RATE   = 0.5;
+    const numStations = window.state.stations.size;
+    const totalMonthlyAllStations = totalMonthlyPerStation * numStations;
 
-  const availableValue =
-    (totalPrime * PRIME_RATE) +
-    (totalRos * ROS_RATE);
+    el('productCount').textContent = String(productCount);
+    el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
 
-  const allocatedValue = computeMonthlyValuePerStation();
+    // Show proposal section only if both stations & products exist
+    const proposalSection = el('proposalSection');
+    if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
+    else proposalSection.classList.add('hidden');
 
-  return {
-    totalAQH: totalPrime + totalRos,
-    availableValue,
-    allocatedValue,
-    remainingValue: Math.max(0, availableValue - allocatedValue)
+    // CPM visible for barter/mixed only
+    el('cpmDisplay').classList.toggle('hidden', !(pricingType === 'barter' || pricingType === 'mixed'));
+
+    // Clear proposal output whenever pricing changes/selection changes
+    el("proposalOutput").classList.add("hidden");
+    el("proposalTable").innerHTML = "";
+
+    if (pricingType === 'barter') {
+      el('cashValuesSection').classList.add('hidden');
+      const annualBarterValue = totalMonthlyAllStations * 12;
+      calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
+    } else if (pricingType === 'mixed') {
+      el('cashValuesSection').classList.remove('hidden');
+      renderCashValues(totalMonthlyAllStations);
+    } else {
+      el('cashValuesSection').classList.add('hidden');
+      showCashSummary(totalMonthlyAllStations);
+    }
   };
-}
-</script>
-<script>
-function computePaymentSplit(allocated){
-  const type = window.productState.pricingType;
 
-  if(type === "cash"){
-    return { cash: allocated, barter: 0 };
-  }
-  if(type === "barter"){
-    return { cash: 0, barter: allocated };
+  function updateProductCalculations(){
+    window.updateProductSummary();
   }
 
-  const cashPct = Number(el("cashPct").value||0);
-  const barterPct = Number(el("barterPct").value||0);
+  function attachProductEventListeners() {
+    // pricing type radios
+    document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+      r.addEventListener('change', () => {
+        window.productState.pricingType = r.value;
 
-  return {
-    cash: allocated * (cashPct/100),
-    barter: allocated * (barterPct/100)
-  };
-}
-</script>
-<script>
-function renderCalcAlerts(metrics){
-  const root = el("calcAlerts");
-  root.innerHTML = "";
+        if (window.productState.pricingType !== 'mixed') {
+          window.productState.stationCashValues.clear();
+        }
 
-  if(metrics.allocatedValue > metrics.availableValue){
-    root.innerHTML += `<div class="badge" style="background:#b42318;color:white;">Over-Allocated Inventory</div>`;
+        if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
+        else el('cashValuesSection').classList.add('hidden');
+
+        window.renderProducts();
+        window.updateProductSummary();
+      });
+    });
+
+    el('productSearch').addEventListener('input', window.renderProducts);
+
+    el('btnSelAllProducts').onclick = () => {
+      window.PRODUCTS.forEach(p => window.productState.selectedProducts.add(p.id));
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    el('btnClrAllProducts').onclick = () => {
+      window.productState.selectedProducts.clear();
+      window.productState.customPrices.clear();
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    el('btnResetPricing').onclick = () => {
+      window.productState.customPrices.clear();
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    el('btnResetMinutes').onclick = () => {
+      window.productState.manualMinutes.clear();
+      window.updateProductSummary();
+    };
+
+    el('btnGenerateProposal').onclick = () => {
+      if (!can('generate_proposal')) return alert("Your permissions do not allow proposal generation.");
+      generateProposal();
+    };
+
+    el('btnCopyProposal').onclick = async () => {
+      if (!el('proposalTable')?.innerHTML) return alert("Generate the proposal first.");
+      try{
+        const text = buildProposalText();
+        await navigator.clipboard.writeText(text);
+        const b = el('btnCopyProposal');
+        const t = b.textContent;
+        b.textContent = "✓ Copied";
+        setTimeout(()=>b.textContent=t, 1200);
+      }catch{
+        alert("Could not copy proposal. Try again or use manual select/copy.");
+      }
+    };
   }
 
-  if(window.productState.pricingType === "mixed"){
-    const sum = Number(el("cashPct").value||0) + Number(el("barterPct").value||0);
-    if(sum !== 100){
-      root.innerHTML += `<div class="badge" style="background:#b42318;color:white;">Invalid Payment Split</div>`;
+  /**********************
+   * Money + selection helpers
+   **********************/
+  function money(n){
+    const x = Number(n || 0);
+    return `$${Math.round(x).toLocaleString()}`;
+  }
+
+  function getSelectedStationsDetailed(){
+    const out = [];
+    (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
+      const key = s.parent + '|' + s.market + '|' + s.station;
+      if (window.state.stations.has(key)) out.push({ ...s, key });
+    });
+    return out;
+  }
+
+  function getSelectedProductsDetailed(){
+    const pricingType = window.productState.pricingType;
+    const out = [];
+    window.productState.selectedProducts.forEach(pid => {
+      const p = window.PRODUCTS.find(pp => pp.id === pid);
+      if (!p) return;
+      const rate = (pricingType === 'cash') ? p.cash : p.barter;
+      const val = (rate === null || rate === undefined) ? null : (window.productState.customPrices.get(pid) ?? rate);
+      out.push({ ...p, rateCard: rate, value: val });
+    });
+    out.sort((a,b)=>a.name.localeCompare(b.name));
+    return out;
+  }
+
+  function computeMonthlyValuePerStation(){
+    const pricingType = window.productState.pricingType;
+    let total = 0;
+    window.productState.selectedProducts.forEach(pid => {
+      const p = window.PRODUCTS.find(pp => pp.id === pid);
+      if (!p) return;
+      const rate = (pricingType === 'cash') ? p.cash : p.barter;
+      if (rate === null || rate === undefined) return;
+      total += (window.productState.customPrices.get(pid) ?? rate);
+    });
+    return total;
+  }
+
+  /**********************
+   * Cash-only summary block
+   **********************/
+  function showCashSummary(totalMonthlyAllStations) {
+    const barterSection = el('barterMinutesSection');
+    const breakdown = el('barterBreakdown');
+    const sectionTitle = el('barterSectionTitle');
+    const barterControls = el('barterControls');
+    const barterTotals = el('barterTotals');
+
+    if (totalMonthlyAllStations === 0 || window.state.stations.size === 0) {
+      barterSection.classList.add('hidden');
+      return;
+    }
+
+    barterSection.classList.remove('hidden');
+    breakdown.innerHTML = '';
+
+    if (sectionTitle) sectionTitle.textContent = 'CASH DEAL SUMMARY';
+    if (barterControls) barterControls.classList.add('hidden');
+    if (barterTotals) barterTotals.classList.add('hidden');
+
+    const selectedStations = getSelectedStationsDetailed();
+    if (!selectedStations.length) { barterSection.classList.add('hidden'); return; }
+
+    const perStationMonthly = totalMonthlyAllStations / selectedStations.length;
+
+    selectedStations.forEach(station => {
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.padding = '8px 10px';
+      row.style.justifyContent = 'space-between';
+
+      const stationName = document.createElement('div');
+      stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
+
+      const stationValue = document.createElement('div');
+      stationValue.className = 'badge';
+      stationValue.textContent = `${money(perStationMonthly)}/mo`;
+
+      row.appendChild(stationName);
+      row.appendChild(stationValue);
+      breakdown.appendChild(row);
+    });
+
+    const annualValue = totalMonthlyAllStations * 12;
+
+    const summaryRow = document.createElement('div');
+    summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 10px; background: rgba(15, 24, 35, 0.5);';
+    summaryRow.innerHTML = `
+      <div><strong>Per Station:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
+        </div>
+      </div>
+      <div><strong>Total Monthly Value:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${money(totalMonthlyAllStations)}
+        </div>
+      </div>
+      <div><strong>Total Annual Value:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${money(annualValue)}
+        </div>
+      </div>
+    `;
+    breakdown.appendChild(summaryRow);
+  }
+
+  /**********************
+   * Mixed cash allocation UI
+   **********************/
+  function renderCashValues(monthlyProductValueAllStations){
+    const root = el('cashValuesList');
+    root.innerHTML = '';
+
+    const stations = getSelectedStationsDetailed();
+    if (!stations.length) {
+      root.innerHTML = `<div class="placeholder">Select stations first.</div>`;
+      el('totalCashInput').textContent = "0";
+      el('remainingForBarter').textContent = Math.round(monthlyProductValueAllStations).toLocaleString();
+      el('barterMinutesSection').classList.add('hidden');
+      return;
+    }
+
+    stations.forEach(st => {
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.justifyContent = 'space-between';
+      row.style.alignItems = 'center';
+
+      const left = document.createElement('div');
+      left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = '1';
+      input.value = String(Math.round(window.productState.stationCashValues.get(st.key) || 0));
+      input.style.width = '140px';
+
+      input.oninput = () => {
+        const v = parseFloat(input.value);
+        window.productState.stationCashValues.set(st.key, Number.isFinite(v) && v >= 0 ? Math.round(v) : 0);
+        updateMixedPricing(monthlyProductValueAllStations);
+      };
+
+      row.appendChild(left);
+      row.appendChild(input);
+      root.appendChild(row);
+    });
+
+    updateMixedPricing(monthlyProductValueAllStations);
+  }
+
+  function updateMixedPricing(monthlyProductValueAllStations) {
+    const stations = getSelectedStationsDetailed();
+    let totalCash = 0;
+    stations.forEach(st => totalCash += (window.productState.stationCashValues.get(st.key) || 0));
+
+    el('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
+
+    const remainingMonthly = Math.max(0, monthlyProductValueAllStations - totalCash);
+    el('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
+
+    if (remainingMonthly > 0 && stations.length > 0) {
+      calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
+    } else {
+      el('barterMinutesSection').classList.add('hidden');
     }
   }
 
-  if(window.productState.pricingType === "barter" && !window.productState.selectedProducts.size){
-    root.innerHTML += `<div class="badge" style="background:#b42318;color:white;">Missing Barter Fulfillment</div>`;
+  /**********************
+   * Barter spots calculator (NO SPLITTING)
+   **********************/
+  function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue){
+    const section = el('barterMinutesSection');
+    const breakdown = el('barterBreakdown');
+    const sectionTitle = el('barterSectionTitle');
+    const barterControls = el('barterControls');
+    const barterTotals = el('barterTotals');
+
+    const stations = getSelectedStationsDetailed();
+    if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    breakdown.innerHTML = '';
+    if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
+    if (barterControls) barterControls.classList.remove('hidden');
+    if (barterTotals) barterTotals.classList.remove('hidden');
+
+    let totalPrime = 0;
+    let totalRos = 0;
+    stations.forEach(s => {
+      totalPrime += (Number(s.primeAQH) || 0);
+      totalRos   += (Number(s.rosAQH) || 0);
+    });
+
+    const hasAQH = (totalPrime + totalRos) > 0;
+    const cpm = Number(window.productState.cpm || 2.0);
+
+    let totalSpotsPerMonth = 0;
+    if (hasAQH && cpm > 0) {
+      totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
+    } else {
+      totalSpotsPerMonth = stations.length; // fallback
+    }
+
+    // FORCE WHOLE total spots (no fractional minutes)
+    totalSpotsPerMonth = Math.max(0, Math.round(totalSpotsPerMonth));
+
+    let primeShare = 0.5;
+    if (hasAQH) {
+      const denom = (totalPrime + totalRos);
+      primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
+    }
+    const rosShare = 1 - primeShare;
+
+    // WHOLE split: prime gets rounded share, ROS gets remainder
+    const totalPrimeSpots = Math.round(totalSpotsPerMonth * primeShare);
+    const totalRosSpots   = totalSpotsPerMonth - totalPrimeSpots;
+
+    // Largest remainder integer distribution helper
+    function distributeIntegers(total, entries, rawKey, outKey){
+      entries.forEach(x => {
+        x[outKey] = Math.floor(x[rawKey]);
+        x._frac = x[rawKey] - x[outKey];
+      });
+      let used = entries.reduce((sum,x)=>sum + x[outKey], 0);
+      let remaining = total - used;
+
+      entries
+        .slice()
+        .sort((a,b)=> b._frac - a._frac)
+        .forEach(x => {
+          if (remaining > 0) { x[outKey] += 1; remaining -= 1; }
+        });
+
+      entries.forEach(x => delete x._frac);
+    }
+
+    // Build allocation weights
+    const alloc = stations.map(st => {
+      const pAQH = Number(st.primeAQH) || 0;
+      const rAQH = Number(st.rosAQH) || 0;
+
+      const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
+      const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
+
+      return {
+        st,
+        rawPrime: totalPrimeSpots * pWeight,
+        rawRos:   totalRosSpots   * rWeight
+      };
+    });
+
+    distributeIntegers(totalPrimeSpots, alloc, 'rawPrime', 'autoPrimeInt');
+    distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
+
+    let sumPrime = 0;
+    let sumRos = 0;
+
+    alloc.forEach(({ st, autoPrimeInt, autoRosInt }) => {
+      const manual = window.productState.manualMinutes.get(st.key);
+
+      // manual overrides are forced whole; otherwise use whole autos
+      const primeSpots = (manual?.prime != null) ? Math.round(manual.prime) : autoPrimeInt;
+      const rosSpots   = (manual?.ros   != null) ? Math.round(manual.ros)   : autoRosInt;
+
+      sumPrime += primeSpots;
+      sumRos   += rosSpots;
+
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.alignItems = 'center';
+      row.style.justifyContent = 'space-between';
+
+      const left = document.createElement('div');
+      left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+
+      const right = document.createElement('div');
+      right.style.display = 'flex';
+      right.style.alignItems = 'center';
+      right.style.gap = '10px';
+
+      const primeInput = document.createElement('input');
+      primeInput.type = 'number';
+      primeInput.min = '0';
+      primeInput.step = '1'; // whole only
+      primeInput.value = String(Math.round(primeSpots));
+      primeInput.style.width = '84px';
+
+      const rosInput = document.createElement('input');
+      rosInput.type = 'number';
+      rosInput.min = '0';
+      rosInput.step = '1'; // whole only
+      rosInput.value = String(Math.round(rosSpots));
+      rosInput.style.width = '84px';
+
+      const primeLbl = document.createElement('span');
+      primeLbl.className = 'muted';
+      primeLbl.style.fontSize = '12px';
+      primeLbl.textContent = 'Prime';
+
+      const rosLbl = document.createElement('span');
+      rosLbl.className = 'muted';
+      rosLbl.style.fontSize = '12px';
+      rosLbl.textContent = 'ROS';
+
+      const saveManual = () => {
+        const p = parseFloat(primeInput.value);
+        const r = parseFloat(rosInput.value);
+        window.productState.manualMinutes.set(st.key, {
+          prime: Number.isFinite(p) && p >= 0 ? Math.round(p) : 0,
+          ros:   Number.isFinite(r) && r >= 0 ? Math.round(r) : 0
+        });
+        calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
+      };
+
+      primeInput.onchange = saveManual;
+      rosInput.onchange = saveManual;
+
+      right.appendChild(primeLbl);
+      right.appendChild(primeInput);
+      right.appendChild(rosLbl);
+      right.appendChild(rosInput);
+
+      row.appendChild(left);
+      row.appendChild(right);
+      breakdown.appendChild(row);
+    });
+
+    // totals as WHOLE numbers
+    el('totalPrimeMinutes').textContent = String(Math.round(sumPrime));
+    el('totalROSMinutes').textContent = String(Math.round(sumRos));
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-direction:column; gap:10px; background: rgba(15, 24, 35, 0.5);';
+    footer.innerHTML = `
+      <div><strong>Remaining Value:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          Monthly: ${money(monthlyRemainingValue)} • Annual: ${money(annualRemainingValue)}
+        </div>
+      </div>
+      <div><strong>CPM:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          $${Number(window.productState.cpm || 2).toFixed(2)}
+        </div>
+      </div>
+      <div><strong>Estimated Total Spots/Month:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${Math.round(sumPrime + sumRos)}
+        </div>
+      </div>
+    `;
+    breakdown.appendChild(footer);
   }
-}
-</script>
-<script>
-function updateCalcUI(){
-  const m = computeInventoryMetrics();
-  const split = computePaymentSplit(m.allocatedValue);
 
-  el("totalAQH").textContent = Math.round(m.totalAQH);
-  el("availableValue").textContent = Math.round(m.availableValue).toLocaleString();
-  el("allocatedValue").textContent = Math.round(m.allocatedValue).toLocaleString();
-  el("remainingValue").textContent = Math.round(m.remainingValue).toLocaleString();
+  /**********************
+   * Proposal generation
+   **********************/
+  function generateProposal(){
+    if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
-  el("cashObligation").textContent = Math.round(split.cash).toLocaleString();
-  el("barterObligation").textContent = Math.round(split.barter).toLocaleString();
+    const stations = getSelectedStationsDetailed();
+    const products = getSelectedProductsDetailed();
+    const pricingType = window.productState.pricingType;
 
-  renderCalcAlerts(m);
-}
-</script>
-<script>
-const _oldUpdate = window.updateProductSummary;
-window.updateProductSummary = function(){
-  if(_oldUpdate) _oldUpdate();
-  updateCalcUI();
-};
+    if (!window.state.parent) return alert("Select a parent company first.");
+    if (!stations.length) return alert("Select at least one station.");
+    if (!products.length) return alert("Select at least one product.");
 
-document.querySelectorAll('input[name="pricingType"]').forEach(r=>{
-  r.addEventListener("change", ()=>{
-    el("mixedSplit").classList.toggle("hidden", r.value !== "mixed");
-    updateCalcUI();
-  });
-});
+    const monthlyPerStation = computeMonthlyValuePerStation();
+    const monthlyAllStations = monthlyPerStation * stations.length;
+    const annualAllStations  = monthlyAllStations * 12;
 
-["cashPct","barterPct"].forEach(id=>{
-  el(id)?.addEventListener("input", updateCalcUI);
-});
-</script>
-<script>
-function buildDealPayload(){
-  const metrics = computeInventoryMetrics();
-  const split = computePaymentSplit(metrics.allocatedValue);
+    // use the real global dealMetaState (from Chunk 3)
+    const termMonths = dealMetaState.termMonths || 36;
+    const arEnabled  = !!dealMetaState.autoRenewEnabled;
+    const arMonths   = dealMetaState.autoRenewMonths || 12;
+    const nSeason    = dealMetaState.nielsenSeason || "—";
+    const nYear      = dealMetaState.nielsenYear || "—";
 
-  return {
-    parent: window.state.parent,
-    stations: Array.from(window.state.stations),
-    products: Array.from(window.productState.selectedProducts),
-    metrics,
-    payment: split,
-    pricingType: window.productState.pricingType,
-    createdAt: new Date().toISOString()
-  };
-}
-</script>
-<script>
-el("btnGoToDealCalcs").onclick = ()=>{
-  if(can("view_all_deals")){
-    showView("allDealsView");
-    renderAllUsersDeals();
-  } else {
-    showView("myDealsView");
-    renderMyDeals();
+    const lines = [];
+    lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+    lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
+    lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+    lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
+    lines.push(`<span class="pill">Monthly Total: <span>${money(monthlyAllStations)}</span></span>`);
+    lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStations)}</span></span>`);
+    lines.push(`</div>`);
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="card" style="background:#0b121a;">`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
+    lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
+    lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
+    lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
+    lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
+    lines.push(`<span class="badge">Nielsen: ${nSeason} ${nYear}</span>`);
+    lines.push(`</div>`);
+    lines.push(`</div>`);
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Products</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Per Station / Month</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">All Stations / Month</th>
+    </tr></thead>`);
+    lines.push(`<tbody>`);
+    products.forEach(p => {
+      const perStation = (p.value === null) ? null : p.value;
+      const allStations = (perStation === null) ? null : perStation * stations.length;
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+          <strong>${p.name}</strong> ${(p.rateCard === null || p.rateCard === undefined) ? `<span class="badge" style="margin-left:6px;">TBD</span>` : ``}
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+          ${perStation === null ? "TBD" : money(perStation)}
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+          ${allStations === null ? "TBD" : money(allStations)}
+        </td>
+      </tr>`);
+    });
+    lines.push(`</tbody>`);
+    lines.push(`<tfoot><tr>
+      <td style="padding:10px 8px; text-align:right;"><strong>Totals</strong></td>
+      <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyPerStation)}</strong></td>
+      <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyAllStations)}</strong></td>
+    </tr></tfoot>`);
+    lines.push(`</table>`);
+    lines.push(`</div>`);
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Stations Included</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:12px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
+    </tr></thead><tbody>`);
+    stations
+      .slice()
+      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+      .forEach(s => {
+        lines.push(`<tr>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${s.station}</strong></td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${s.market || ""}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.primeAQH||0)}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.rosAQH||0)}</td>
+        </tr>`);
+      });
+    lines.push(`</tbody></table></div>`);
+
+    const modeBadge = el('proposalMode');
+    if (modeBadge){
+      modeBadge.textContent =
+        pricingType === 'cash'  ? "Cash Deal" :
+        pricingType === 'barter'? "Barter Deal" :
+        "Mixed Deal";
+    }
+
+    el('proposalOutput').classList.remove('hidden');
+    el('proposalTable').innerHTML = lines.join("\n");
+    el('proposalSection').classList.remove('hidden');
   }
-};
+
+  function buildProposalText(){
+    if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+
+    const stations = getSelectedStationsDetailed();
+    const products = getSelectedProductsDetailed();
+    const pricingType = window.productState.pricingType;
+
+    const monthlyPerStation = computeMonthlyValuePerStation();
+    const monthlyAllStations = monthlyPerStation * stations.length;
+
+    const termMonths = dealMetaState.termMonths || 36;
+    const arEnabled  = !!dealMetaState.autoRenewEnabled;
+    const arMonths   = dealMetaState.autoRenewMonths || 12;
+    const nSeason    = dealMetaState.nielsenSeason || "—";
+    const nYear      = dealMetaState.nielsenYear || "—";
+
+    const lines = [];
+    lines.push(`Futuri Media Deal Calc — Proposal`);
+    lines.push(`--------------------------------`);
+    lines.push(`Parent: ${window.state.parent || "—"}`);
+    lines.push(`Pricing Type: ${pricingType}`);
+    lines.push(`Stations: ${stations.length}`);
+    lines.push(`Products: ${products.length}`);
+    lines.push(`Monthly Total (all stations): ${money(monthlyAllStations)}`);
+    lines.push(`Annual Total (all stations): ${money(monthlyAllStations*12)}`);
+    lines.push(``);
+    lines.push(`Deal Terms`);
+    lines.push(`- Term: ${termMonths} months`);
+    lines.push(`- Auto-Renew: ${arEnabled ? "Yes" : "No"}`);
+    lines.push(`- Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}`);
+    lines.push(`- Nielsen: ${nSeason} ${nYear}`);
+    lines.push(``);
+    lines.push(`Products (per station / month)`);
+    products.forEach(p => {
+      const v = (p.value === null) ? "TBD" : money(p.value);
+      lines.push(`- ${p.name}: ${v}`);
+    });
+    lines.push(``);
+    lines.push(`Stations Included`);
+    stations
+      .slice()
+      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+      .forEach(s => {
+        lines.push(`- ${s.station} — ${s.market} (Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)})`);
+      });
+
+    return lines.join("\n");
+  }
 </script>
 
 </body>
 </html>
+
+
