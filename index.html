@@ -1804,38 +1804,55 @@ async function renderAllUsersDeals(){
         await saveDeal();
       };
 
-      // Landing nav
-      el("btnOpenRadio").onclick = () => showView("radioView");
+      // ONE handler for ALL repeated buttons (event delegation)
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
 
-      el("btnOpenMyDeals").onclick = async () => {
-        showView("myDealsView");
-        await renderMyDeals();
-      };
+  const action = btn.dataset.action;
 
-      el("btnOpenPermissions").onclick = async () => {
-        if (CURRENT_ROLE !== "superadmin") {
-          alert("SuperAdmin only.");
-          return;
-        }
-        showView("permissionsView");
-        renderPermissionsCard();
-        await renderAdminAccessUsers();
-      };
+  try {
+    if (action === "back-to-landing") {
+      showView("landing");
+      return;
+    }
 
-      el("btnOpenAllDeals").onclick = async () => {
-        if (!can("view_all_deals")) {
-          alert("Admin only.");
-          return;
-        }
-        showView("allDealsView");
-        await renderAllUsersDeals();
-      };
+    if (action === "open-radio") {
+      showView("radioView");
+      return;
+    }
 
-      // Back buttons
-      el("btnBack").onclick = () => showView("landing");
-      el("btnBackFromMyDeals").onclick = () => showView("landing");
-      el("btnBackFromPermissions").onclick = () => showView("landing");
-      el("btnBackFromAllDeals").onclick = () => showView("landing");
+    if (action === "open-my-deals") {
+      showView("myDealsView");
+      await renderMyDeals();
+      return;
+    }
+
+    if (action === "open-permissions") {
+      if (CURRENT_ROLE !== "superadmin") {
+        alert("SuperAdmin only.");
+        return;
+      }
+      showView("permissionsView");
+      renderPermissionsCard();
+      await renderAdminAccessUsers();
+      return;
+    }
+
+    if (action === "open-all-deals") {
+      if (!can("view_all_deals")) {
+        alert("Admin only.");
+        return;
+      }
+      showView("allDealsView");
+      await renderAllUsersDeals();
+      return;
+    }
+  } catch (err) {
+    console.error("Action failed:", action, err);
+    alert(`Action failed: ${err?.message || err}`);
+  }
+});
 
       // My Deals filters: re-render on change
       [
