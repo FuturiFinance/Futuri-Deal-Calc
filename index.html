@@ -950,8 +950,10 @@
     // Firestore subcollection name(s)
     // - Read from BOTH for backward compatibility
     // - Save to "deals" going forward
-    const DEALS_WRITE_COLLECTION = "deals";
-    const DEALS_READ_COLLECTIONS = ["deals", "uploads"]; // supports old "uploads" data
+    // ✅ Write to "uploads" because Firestore rules currently only allow /uploads
+// ✅ Read from both so you won't lose anything if you later enable /deals in rules
+const DEALS_WRITE_COLLECTION = "uploads";
+const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
 
     // Base permissions by role
     const PERMS_BASE = {
@@ -1383,10 +1385,6 @@
     /**********************
      * Deals (save + load + list)
      **********************/
-    <script>
-/**********************
- * Deals (save + load + list)
- **********************/
 
 function buildDealPayload(){
   syncDealMetaFromUI();
@@ -1894,7 +1892,14 @@ async function renderAllUsersDeals(){
         await window.initApp();
 
         // wire deal meta after calculator init (elements exist)
-        wireDealMetaUI();
+        setTimeout(() => {
+  if (typeof wireDealMetaUI === "function") {
+    wireDealMetaUI();
+  } else {
+    console.warn("wireDealMetaUI not available yet");
+  }
+}, 0);
+
 
         showView("landing");
       });
