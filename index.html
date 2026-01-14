@@ -482,7 +482,7 @@
         <div class="title">Radio</div>
         <div class="row">
           <div class="muted">Open Radio Deal Calc Selector</div>
-          <button class="btn primary" id="btnOpenRadio" type="button">Go to Radio</button>
+        <button class="btn primary" data-action="open-radio">Go to Radio</button>
         </div>
       </section>
 
@@ -498,7 +498,7 @@
         <div class="title">My Deals</div>
         <div class="row">
           <div class="muted">View + load my saved deal calcs</div>
-          <button class="btn" id="btnOpenMyDeals" type="button">Go to My Deal Calcs</button>
+        <button class="btn" data-action="open-my-deals">Go to My Deal Calcs</button>
         </div>
       </section>
 
@@ -506,7 +506,7 @@
         <div class="title">Permissions & Access</div>
         <div class="row">
           <div class="muted">Modify Permissions</div>
-          <button class="btn" id="btnOpenPermissions" type="button">Go to Permissions</button>
+        <button class="btn" data-action="open-permissions">Go to Permissions</button>
         </div>
       </section>
 
@@ -514,7 +514,7 @@
         <div class="title">Admin Deal Calcs View</div>
         <div class="row">
           <div class="muted">Browse all users’ deal calcs (including yours)</div>
-          <button class="btn" id="btnOpenAllDeals" type="button">Go to All Deal Calcs</button>
+        <button class="btn" data-action="open-admin">Go to All Deal Calcs</button>
         </div>
       </section>
     </div>
@@ -522,7 +522,7 @@
     <!-- MY DEALS VIEW -->
     <div id="myDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-        <button class="back-btn" id="btnBackFromMyDeals" type="button">← Back to Landing</button>
+      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
       </div>
 
       <section class="card">
@@ -601,7 +601,7 @@
     <!-- PERMISSIONS VIEW -->
     <div id="permissionsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-        <button class="back-btn" id="btnBackFromPermissions" type="button">← Back to Landing</button>
+      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
       </div>
 
       <section class="card" id="permissionsCard">
@@ -632,7 +632,7 @@
     <!-- ADMIN: ALL DEALS VIEW -->
     <div id="allDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-        <button class="back-btn" id="btnBackFromAllDeals" type="button">← Back to Landing</button>
+      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
       </div>
 
       <section class="card" id="adminUsersDealsCard">
@@ -647,7 +647,7 @@
     <!-- RADIO VIEW -->
     <div id="radioView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-        <button class="back-btn" id="btnBack" type="button">← Back to Landing</button>
+      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
       </div>
 
       <section class="card">
@@ -889,8 +889,8 @@
         <div class="title">Deal Calcs</div>
         <div class="row">
           <button class="btn" id="btnSaveDeal" type="button">Save Deal Calc</button>
-          <button class="btn" id="btnOpenMyDeals" type="button">Go to My Deal Calcs</button>
-          <button class="back-btn" id="btnBackFromAllDeals" type="button">← Back to Landing</button>
+          <button class="btn" data-action="open-my-deals">Go to My Deal Calcs</button>
+         <button class="back-btn" data-action="back-landing">← Back to Landing</button>
           <span class="muted" style="font-size:12px;">Create from Radio • View in My Deal Calcs</span>
         </div>
       </section>
