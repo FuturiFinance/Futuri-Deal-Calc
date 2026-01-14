@@ -1804,55 +1804,7 @@ async function renderAllUsersDeals(){
         await saveDeal();
       };
 
-      // ONE handler for ALL repeated buttons (event delegation)
-document.addEventListener("click", async (e) => {
-  const btn = e.target.closest("[data-action]");
-  if (!btn) return;
 
-  const action = btn.dataset.action;
-
-  try {
-    if (action === "back-to-landing") {
-      showView("landing");
-      return;
-    }
-
-    if (action === "open-radio") {
-      showView("radioView");
-      return;
-    }
-
-    if (action === "open-my-deals") {
-      showView("myDealsView");
-      await renderMyDeals();
-      return;
-    }
-
-    if (action === "open-permissions") {
-      if (CURRENT_ROLE !== "superadmin") {
-        alert("SuperAdmin only.");
-        return;
-      }
-      showView("permissionsView");
-      renderPermissionsCard();
-      await renderAdminAccessUsers();
-      return;
-    }
-
-    if (action === "open-all-deals") {
-      if (!can("view_all_deals")) {
-        alert("Admin only.");
-        return;
-      }
-      showView("allDealsView");
-      await renderAllUsersDeals();
-      return;
-    }
-  } catch (err) {
-    console.error("Action failed:", action, err);
-    alert(`Action failed: ${err?.message || err}`);
-  }
-});
 
       // My Deals filters: re-render on change
       [
@@ -2063,6 +2015,56 @@ document.addEventListener("click", async (e) => {
 
       return { init, getMerged, addEntry, removeParent };
     })();
+
+      // ONE handler for ALL repeated buttons (event delegation)
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-action]");
+  if (!btn) return;
+
+  const action = btn.dataset.action;
+
+  try {
+    if (action === "back-to-landing") {
+      showView("landing");
+      return;
+    }
+
+    if (action === "open-radio") {
+      showView("radioView");
+      return;
+    }
+
+    if (action === "open-my-deals") {
+      showView("myDealsView");
+      await renderMyDeals();
+      return;
+    }
+
+    if (action === "open-permissions") {
+      if (CURRENT_ROLE !== "superadmin") {
+        alert("SuperAdmin only.");
+        return;
+      }
+      showView("permissionsView");
+      renderPermissionsCard();
+      await renderAdminAccessUsers();
+      return;
+    }
+
+    if (action === "open-all-deals") {
+      if (!can("view_all_deals")) {
+        alert("Admin only.");
+        return;
+      }
+      showView("allDealsView");
+      await renderAllUsersDeals();
+      return;
+    }
+  } catch (err) {
+    console.error("Action failed:", action, err);
+    alert(`Action failed: ${err?.message || err}`);
+  }
+});
   </script>
 
   <script>
