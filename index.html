@@ -1383,319 +1383,384 @@
     /**********************
      * Deals (save + load + list)
      **********************/
-    function buildDealPayload(){
-      syncDealMetaFromUI();
-      return {
-        parent: window.state?.parent || "",
-        markets: Array.from(window.state?.markets || []),
-        stations: Array.from(window.state?.stations || []),
+    <script>
+/**********************
+ * Deals (save + load + list)
+ **********************/
 
-        pricingType: window.productState?.pricingType || "cash",
-        products: Array.from(window.productState?.selectedProducts || []),
-        customPrices: Object.fromEntries(window.productState?.customPrices || []),
-        manualMinutes: Object.fromEntries(window.productState?.manualMinutes || []),
-        stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
-        cpm: window.productState?.cpm ?? 2.0,
+function buildDealPayload(){
+  syncDealMetaFromUI();
+  return {
+    parent: window.state?.parent || "",
+    markets: Array.from(window.state?.markets || []),
+    stations: Array.from(window.state?.stations || []),
 
-        dealMeta: { ...dealMetaState },
+    pricingType: window.productState?.pricingType || "cash",
+    products: Array.from(window.productState?.selectedProducts || []),
+    customPrices: Object.fromEntries(window.productState?.customPrices || []),
+    manualMinutes: Object.fromEntries(window.productState?.manualMinutes || []),
+    stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
+    cpm: window.productState?.cpm ?? 2.0,
 
-        proposalHTML: el("proposalTable")?.innerHTML || null
-      };
+    dealMeta: { ...dealMetaState },
+
+    proposalHTML: el("proposalTable")?.innerHTML || null
+  };
+}
+
+function loadDeal(payload){
+  if (!payload) return;
+
+  showView("radioView");
+  window.scrollTo(0,0);
+
+  window.state.parent = payload.parent || "";
+  window.state.markets = new Set(payload.markets || []);
+  window.state.stations = new Set(payload.stations || []);
+
+  window.productState.pricingType = payload.pricingType || "cash";
+  window.productState.selectedProducts = new Set(payload.products || []);
+  window.productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
+  window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
+  window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
+  window.productState.cpm = payload.cpm ?? 2.0;
+
+  if (payload.dealMeta && typeof payload.dealMeta === "object") {
+    Object.assign(dealMetaState, payload.dealMeta);
+    window.dealMetaState = dealMetaState;
+  }
+  setTimeout(() => { applyDealMetaToUI(); syncDealMetaFromUI(); }, 0);
+
+  document.querySelectorAll('input[name="pricingType"]').forEach(r => {
+    r.checked = (r.value === window.productState.pricingType);
+  });
+
+  if (typeof window.setMarketsEnabled === "function") window.setMarketsEnabled(!!window.state.parent);
+  if (typeof window.setStationsEnabled === "function") window.setStationsEnabled(!!window.state.parent);
+  if (typeof window.renderParents === "function") window.renderParents(el("parentSearch")?.value || "");
+  if (typeof window.renderMarkets === "function") window.renderMarkets();
+  if (typeof window.renderStations === "function") window.renderStations();
+  if (typeof window.renderProducts === "function") window.renderProducts();
+  if (typeof window.updatePreview === "function") window.updatePreview();
+  if (typeof window.updateProductSummary === "function") window.updateProductSummary();
+
+  if (payload.proposalHTML){
+    el("proposalSection")?.classList.remove("hidden");
+    el("proposalOutput")?.classList.remove("hidden");
+    if (el("proposalTable")) el("proposalTable").innerHTML = payload.proposalHTML;
+  }
+
+  alert("Deal Loaded (Radio view).");
+}
+
+/**
+ * ✅ UPDATED: Save deal with hard error handling + optional console diagnostics
+ */
+async function saveDeal(){
+  if (!CURRENT_USER) return alert("Not signed in.");
+  if (!can("upload_files")) return alert("Your permissions do not allow saving deals.");
+
+  const { db, collection, addDoc, serverTimestamp } = window.fb;
+
+  let name = prompt("Name This Deal:", "");
+  if (name === null) return;
+  name = name.trim();
+  if (!name){
+    const now = new Date();
+    name = `Deal ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
+  }
+
+  const payload = buildDealPayload();
+
+  try{
+    await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
+      type: "deal",
+      name,
+      payload,
+      createdAt: serverTimestamp()
+    });
+
+    el("myDealsStatus").textContent = "Saved!";
+    setTimeout(() => (el("myDealsStatus").textContent = ""), 1500);
+
+    if (!el("myDealsView").classList.contains("hidden")) await renderMyDeals();
+    if (!el("allDealsView").classList.contains("hidden") && can("view_all_deals")) await renderAllUsersDeals();
+  }catch(err){
+    console.error("SAVE DEAL FAILED:", err);
+    alert(`Save failed: ${err?.message || err}`);
+  }
+}
+
+function applyMyDealsFilters(list){
+  const nameQ   = (el("myDealsSearchName")?.value || "").trim().toLowerCase();
+  const parentQ = (el("myDealsSearchParent")?.value || "").trim().toLowerCase();
+  const prodQ   = (el("myDealsSearchProduct")?.value || "").trim().toLowerCase();
+  const pType   = (el("myDealsPricingType")?.value || "").trim().toLowerCase();
+  const sortBy  = (el("myDealsSortBy")?.value || "newest");
+
+  const fromStr = el("myDealsDateFrom")?.value || "";
+  const toStr   = el("myDealsDateTo")?.value || "";
+
+  const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
+  const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
+
+  let out = list.filter(deal => {
+    const name   = (deal.name || "").toLowerCase();
+    const parent = (deal.payload?.parent || "").toLowerCase();
+    const pricingType = (deal.payload?.pricingType || "").toLowerCase();
+
+    const productIds = Array.isArray(deal.payload?.products) ? deal.payload.products : [];
+    const productNames = productIds
+      .map(pid => (window.PRODUCTS?.find(p => p.id === pid)?.name || pid))
+      .join(" ")
+      .toLowerCase();
+
+    const created = deal.createdAt?.toDate ? deal.createdAt.toDate() : null;
+
+    if (nameQ && !name.includes(nameQ)) return false;
+    if (parentQ && !parent.includes(parentQ)) return false;
+    if (pType && pricingType !== pType) return false;
+    if (prodQ && !productNames.includes(prodQ)) return false;
+
+    if (fromDate && created && created < fromDate) return false;
+    if (toDate && created && created > toDate) return false;
+
+    return true;
+  });
+
+  if (sortBy === "oldest") {
+    out.sort((a,b)=>{
+      const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+      const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+      return ad-bd;
+    });
+  } else if (sortBy === "name") {
+    out.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+  } else {
+    out.sort((a,b)=>{
+      const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+      const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+      return bd-ad;
+    });
+  }
+
+  return out;
+}
+
+/**
+ * ✅ UPDATED: getDealsForUser is now resilient:
+ * - each collection read is try/catch'd so one failing collection doesn't nuke the whole view
+ * - falls back to no ordering if createdAt is missing on legacy docs
+ */
+async function getDealsForUser(uid){
+  const { db, collection, getDocs, query, orderBy } = window.fb;
+
+  const all = [];
+
+  for (const colName of DEALS_READ_COLLECTIONS){
+    try{
+      // Try with ordering (preferred)
+      const q1 = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"));
+      const snap1 = await getDocs(q1);
+      snap1.forEach(d => all.push({ id: d.id, ...d.data() }));
+    }catch(err){
+      console.warn(`Deals read failed for users/${uid}/${colName} (ordered). Trying without orderBy.`, err);
+      try{
+        // Fallback: no orderBy (handles docs missing createdAt)
+        const snap2 = await getDocs(collection(db, "users", uid, colName));
+        snap2.forEach(d => all.push({ id: d.id, ...d.data() }));
+      }catch(err2){
+        console.warn(`Deals read failed for users/${uid}/${colName} (no order).`, err2);
+      }
+    }
+  }
+
+  // De-dupe best-effort (same name+createdAt)
+  const seen = new Set();
+  const out = [];
+  for (const d of all){
+    const t = d.createdAt?.toDate ? d.createdAt.toDate().getTime() : 0;
+    const key = `${d.name||""}|${t}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(d);
+  }
+
+  // Sort newest first
+  out.sort((a,b)=>{
+    const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+    const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+    return bd-ad;
+  });
+
+  return out;
+}
+
+async function renderMyDeals(){
+  const root = el("myDealsList");
+  root.innerHTML = "";
+
+  if (!CURRENT_USER){
+    root.innerHTML = `<div class="placeholder">Sign in to view your deals.</div>`;
+    return;
+  }
+
+  let deals = [];
+  try{
+    deals = await getDealsForUser(CURRENT_USER.uid);
+  }catch(err){
+    console.error("MY DEALS FAILED:", err);
+    root.innerHTML = `<div class="placeholder">Could not load your deals: ${err?.message || err}</div>`;
+    return;
+  }
+
+  MY_DEALS_CACHE = deals.slice();
+  const filtered = applyMyDealsFilters(MY_DEALS_CACHE);
+
+  if (!filtered.length){
+    root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
+    return;
+  }
+
+  filtered.forEach(d => {
+    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+    const label = when ? when.toLocaleString() : "(pending)";
+
+    const row = document.createElement("div");
+    row.className = "el";
+    row.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <strong>${d.name || "Untitled Deal"}</strong>
+        <div class="muted" style="font-size:11px">${label}</div>
+        ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+        ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+      </div>
+      <button class="btn" type="button">Load</button>
+    `;
+    row.querySelector("button").onclick = () => loadDeal(d.payload);
+    root.appendChild(row);
+  });
+}
+
+/**
+ * ✅ UPDATED: Admin view no longer fails silently.
+ * Also avoids hard dependency on users.createdAt existing by falling back to no-order query.
+ */
+async function renderAllUsersDeals(){
+  if (!can("view_all_deals")) return;
+
+  const root = el("adminUsersList");
+  root.innerHTML = `<div class="placeholder">Loading users…</div>`;
+
+  const { db, collection, getDocs, query, orderBy } = window.fb;
+
+  let usersSnap;
+  try{
+    // Preferred: ordered
+    const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
+    usersSnap = await getDocs(userQ);
+  }catch(err){
+    console.warn("USERS LIST (ordered) failed. Trying without orderBy. This usually means some users are missing createdAt.", err);
+    try{
+      usersSnap = await getDocs(collection(db, "users"));
+    }catch(err2){
+      console.error("USERS LIST failed:", err2);
+      root.innerHTML = `<div class="placeholder">Could not load users: ${err2?.message || err2}</div>`;
+      alert(`Admin view failed: ${err2?.message || err2}`);
+      return;
+    }
+  }
+
+  root.innerHTML = "";
+
+  if (usersSnap.empty){
+    root.innerHTML = `<div class="placeholder">No users yet.</div>`;
+    return;
+  }
+
+  // Ensure current user appears first (if present)
+  const docs = usersSnap.docs.slice();
+  docs.sort((a,b)=>{
+    if (a.id === CURRENT_UID) return -1;
+    if (b.id === CURRENT_UID) return 1;
+    return 0;
+  });
+
+  for (const udocSnap of docs){
+    const u = udocSnap.data() || {};
+    const uid = udocSnap.id;
+
+    const card = document.createElement("div");
+    card.style.border = "1px solid var(--edge)";
+    card.style.background = "var(--surface)";
+    card.style.borderRadius = "16px";
+    card.style.padding = "12px";
+    card.style.display = "flex";
+    card.style.flexDirection = "column";
+    card.style.gap = "10px";
+
+    const header = document.createElement("div");
+    header.style.display = "flex";
+    header.style.justifyContent = "space-between";
+    header.style.gap = "10px";
+    header.style.alignItems = "center";
+    header.innerHTML = `
+      <div>
+        <strong>${u.name || "(no name)"}</strong><br>
+        <span class="muted" style="font-size:12px">${u.email || ""}</span>
+      </div>
+    `;
+
+    const roleBadge = document.createElement("span");
+    roleBadge.className = "badge";
+    roleBadge.textContent = uid === CURRENT_UID ? `You • ${u.role || "staff"}` : `Role: ${u.role || "staff"}`;
+    header.appendChild(roleBadge);
+
+    card.appendChild(header);
+
+    const dealsBox = document.createElement("div");
+    dealsBox.className = "list";
+    dealsBox.innerHTML = `<div class="placeholder">Loading deals…</div>`;
+
+    let deals = [];
+    try{
+      deals = await getDealsForUser(uid);
+    }catch(e){
+      console.warn("Could not load deals for user", uid, e);
+      dealsBox.innerHTML = `<div class="placeholder">Could not load deals (see console)</div>`;
+      card.appendChild(dealsBox);
+      root.appendChild(card);
+      continue;
     }
 
-    function loadDeal(payload){
-      if (!payload) return;
+    dealsBox.innerHTML = "";
 
-      showView("radioView");
-      window.scrollTo(0,0);
-
-      window.state.parent = payload.parent || "";
-      window.state.markets = new Set(payload.markets || []);
-      window.state.stations = new Set(payload.stations || []);
-
-      window.productState.pricingType = payload.pricingType || "cash";
-      window.productState.selectedProducts = new Set(payload.products || []);
-      window.productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
-      window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
-      window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
-      window.productState.cpm = payload.cpm ?? 2.0;
-
-      if (payload.dealMeta && typeof payload.dealMeta === "object") {
-        Object.assign(dealMetaState, payload.dealMeta);
-        window.dealMetaState = dealMetaState;
-      }
-      setTimeout(() => { applyDealMetaToUI(); syncDealMetaFromUI(); }, 0);
-
-      document.querySelectorAll('input[name="pricingType"]').forEach(r => {
-        r.checked = (r.value === window.productState.pricingType);
-      });
-
-      if (typeof window.setMarketsEnabled === "function") window.setMarketsEnabled(!!window.state.parent);
-      if (typeof window.setStationsEnabled === "function") window.setStationsEnabled(!!window.state.parent);
-      if (typeof window.renderParents === "function") window.renderParents(el("parentSearch")?.value || "");
-      if (typeof window.renderMarkets === "function") window.renderMarkets();
-      if (typeof window.renderStations === "function") window.renderStations();
-      if (typeof window.renderProducts === "function") window.renderProducts();
-      if (typeof window.updatePreview === "function") window.updatePreview();
-      if (typeof window.updateProductSummary === "function") window.updateProductSummary();
-
-      if (payload.proposalHTML){
-        el("proposalSection")?.classList.remove("hidden");
-        el("proposalOutput")?.classList.remove("hidden");
-        if (el("proposalTable")) el("proposalTable").innerHTML = payload.proposalHTML;
-      }
-
-      alert("Deal Loaded (Radio view).");
-    }
-
-    async function saveDeal(){
-      if (!CURRENT_USER) return alert("Not signed in.");
-      if (!can("upload_files")) return alert("Your permissions do not allow saving deals.");
-
-      const { db, collection, addDoc, serverTimestamp } = window.fb;
-
-      let name = prompt("Name This Deal:", "");
-      if (name === null) return;
-      name = name.trim();
-      if (!name){
-        const now = new Date();
-        name = `Deal ${now.toLocaleDateString()} ${now.toLocaleTimeString()}`;
-      }
-
-      const payload = buildDealPayload();
-
-      await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
-        type: "deal",
-        name,
-        payload,
-        createdAt: serverTimestamp()
-      });
-
-      el("myDealsStatus").textContent = "Saved!";
-      setTimeout(() => (el("myDealsStatus").textContent = ""), 1500);
-
-      if (!el("myDealsView").classList.contains("hidden")) await renderMyDeals();
-      if (!el("allDealsView").classList.contains("hidden") && can("view_all_deals")) await renderAllUsersDeals();
-    }
-
-    function applyMyDealsFilters(list){
-      const nameQ   = (el("myDealsSearchName")?.value || "").trim().toLowerCase();
-      const parentQ = (el("myDealsSearchParent")?.value || "").trim().toLowerCase();
-      const prodQ   = (el("myDealsSearchProduct")?.value || "").trim().toLowerCase();
-      const pType   = (el("myDealsPricingType")?.value || "").trim().toLowerCase();
-      const sortBy  = (el("myDealsSortBy")?.value || "newest");
-
-      const fromStr = el("myDealsDateFrom")?.value || "";
-      const toStr   = el("myDealsDateTo")?.value || "";
-
-      const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
-      const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
-
-      let out = list.filter(deal => {
-        const name   = (deal.name || "").toLowerCase();
-        const parent = (deal.payload?.parent || "").toLowerCase();
-        const pricingType = (deal.payload?.pricingType || "").toLowerCase();
-
-        const productIds = Array.isArray(deal.payload?.products) ? deal.payload.products : [];
-        const productNames = productIds
-          .map(pid => (window.PRODUCTS?.find(p => p.id === pid)?.name || pid))
-          .join(" ")
-          .toLowerCase();
-
-        const created = deal.createdAt?.toDate ? deal.createdAt.toDate() : null;
-
-        if (nameQ && !name.includes(nameQ)) return false;
-        if (parentQ && !parent.includes(parentQ)) return false;
-        if (pType && pricingType !== pType) return false;
-        if (prodQ && !productNames.includes(prodQ)) return false;
-
-        if (fromDate && created && created < fromDate) return false;
-        if (toDate && created && created > toDate) return false;
-
-        return true;
-      });
-
-      if (sortBy === "oldest") {
-        out.sort((a,b)=>{
-          const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
-          const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
-          return ad-bd;
-        });
-      } else if (sortBy === "name") {
-        out.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
-      } else {
-        out.sort((a,b)=>{
-          const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
-          const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
-          return bd-ad;
-        });
-      }
-
-      return out;
-    }
-
-    async function getDealsForUser(uid){
-      const { db, collection, getDocs, query, orderBy } = window.fb;
-
-      // Read from all known collections and merge
-      const all = [];
-      for (const colName of DEALS_READ_COLLECTIONS){
-        const q = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"));
-        const snap = await getDocs(q);
-        snap.forEach(d => all.push({ id: d.id, ...d.data() }));
-      }
-
-      // De-dupe best-effort (same name+createdAt)
-      const seen = new Set();
-      const out = [];
-      for (const d of all){
-        const t = d.createdAt?.toDate ? d.createdAt.toDate().getTime() : 0;
-        const key = `${d.name||""}|${t}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(d);
-      }
-
-      // Sort newest first
-      out.sort((a,b)=>{
-        const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
-        const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
-        return bd-ad;
-      });
-
-      return out;
-    }
-
-    async function renderMyDeals(){
-      const root = el("myDealsList");
-      root.innerHTML = "";
-
-      if (!CURRENT_USER){
-        root.innerHTML = `<div class="placeholder">Sign in to view your deals.</div>`;
-        return;
-      }
-
-      const deals = await getDealsForUser(CURRENT_USER.uid);
-      MY_DEALS_CACHE = deals.slice();
-
-      const filtered = applyMyDealsFilters(MY_DEALS_CACHE);
-
-      if (!filtered.length){
-        root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
-        return;
-      }
-
-      filtered.forEach(d => {
+    if (!deals.length){
+      dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
+    } else {
+      deals.forEach(d => {
         const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
         const label = when ? when.toLocaleString() : "(pending)";
 
         const row = document.createElement("div");
         row.className = "el";
         row.innerHTML = `
-          <div style="display:flex; flex-direction:column; gap:4px;">
-            <strong>${d.name || "Untitled Deal"}</strong>
+          <div>
+            <strong>${d.name || "Deal"}</strong>
             <div class="muted" style="font-size:11px">${label}</div>
-            ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
-            ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
           </div>
           <button class="btn" type="button">Load</button>
         `;
         row.querySelector("button").onclick = () => loadDeal(d.payload);
-        root.appendChild(row);
+        dealsBox.appendChild(row);
       });
     }
 
-    async function renderAllUsersDeals(){
-      if (!can("view_all_deals")) return;
-
-      const { db, collection, getDocs, query, orderBy } = window.fb;
-
-      const userQ = query(collection(db, "users"), orderBy("createdAt", "desc"));
-      const usersSnap = await getDocs(userQ);
-
-      const root = el("adminUsersList");
-      root.innerHTML = "";
-      if (usersSnap.empty){
-        root.innerHTML = `<div class="placeholder">No users yet.</div>`;
-        return;
-      }
-
-      // Ensure current user appears first (if present)
-      const docs = usersSnap.docs.slice();
-      docs.sort((a,b)=>{
-        if (a.id === CURRENT_UID) return -1;
-        if (b.id === CURRENT_UID) return 1;
-        return 0;
-      });
-
-      for (const udocSnap of docs){
-        const u = udocSnap.data() || {};
-        const uid = udocSnap.id;
-
-        const card = document.createElement("div");
-        card.style.border = "1px solid var(--edge)";
-        card.style.background = "var(--surface)";
-        card.style.borderRadius = "16px";
-        card.style.padding = "12px";
-        card.style.display = "flex";
-        card.style.flexDirection = "column";
-        card.style.gap = "10px";
-
-        const header = document.createElement("div");
-        header.style.display = "flex";
-        header.style.justifyContent = "space-between";
-        header.style.gap = "10px";
-        header.style.alignItems = "center";
-        header.innerHTML = `
-          <div>
-            <strong>${u.name || "(no name)"}</strong><br>
-            <span class="muted" style="font-size:12px">${u.email || ""}</span>
-          </div>
-        `;
-
-        const roleBadge = document.createElement("span");
-        roleBadge.className = "badge";
-        roleBadge.textContent = uid === CURRENT_UID ? `You • ${u.role || "staff"}` : `Role: ${u.role || "staff"}`;
-        header.appendChild(roleBadge);
-
-        card.appendChild(header);
-
-        const dealsBox = document.createElement("div");
-        dealsBox.className = "list";
-
-        let deals = [];
-        try{
-          deals = await getDealsForUser(uid);
-        }catch(e){
-          console.warn("Could not load deals for user", uid, e);
-        }
-
-        if (!deals.length){
-          dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
-        } else {
-          deals.forEach(d => {
-            const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
-            const label = when ? when.toLocaleString() : "(pending)";
-
-            const row = document.createElement("div");
-            row.className = "el";
-            row.innerHTML = `
-              <div>
-                <strong>${d.name || "Deal"}</strong>
-                <div class="muted" style="font-size:11px">${label}</div>
-              </div>
-              <button class="btn" type="button">Load</button>
-            `;
-            row.querySelector("button").onclick = () => loadDeal(d.payload);
-            dealsBox.appendChild(row);
-          });
-        }
-
-        card.appendChild(dealsBox);
-        root.appendChild(card);
-      }
-    }
-  </script>
+    card.appendChild(dealsBox);
+    root.appendChild(card);
+  }
+}
+</script>
 
   <script>
     /**********************
