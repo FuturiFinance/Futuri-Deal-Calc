@@ -3311,6 +3311,43 @@ document.addEventListener("click", async (e) => {
   }
 </script>
 
+  <script>
+  document.addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-action]");
+    if (!btn) return;
+
+    const action = btn.dataset.action;
+
+    switch (action) {
+      case "back-landing":
+        showView("landing");
+        break;
+
+      case "open-radio":
+        showView("radioView");
+        break;
+
+      case "open-my-deals":
+        showView("myDealsView");
+        await renderMyDeals();
+        break;
+
+      case "open-permissions":
+        if (CURRENT_ROLE !== "superadmin") return alert("SuperAdmin only.");
+        showView("permissionsView");
+        renderPermissionsCard();
+        await renderAdminAccessUsers();
+        break;
+
+      case "open-admin":
+        if (!can("view_all_deals")) return alert("Admin only.");
+        showView("allDealsView");
+        await renderAllUsersDeals();
+        break;
+    }
+  });
+</script>
+
 </body>
 </html>
 
