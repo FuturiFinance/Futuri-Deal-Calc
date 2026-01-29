@@ -515,7 +515,7 @@
         <div class="title">Admin Deal Calcs View</div>
         <div class="row">
           <div class="muted">Browse all users’ deal calcs (including yours)</div>
-        <button class="btn" data-action="open-admin">Go to All Deal Calcs</button>
+        <button class="btn" data-action="open-all-deals">Go to All Deal Calcs</button>
         </div>
       </section>
     </div>
@@ -523,7 +523,7 @@
     <!-- MY DEALS VIEW -->
     <div id="myDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
+      <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
       </div>
 
       <section class="card">
@@ -602,7 +602,7 @@
     <!-- PERMISSIONS VIEW -->
     <div id="permissionsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
+      <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
       </div>
 
       <section class="card" id="permissionsCard">
@@ -633,7 +633,7 @@
     <!-- ADMIN: ALL DEALS VIEW -->
     <div id="allDealsView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
+      <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
       </div>
 
       <section class="card" id="adminUsersDealsCard">
@@ -648,7 +648,7 @@
     <!-- RADIO VIEW -->
     <div id="radioView" class="grid hidden" style="grid-template-columns:1fr;">
       <div class="row" style="justify-content:flex-start;margin-bottom:12px;">
-      <button class="back-btn" data-action="back-landing">← Back to Landing</button>
+      <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
       </div>
 
       <section class="card">
@@ -853,7 +853,7 @@
 
             <div class="field grow">
               <label for="nielsenYear">Nielsen Book (Year)</label>
-              <input id="nielsenYear" type="number" min="2024" step="1" value="2030" />
+              <input id="nielsenYear" type="number" min="2025" step="1" value="" />
             </div>
           </div>
 
@@ -891,7 +891,7 @@
         <div class="row">
           <button class="btn" id="btnSaveDeal" type="button">Save Deal Calc</button>
           <button class="btn" data-action="open-my-deals">Go to My Deal Calcs</button>
-         <button class="back-btn" data-action="back-landing">← Back to Landing</button>
+         <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
           <span class="muted" style="font-size:12px;">Create from Radio • View in My Deal Calcs</span>
         </div>
       </section>
@@ -1327,7 +1327,7 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       autoRenewMonths: 12,
       autoRenewCustomMonths: null,
       nielsenSeason: "Fall",
-      nielsenYear: 2024,
+      nielsenYear: null,
       approvalEmail: "sabrinacarlo@futurimedia.com"
     };
     window.dealMetaState = dealMetaState;
@@ -1359,7 +1359,8 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       dealMetaState.autoRenewCustomMonths = parsePositiveInt(el("autoRenewCustomMonths")?.value);
 
       dealMetaState.nielsenSeason = el("nielsenSeason")?.value || dealMetaState.nielsenSeason;
-      dealMetaState.nielsenYear = parsePositiveInt(el("nielsenYear")?.value) || dealMetaState.nielsenYear;
+      const parsedNYear = parsePositiveInt(el("nielsenYear")?.value);
+      dealMetaState.nielsenYear = parsedNYear === null ? null : parsedNYear;
       dealMetaState.approvalEmail = (el("approvalEmailText")?.textContent || dealMetaState.approvalEmail);
 
       window.dealMetaState = dealMetaState;
@@ -1391,7 +1392,7 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       }
 
       el("nielsenSeason").value = dealMetaState.nielsenSeason || "Fall";
-      el("nielsenYear").value = String(dealMetaState.nielsenYear || 2024);
+      el("nielsenYear").value = dealMetaState.nielsenYear != null ? String(dealMetaState.nielsenYear) : "";
       if (el("approvalEmailText")) el("approvalEmailText").textContent = dealMetaState.approvalEmail;
     }
 
@@ -3469,11 +3470,12 @@ window.generateProposal = function generateProposal() {
   const monthlyAllStationsProposal = monthlyPerStationProposal * stations.length;
   const annualAllStationsProposal  = monthlyAllStationsProposal * 12;
 
-  // Mixed cash inputs are ANNUAL per station
-  let totalCashAnnual = 0;
+  // Mixed cash inputs are MONTHLY per station (UI accepts monthly values)
+  let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
-    stations.forEach(st => totalCashAnnual += (window.productState.stationCashValues.get(st.key) || 0));
+    stations.forEach(st => totalCashMonthly += (window.productState.stationCashValues.get(st.key) || 0));
   }
+  const totalCashAnnual = totalCashMonthly * 12;
 
   const remainingAnnual =
     (pricingType === 'mixed')
@@ -3505,9 +3507,8 @@ window.generateProposal = function generateProposal() {
   // Products cell (3): show as a comma-separated list in the horizontal row
   const productNames = products.map(p => p.name).join(", ");
 
-  // For (4) Cash/Station/Year: in mixed show each station’s annual cash input
-  // For non-mixed, leave as "—"
-  const showCashCol = (pricingType === 'mixed');
+  // For (4) Cash/Station/Year: show for cash and mixed deals
+  const showCashCol = (pricingType === 'mixed' || pricingType === 'cash');
 
   // Build horizontal 1–5 table
   const lines = [];
@@ -3517,7 +3518,7 @@ window.generateProposal = function generateProposal() {
   lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
   lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStationsProposal)}</span></span>`);
   if (pricingType === 'mixed') {
-    lines.push(`<span class="pill">Cash (Annual): <span>${money(totalCashAnnual)}</span></span>`);
+    lines.push(`<span class="pill">Cash (Monthly): <span>${money(totalCashMonthly)}</span>/mo</span>`);
     lines.push(`<span class="pill">Barter Remaining (Annual): <span>${money(remainingAnnual)}</span></span>`);
   }
   lines.push(`</div>`);
@@ -3534,18 +3535,16 @@ window.generateProposal = function generateProposal() {
   lines.push(`</div>`);
 
   lines.push(`<div class="subtle-divider"></div>`);
-  lines.push(`<div class="title" style="margin-bottom:6px;">Proposal (1–5)</div>`);
+  lines.push(`<div class="title" style="margin-bottom:6px;">Proposal</div>`);
   lines.push(`<div style="overflow-x:auto;">`);
   lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
   lines.push(`<thead><tr>
-    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">(1) Station</th>
-    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">(2) Market</th>
-    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">(3) Product(s)</th>
-    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">
-      (4) ${showCashCol ? "Cash / Station / Year" : "Cash / Station / Year"}
-    </th>
-    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">(5) Prime / Day</th>
-    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">(5) ROS / Day</th>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product(s)</th>
+    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">${showCashCol ? "Cash / Station / Month" : "Cash / Station / Month"}</th>
+    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime / Day</th>
+    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS / Day</th>
   </tr></thead>`);
   lines.push(`<tbody>`);
 
@@ -3554,9 +3553,14 @@ window.generateProposal = function generateProposal() {
     .slice()
     .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
     .forEach(st => {
-      const cashAnnualForStation = showCashCol
-        ? (window.productState.stationCashValues.get(st.key) || 0)
-        : null;
+      const cashMonthlyForStation =
+        (pricingType === 'mixed')
+          // Mixed: user-entered MONTHLY cash per station
+          ? (window.productState.stationCashValues.get(st.key) || 0)
+          : (pricingType === 'cash')
+            // Cash: monthly product value per station
+            ? monthlyPerStationProposal
+            : null;
 
       const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
 
@@ -3565,13 +3569,13 @@ window.generateProposal = function generateProposal() {
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${productNames}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${cashAnnualForStation === null ? "—" : money(cashAnnualForStation)}
+          ${showCashCol ? (cashMonthlyForStation != null ? (money(cashMonthlyForStation) + '/mo') : '—') : "—"}
         </td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${pricingType === 'mixed' || pricingType === 'barter' ? String(daily.primePerDay) : "—"}
+          ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.primePerDay) : "—"}
         </td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${pricingType === 'mixed' || pricingType === 'barter' ? String(daily.rosPerDay) : "—"}
+          ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.rosPerDay) : "—"}
         </td>
       </tr>`);
     });
@@ -3644,27 +3648,29 @@ window.buildProposalText = function buildProposalText() {
   const productNames = getSelectedProductsDetailed().map(p => p.name).join(", ");
 
   const lines = [];
-  lines.push(`Futuri Media Deal Calc — Proposal (1–5 Horizontal)`);
+  lines.push(`Futuri Media Deal Calc — Proposal`);
   lines.push(`Parent: ${window.state.parent || "—"}`);
   lines.push(`Pricing Type: ${pricingType}`);
   lines.push(`Annual Total (all stations): ${money(annualAllStationsProposal)}`);
   if (pricingType === 'mixed') {
-    lines.push(`Cash (Annual): ${money(totalCashAnnual)}`);
+    lines.push(`Cash (Monthly): ${money(totalCashMonthly)}/mo`);
     lines.push(`Barter Remaining (Annual): ${money(remainingAnnual)}`);
   }
   lines.push(`Deal Terms: Term ${termMonths}mo | Auto-Renew ${arEnabled ? "Yes" : "No"} | AR Term ${arEnabled ? arMonths + "mo" : "—"} | Nielsen ${nielsenDisplay}`);
   lines.push(``);
-  lines.push(`(1) Station | (2) Market | (3) Product(s) | (4) Cash/Station/Year | (5) Prime/Day | (5) ROS/Day`);
+  lines.push(`Station | Market | Product(s) | Cash/Station/Month | Prime/Day | ROS/Day`);
   stations.forEach(st => {
-    const cashAnnualForStation = (pricingType === 'mixed')
+    const cashMonthlyForStation = (pricingType === 'mixed')
       ? (window.productState.stationCashValues.get(st.key) || 0)
-      : null;
+      : (pricingType === 'cash')
+        ? monthlyPerStationProposal
+        : null;
 
     const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
 
     lines.push(
       `${st.station} | ${st.market || ""} | ${productNames} | ` +
-      `${cashAnnualForStation === null ? "—" : money(cashAnnualForStation)} | ` +
+      `${cashMonthlyForStation === null ? "—" : (money(cashMonthlyForStation) + '/mo')} | ` +
       `${(pricingType === 'mixed' || pricingType === 'barter') ? daily.primePerDay : "—"} | ` +
       `${(pricingType === 'mixed' || pricingType === 'barter') ? daily.rosPerDay : "—"}`
     );
