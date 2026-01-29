@@ -945,6 +945,77 @@
      ****************************/
     const el = (id) => document.getElementById(id);
 
+    // Global error overlay to capture runtime exceptions for easier debugging
+    (function(){
+      function createOverlay(){
+        const o = document.createElement('div');
+        o.id = 'errorOverlay';
+        o.style.position = 'fixed';
+        o.style.right = '16px';
+        o.style.bottom = '16px';
+        o.style.maxWidth = '420px';
+        o.style.zIndex = '999999';
+        o.style.background = 'rgba(180,35,24,.94)';
+        o.style.color = '#fff';
+        o.style.padding = '12px 14px';
+        o.style.borderRadius = '12px';
+        o.style.boxShadow = '0 12px 30px rgba(0,0,0,.4)';
+        o.style.fontSize = '13px';
+        o.style.lineHeight = '1.3';
+        o.style.overflow = 'auto';
+        o.style.maxHeight = '60vh';
+
+        const hdr = document.createElement('div');
+        hdr.style.display = 'flex';
+        hdr.style.justifyContent = 'space-between';
+        hdr.style.alignItems = 'center';
+        hdr.style.marginBottom = '8px';
+        const title = document.createElement('strong');
+        title.textContent = 'Runtime Error';
+        title.style.fontSize = '14px';
+        const close = document.createElement('button');
+        close.className = 'btn';
+        close.textContent = 'Close';
+        close.onclick = () => o.remove();
+        hdr.appendChild(title);
+        hdr.appendChild(close);
+
+        const pre = document.createElement('pre');
+        pre.style.whiteSpace = 'pre-wrap';
+        pre.style.margin = '0';
+        pre.style.fontSize = '12px';
+        pre.style.color = '#fff';
+        o.appendChild(hdr);
+        o.appendChild(pre);
+        return { o, pre };
+      }
+
+      function showError(text){
+        try{
+          let existing = document.getElementById('errorOverlay');
+          if (existing) {
+            const pre = existing.querySelector('pre');
+            pre.textContent = String(text).slice(0, 8000);
+            return;
+          }
+          const { o, pre } = createOverlay();
+          pre.textContent = String(text).slice(0, 8000);
+          document.body.appendChild(o);
+        }catch(e){ console.error('Could not show error overlay', e); }
+      }
+
+      window.addEventListener('error', function(ev){
+        try{ console.error('Window error:', ev.error || ev.message); }catch(e){}
+        showError((ev.error && (ev.error.stack || ev.error.message)) || ev.message || String(ev));
+      });
+
+      window.addEventListener('unhandledrejection', function(ev){
+        try{ console.error('Unhandled rejection:', ev.reason); }catch(e){}
+        const text = (ev.reason && (ev.reason.stack || ev.reason.message)) || String(ev.reason || ev);
+        showError('Unhandled promise rejection:\n' + text);
+      });
+    })();
+
     // IMPORTANT: Sabrina is always SuperAdmin
     const SUPERADMIN_EMAILS = new Set([
       "sabrinacarlo@futurimedia.com"
@@ -2763,14 +2834,104 @@ document.addEventListener("click", async (e) => {
     };
 
     el('btnGenerateProposal').onclick = () => {
-      if (!can('generate_proposal')) return alert("Your permissions do not allow proposal generation.");
+      // Debug helper: surface why generation may not run
+      try {
+        console.groupCollapsed('Generate Proposal Click');
+        console.log('CURRENT_ROLE:', CURRENT_ROLE);
+        console.log('CURRENT_UID:', CURRENT_UID);
+        console.log('can(generate_proposal):', can('generate_proposal'));
+        console.log('Selected stations:', getSelectedStationsDetailed().length);
+        console.log('Selected products:', getSelectedProductsDetailed().length);
+        console.groupEnd();
+      } catch (e) {
+        console.warn('Debug logging failed', e);
+      }
+
+      // Ensure user is signed in; if not, open Google login and show a prominent hint
+      if (!CURRENT_UID) {
+        try { showGoogleLogin(); } catch {}
+
+        const hintId = 'genProposalHint';
+        let hint = document.getElementById(hintId);
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.id = hintId;
+          hint.style.marginTop = '10px';
+          hint.style.padding = '10px 12px';
+          hint.style.background = 'rgba(180,35,24,.06)';
+          hint.style.border = '1px solid rgba(180,35,24,.18)';
+          hint.style.borderRadius = '10px';
+          hint.style.color = 'var(--danger)';
+          hint.style.fontSize = '13px';
+        }
+        hint.innerHTML = 'Please sign in with your Futuri Media Google account to generate proposals. <button id="hintSignInBtn" class="btn primary" style="margin-left:8px;">Sign in</button>';
+        const parent = el('proposalSection') || document.body;
+        parent.insertBefore(hint, parent.firstChild);
+
+        // Wire the quick sign-in button to the existing Google login button
+        setTimeout(() => {
+          const quick = document.getElementById('hintSignInBtn');
+          if (quick) quick.onclick = () => { const g = el('btnGoogleLogin'); if (g) g.click(); };
+        }, 50);
+
+        setTimeout(() => { try { hint.remove(); } catch {} }, 7000);
+        return;
+      }
+
+      if (!can('generate_proposal')) {
+        const hintId = 'genProposalHint';
+        let hint = document.getElementById(hintId);
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.id = hintId;
+          hint.style.marginTop = '8px';
+          hint.style.padding = '8px 10px';
+          hint.style.background = 'rgba(180,35,24,.06)';
+          hint.style.border = '1px solid rgba(180,35,24,.18)';
+          hint.style.borderRadius = '10px';
+          hint.style.color = 'var(--danger)';
+          hint.style.fontSize = '13px';
+        }
+        hint.textContent = 'Permission denied: your role cannot generate proposals.';
+        const parent = el('proposalSection') || document.body;
+        parent.insertBefore(hint, parent.firstChild);
+        setTimeout(() => { try { hint.remove(); } catch {} }, 4000);
+        return;
+      }
+
+      // Check selections and inform via UI hint instead of only alert
+      const stationsCount = getSelectedStationsDetailed().length;
+      const productsCount = getSelectedProductsDetailed().length;
+      if (!stationsCount || !productsCount) {
+        const hintId = 'genProposalHint';
+        let hint = document.getElementById(hintId);
+        if (!hint) {
+          hint = document.createElement('div');
+          hint.id = hintId;
+          hint.style.marginTop = '8px';
+          hint.style.padding = '8px 10px';
+          hint.style.background = 'rgba(180,35,24,.06)';
+          hint.style.border = '1px solid rgba(180,35,24,.18)';
+          hint.style.borderRadius = '10px';
+          hint.style.color = 'var(--danger)';
+          hint.style.fontSize = '13px';
+        }
+        hint.textContent = (!stationsCount && !productsCount)
+          ? 'Select at least one station and one product before generating.'
+          : (!stationsCount) ? 'Select at least one station before generating.' : 'Select at least one product before generating.';
+        const parent = el('proposalSection') || document.body;
+        parent.insertBefore(hint, parent.firstChild);
+        setTimeout(() => { try { hint.remove(); } catch {} }, 4000);
+        return;
+      }
+
       generateProposal();
     };
 
     el('btnCopyProposal').onclick = async () => {
       if (!el('proposalTable')?.innerHTML) return alert("Generate the proposal first.");
       try{
-        const text = buildProposalText();
+        const text = window.buildProposalText();
         await navigator.clipboard.writeText(text);
         const b = el('btnCopyProposal');
         const t = b.textContent;
@@ -2814,16 +2975,21 @@ document.addEventListener("click", async (e) => {
   }
 
   function computeMonthlyValuePerStation(){
-    const pricingType = window.productState.pricingType;
-    let total = 0;
-    window.productState.selectedProducts.forEach(pid => {
-      const p = window.PRODUCTS.find(pp => pp.id === pid);
-      if (!p) return;
-      const rate = (pricingType === 'cash') ? p.cash : p.barter;
-      if (rate === null || rate === undefined) return;
-      total += (window.productState.customPrices.get(pid) ?? rate);
-    });
-    return total;
+      try {
+        const pricingType = window.productState.pricingType;
+        let total = 0;
+        window.productState.selectedProducts.forEach(pid => {
+          const p = window.PRODUCTS.find(pp => pp.id === pid);
+          if (!p) return;
+          const rate = (pricingType === 'cash') ? p.cash : p.barter;
+          if (rate === null || rate === undefined) return;
+          total += (window.productState.customPrices.get(pid) ?? rate);
+        });
+        return total;
+      } catch (e) {
+        console.error('computeMonthlyValuePerStation error', e);
+        return 0;
+      }
   }
 
   /**********************
@@ -3150,166 +3316,362 @@ document.addEventListener("click", async (e) => {
   /**********************
    * Proposal generation
    **********************/
-  function generateProposal(){
-    if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+  /**********************
+ * Proposal generation (HORIZONTAL 1–5 VIEW)
+ * - (1) Station
+ * - (2) Market
+ * - (3) Product(s)
+ * - (4) Cash / Station / Year  (for Mixed)
+ * - (5) Prime/Day + ROS/Day    (for Barter remainder)
+ *
+ * ALSO:
+ * - Mixed proposal uses CASH rate card for product values (not barter)
+ * - Nielsen shows "—" unless BOTH season + year are set (prevents default display)
+ **********************/
 
+// --- helper: get product value for PROPOSAL based on deal type ---
+function getProposalProductValue(product, pricingType) {
+  // For mixed, proposal should show CASH pricing (barter handled separately by remaining value)
+  const baseRate =
+    (pricingType === 'cash' || pricingType === 'mixed') ? product.cash : product.barter;
+
+  if (baseRate === null || baseRate === undefined) return null;
+
+  // respects overrides (same as current behavior)
+  return window.productState.customPrices.get(product.id) ?? baseRate;
+}
+
+// --- helper: compute monthly value per station FOR PROPOSAL (cash for mixed) ---
+function computeProposalMonthlyPerStation(pricingType) {
+  try {
+    let total = 0;
+    window.productState.selectedProducts.forEach(pid => {
+      const p = window.PRODUCTS.find(pp => pp.id === pid);
+      if (!p) return;
+      const v = getProposalProductValue(p, pricingType);
+      if (v === null) return;
+      total += Number(v || 0);
+    });
+    return total;
+  } catch (e) {
+    console.error('computeProposalMonthlyPerStation error', e);
+    return 0;
+  }
+}
+
+// --- helper: compute barter allocation (spots per month) without rendering UI ---
+function computeBarterAllocation(monthlyRemainingValue) {
+  try {
     const stations = getSelectedStationsDetailed();
-    const products = getSelectedProductsDetailed();
-    const pricingType = window.productState.pricingType;
+    if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) return [];
 
-    if (!window.state.parent) return alert("Select a parent company first.");
-    if (!stations.length) return alert("Select at least one station.");
-    if (!products.length) return alert("Select at least one product.");
+    let totalPrime = 0;
+    let totalRos = 0;
+    stations.forEach(s => {
+      totalPrime += (Number(s.primeAQH) || 0);
+      totalRos   += (Number(s.rosAQH) || 0);
+    });
 
-    const monthlyPerStation = computeMonthlyValuePerStation();
-    const monthlyAllStations = monthlyPerStation * stations.length;
-    const annualAllStations  = monthlyAllStations * 12;
+    const hasAQH = (totalPrime + totalRos) > 0;
+    const cpm = Number(window.productState.cpm || 2.0);
 
-    // use the real global dealMetaState (from Chunk 3)
-    const termMonths = dealMetaState.termMonths || 36;
-    const arEnabled  = !!dealMetaState.autoRenewEnabled;
-    const arMonths   = dealMetaState.autoRenewMonths || 12;
-    const nSeason    = dealMetaState.nielsenSeason || "—";
-    const nYear      = dealMetaState.nielsenYear || "—";
+    let totalSpotsPerMonth = 0;
+    if (hasAQH && cpm > 0) {
+      totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
+    } else {
+      totalSpotsPerMonth = stations.length; // fallback
+    }
+    totalSpotsPerMonth = Math.max(0, Math.round(totalSpotsPerMonth)); // whole
 
-    const lines = [];
-    lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
-    lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
-    lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
-    lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
-    lines.push(`<span class="pill">Monthly Total: <span>${money(monthlyAllStations)}</span></span>`);
-    lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStations)}</span></span>`);
-    lines.push(`</div>`);
+    let primeShare = 0.5;
+    if (hasAQH) {
+      const denom = (totalPrime + totalRos);
+      primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
+    }
+    const totalPrimeSpots = Math.round(totalSpotsPerMonth * primeShare);
+    const totalRosSpots   = totalSpotsPerMonth - totalPrimeSpots;
 
-    lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="card" style="background:#0b121a;">`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
-    lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
-    lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
-    lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
-    lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
-    lines.push(`<span class="badge">Nielsen: ${nSeason} ${nYear}</span>`);
-    lines.push(`</div>`);
-    lines.push(`</div>`);
+    function distributeIntegers(total, entries, rawKey, outKey) {
+      entries.forEach(x => {
+        x[outKey] = Math.floor(x[rawKey]);
+        x._frac = x[rawKey] - x[outKey];
+      });
+      let used = entries.reduce((sum, x) => sum + x[outKey], 0);
+      let remaining = total - used;
 
-    lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Products</div>`);
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Per Station / Month</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">All Stations / Month</th>
-    </tr></thead>`);
-    lines.push(`<tbody>`);
-    products.forEach(p => {
-      const perStation = (p.value === null) ? null : p.value;
-      const allStations = (perStation === null) ? null : perStation * stations.length;
+      entries
+        .slice()
+        .sort((a, b) => b._frac - a._frac)
+        .forEach(x => {
+          if (remaining > 0) { x[outKey] += 1; remaining -= 1; }
+        });
+
+      entries.forEach(x => delete x._frac);
+    }
+
+    const alloc = stations.map(st => {
+      const pAQH = Number(st.primeAQH) || 0;
+      const rAQH = Number(st.rosAQH) || 0;
+
+      const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
+      const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
+
+      return {
+        st,
+        rawPrime: totalPrimeSpots * pWeight,
+        rawRos:   totalRosSpots   * rWeight
+      };
+    });
+
+    distributeIntegers(totalPrimeSpots, alloc, 'rawPrime', 'autoPrimeInt');
+    distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
+
+    return alloc.map(({ st, autoPrimeInt, autoRosInt }) => {
+      const manual = window.productState.manualMinutes.get(st.key);
+
+      const primeSpots = (manual?.prime != null) ? Math.round(manual.prime) : autoPrimeInt;
+      const rosSpots   = (manual?.ros   != null) ? Math.round(manual.ros)   : autoRosInt;
+
+      return { key: st.key, station: st.station, market: st.market, primeSpots, rosSpots };
+    });
+  } catch (e) {
+    console.error('computeBarterAllocation error', e);
+    return [];
+  }
+}
+
+// --- replace your existing generateProposal() with this ---
+window.generateProposal = function generateProposal() {
+  if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+
+  const stations = getSelectedStationsDetailed();
+  const products = getSelectedProductsDetailed(); // used only for list of selected items
+  const pricingType = window.productState.pricingType;
+
+  if (!window.state.parent) return alert("Select a parent company first.");
+  if (!stations.length) return alert("Select at least one station.");
+  if (!products.length) return alert("Select at least one product.");
+
+  // Deal terms (prevent default Nielsen display unless explicitly set)
+  const termMonths = dealMetaState.termMonths || 36;
+  const arEnabled  = !!dealMetaState.autoRenewEnabled;
+  const arMonths   = dealMetaState.autoRenewMonths || 12;
+
+  const nSeasonRaw = String(dealMetaState.nielsenSeason || "").trim();
+  const nYearRaw   = String(dealMetaState.nielsenYear || "").trim();
+  const nielsenDisplay = (nSeasonRaw && nYearRaw) ? `${nSeasonRaw} ${nYearRaw}` : "—";
+
+  // Proposal valuation:
+  // - For mixed, product valuation uses CASH rates (barter is remainder)
+  // - For barter, uses barter rates (existing behavior)
+  // - For cash-only, uses cash rates
+  const monthlyPerStationProposal = computeProposalMonthlyPerStation(pricingType);
+  const monthlyAllStationsProposal = monthlyPerStationProposal * stations.length;
+  const annualAllStationsProposal  = monthlyAllStationsProposal * 12;
+
+  // Mixed cash inputs are ANNUAL per station
+  let totalCashAnnual = 0;
+  if (pricingType === 'mixed') {
+    stations.forEach(st => totalCashAnnual += (window.productState.stationCashValues.get(st.key) || 0));
+  }
+
+  const remainingAnnual =
+    (pricingType === 'mixed')
+      ? Math.max(0, annualAllStationsProposal - totalCashAnnual)
+      : (pricingType === 'barter')
+        ? annualAllStationsProposal
+        : 0;
+
+  const remainingMonthly = remainingAnnual / 12;
+
+  // Barter allocation shown PER DAY in proposal
+  // (using 30 days/month; change to 30.4167 if you want)
+  const DAYS_PER_MONTH = 30;
+
+  const barterAllocMonthly = (pricingType === 'mixed' || pricingType === 'barter')
+    ? computeBarterAllocation(remainingMonthly)
+    : [];
+
+  const barterByKey = new Map(
+    barterAllocMonthly.map(x => [
+      x.key,
+      {
+        primePerDay: Math.round((x.primeSpots || 0) / DAYS_PER_MONTH),
+        rosPerDay:   Math.round((x.rosSpots   || 0) / DAYS_PER_MONTH)
+      }
+    ])
+  );
+
+  // Products cell (3): show as a comma-separated list in the horizontal row
+  const productNames = products.map(p => p.name).join(", ");
+
+  // For (4) Cash/Station/Year: in mixed show each station’s annual cash input
+  // For non-mixed, leave as "—"
+  const showCashCol = (pricingType === 'mixed');
+
+  // Build horizontal 1–5 table
+  const lines = [];
+  lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+  lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
+  lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+  lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
+  lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStationsProposal)}</span></span>`);
+  if (pricingType === 'mixed') {
+    lines.push(`<span class="pill">Cash (Annual): <span>${money(totalCashAnnual)}</span></span>`);
+    lines.push(`<span class="pill">Barter Remaining (Annual): <span>${money(remainingAnnual)}</span></span>`);
+  }
+  lines.push(`</div>`);
+
+  lines.push(`<div class="subtle-divider"></div>`);
+  lines.push(`<div class="card" style="background:#0b121a;">`);
+  lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
+  lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
+  lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
+  lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
+  lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
+  lines.push(`<span class="badge">Nielsen: ${nielsenDisplay}</span>`);
+  lines.push(`</div>`);
+  lines.push(`</div>`);
+
+  lines.push(`<div class="subtle-divider"></div>`);
+  lines.push(`<div class="title" style="margin-bottom:6px;">Proposal (1–5)</div>`);
+  lines.push(`<div style="overflow-x:auto;">`);
+  lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+  lines.push(`<thead><tr>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">(1) Station</th>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">(2) Market</th>
+    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">(3) Product(s)</th>
+    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">
+      (4) ${showCashCol ? "Cash / Station / Year" : "Cash / Station / Year"}
+    </th>
+    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">(5) Prime / Day</th>
+    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">(5) ROS / Day</th>
+  </tr></thead>`);
+  lines.push(`<tbody>`);
+
+  // One row per station (horizontal view)
+  stations
+    .slice()
+    .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+    .forEach(st => {
+      const cashAnnualForStation = showCashCol
+        ? (window.productState.stationCashValues.get(st.key) || 0)
+        : null;
+
+      const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
+
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-          <strong>${p.name}</strong> ${(p.rateCard === null || p.rateCard === undefined) ? `<span class="badge" style="margin-left:6px;">TBD</span>` : ``}
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${productNames}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+          ${cashAnnualForStation === null ? "—" : money(cashAnnualForStation)}
         </td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${perStation === null ? "TBD" : money(perStation)}
+          ${pricingType === 'mixed' || pricingType === 'barter' ? String(daily.primePerDay) : "—"}
         </td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${allStations === null ? "TBD" : money(allStations)}
+          ${pricingType === 'mixed' || pricingType === 'barter' ? String(daily.rosPerDay) : "—"}
         </td>
       </tr>`);
     });
-    lines.push(`</tbody>`);
-    lines.push(`<tfoot><tr>
-      <td style="padding:10px 8px; text-align:right;"><strong>Totals</strong></td>
-      <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyPerStation)}</strong></td>
-      <td style="padding:10px 8px; text-align:right;"><strong>${money(monthlyAllStations)}</strong></td>
-    </tr></tfoot>`);
-    lines.push(`</table>`);
-    lines.push(`</div>`);
 
-    lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Stations Included</div>`);
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:12px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
-    </tr></thead><tbody>`);
-    stations
-      .slice()
-      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
-      .forEach(s => {
-        lines.push(`<tr>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${s.station}</strong></td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${s.market || ""}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.primeAQH||0)}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${Math.round(s.rosAQH||0)}</td>
-        </tr>`);
-      });
-    lines.push(`</tbody></table></div>`);
+  lines.push(`</tbody></table>`);
+  lines.push(`</div>`);
 
-    const modeBadge = el('proposalMode');
-    if (modeBadge){
-      modeBadge.textContent =
-        pricingType === 'cash'  ? "Cash Deal" :
-        pricingType === 'barter'? "Barter Deal" :
-        "Mixed Deal";
-    }
-
-    el('proposalOutput').classList.remove('hidden');
-    el('proposalTable').innerHTML = lines.join("\n");
-    el('proposalSection').classList.remove('hidden');
+  // Proposal mode badge
+  const modeBadge = el('proposalMode');
+  if (modeBadge) {
+    modeBadge.textContent =
+      pricingType === 'cash'  ? "Cash Deal" :
+      pricingType === 'barter'? "Barter Deal" :
+      "Mixed Deal";
   }
 
-  function buildProposalText(){
-    if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+  el('proposalOutput').classList.remove('hidden');
+  el('proposalTable').innerHTML = lines.join("\n");
+  el('proposalSection').classList.remove('hidden');
+}
 
-    const stations = getSelectedStationsDetailed();
-    const products = getSelectedProductsDetailed();
-    const pricingType = window.productState.pricingType;
+// OPTIONAL: if you want copy-to-clipboard to match this new proposal view,
+// replace buildProposalText() too. If you don’t care, you can leave your current one.
+window.buildProposalText = function buildProposalText() {
+  if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
-    const monthlyPerStation = computeMonthlyValuePerStation();
-    const monthlyAllStations = monthlyPerStation * stations.length;
+  const stations = getSelectedStationsDetailed();
+  const pricingType = window.productState.pricingType;
 
-    const termMonths = dealMetaState.termMonths || 36;
-    const arEnabled  = !!dealMetaState.autoRenewEnabled;
-    const arMonths   = dealMetaState.autoRenewMonths || 12;
-    const nSeason    = dealMetaState.nielsenSeason || "—";
-    const nYear      = dealMetaState.nielsenYear || "—";
+  const termMonths = dealMetaState.termMonths || 36;
+  const arEnabled  = !!dealMetaState.autoRenewEnabled;
+  const arMonths   = dealMetaState.autoRenewMonths || 12;
 
-    const lines = [];
-    lines.push(`Futuri Media Deal Calc — Proposal`);
-    lines.push(`--------------------------------`);
-    lines.push(`Parent: ${window.state.parent || "—"}`);
-    lines.push(`Pricing Type: ${pricingType}`);
-    lines.push(`Stations: ${stations.length}`);
-    lines.push(`Products: ${products.length}`);
-    lines.push(`Monthly Total (all stations): ${money(monthlyAllStations)}`);
-    lines.push(`Annual Total (all stations): ${money(monthlyAllStations*12)}`);
-    lines.push(``);
-    lines.push(`Deal Terms`);
-    lines.push(`- Term: ${termMonths} months`);
-    lines.push(`- Auto-Renew: ${arEnabled ? "Yes" : "No"}`);
-    lines.push(`- Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}`);
-    lines.push(`- Nielsen: ${nSeason} ${nYear}`);
-    lines.push(``);
-    lines.push(`Products (per station / month)`);
-    products.forEach(p => {
-      const v = (p.value === null) ? "TBD" : money(p.value);
-      lines.push(`- ${p.name}: ${v}`);
-    });
-    lines.push(``);
-    lines.push(`Stations Included`);
-    stations
-      .slice()
-      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
-      .forEach(s => {
-        lines.push(`- ${s.station} — ${s.market} (Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)})`);
-      });
+  const nSeasonRaw = String(dealMetaState.nielsenSeason || "").trim();
+  const nYearRaw   = String(dealMetaState.nielsenYear || "").trim();
+  const nielsenDisplay = (nSeasonRaw && nYearRaw) ? `${nSeasonRaw} ${nYearRaw}` : "—";
 
-    return lines.join("\n");
+  const monthlyPerStationProposal = computeProposalMonthlyPerStation(pricingType);
+  const annualAllStationsProposal = monthlyPerStationProposal * stations.length * 12;
+
+  let totalCashAnnual = 0;
+  if (pricingType === 'mixed') {
+    stations.forEach(st => totalCashAnnual += (window.productState.stationCashValues.get(st.key) || 0));
   }
+
+  const remainingAnnual =
+    (pricingType === 'mixed')
+      ? Math.max(0, annualAllStationsProposal - totalCashAnnual)
+      : (pricingType === 'barter')
+        ? annualAllStationsProposal
+        : 0;
+
+  const remainingMonthly = remainingAnnual / 12;
+  const DAYS_PER_MONTH = 30;
+
+  const barterAllocMonthly = (pricingType === 'mixed' || pricingType === 'barter')
+    ? computeBarterAllocation(remainingMonthly)
+    : [];
+
+  const barterByKey = new Map(
+    barterAllocMonthly.map(x => [
+      x.key,
+      {
+        primePerDay: Math.round((x.primeSpots || 0) / DAYS_PER_MONTH),
+        rosPerDay:   Math.round((x.rosSpots   || 0) / DAYS_PER_MONTH)
+      }
+    ])
+  );
+
+  const productNames = getSelectedProductsDetailed().map(p => p.name).join(", ");
+
+  const lines = [];
+  lines.push(`Futuri Media Deal Calc — Proposal (1–5 Horizontal)`);
+  lines.push(`Parent: ${window.state.parent || "—"}`);
+  lines.push(`Pricing Type: ${pricingType}`);
+  lines.push(`Annual Total (all stations): ${money(annualAllStationsProposal)}`);
+  if (pricingType === 'mixed') {
+    lines.push(`Cash (Annual): ${money(totalCashAnnual)}`);
+    lines.push(`Barter Remaining (Annual): ${money(remainingAnnual)}`);
+  }
+  lines.push(`Deal Terms: Term ${termMonths}mo | Auto-Renew ${arEnabled ? "Yes" : "No"} | AR Term ${arEnabled ? arMonths + "mo" : "—"} | Nielsen ${nielsenDisplay}`);
+  lines.push(``);
+  lines.push(`(1) Station | (2) Market | (3) Product(s) | (4) Cash/Station/Year | (5) Prime/Day | (5) ROS/Day`);
+  stations.forEach(st => {
+    const cashAnnualForStation = (pricingType === 'mixed')
+      ? (window.productState.stationCashValues.get(st.key) || 0)
+      : null;
+
+    const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
+
+    lines.push(
+      `${st.station} | ${st.market || ""} | ${productNames} | ` +
+      `${cashAnnualForStation === null ? "—" : money(cashAnnualForStation)} | ` +
+      `${(pricingType === 'mixed' || pricingType === 'barter') ? daily.primePerDay : "—"} | ` +
+      `${(pricingType === 'mixed' || pricingType === 'barter') ? daily.rosPerDay : "—"}`
+    );
+  });
+
+  return lines.join("\n");
+}
 </script>
 
 </body>
