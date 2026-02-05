@@ -456,6 +456,7 @@
   <header>
     <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
       <span id="whois" class="role-badge" title="Current role">Role: —</span>
+      <span id="activeNielsenBadge" class="role-badge" title="Active Nielsen Book" style="display:none;">Nielsen: —</span>
       <button class="btn" id="btnLogout" title="Sign out" style="display:none;" type="button">Logout</button>
     </div>
     <div class="wrap" style="padding:12px 16px;">
@@ -463,7 +464,7 @@
       <div class="muted" style="font-size:11px;">
         <span style="opacity:.7;">v3.2 (Google-only)</span>
         <span style="margin:0 8px;">•</span>
-        <span style="opacity:.7;">Radio dataset loaded from <span class="kbd">radio_data.json</span></span>
+        <span style="opacity:.7;">Radio dataset: upload required for Nielsen book testing</span>
       </div>
     </div>
   </header>
@@ -595,6 +596,14 @@
           <span class="muted" id="myDealsStatus" style="font-size:12px;"></span>
         </div>
 
+        <div style="display:flex;align-items:center;gap:8px;margin-top:10px;">
+          <div id="myDealsQuerySummary" class="muted" style="font-size:12px;flex:1;">Showing all deals</div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <button class="btn" id="btnLoadMyFirstMatch" type="button">Load First Match</button>
+            <button class="btn" id="btnToggleMyDealsExpand" type="button">Expand</button>
+          </div>
+        </div>
+
         <div id="myDealsList" class="list" style="margin-top:10px;"></div>
       </section>
     </div>
@@ -620,6 +629,35 @@
 
         <div class="subtle-divider"></div>
 
+        <div class="title">Nielsen Books</div>
+        <div class="muted" style="font-size:12px;margin-bottom:8px;">Upload and manage Nielsen books (Admins).</div>
+
+        <div class="field">
+          <label for="nielsenUpload">Upload Nielsen Book (JSON)</label>
+          <input id="nielsenUpload" type="file" accept="application/json" />
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+            <select id="nielsenUploadType" style="width:120px;">
+              <option value="radio" selected>Radio</option>
+              <option value="tv">TV</option>
+            </select>
+            <input id="nielsenUploadName" type="text" placeholder="File display name (optional)" style="flex:1;" />
+            <button class="btn" id="btnSaveNielsenUpload" type="button" disabled>Save</button>
+            <span id="nielsenUploadStatus" class="muted" style="font-size:12px;margin-left:8px;"></span>
+          </div>
+        </div>
+
+        <div class="field" id="nielsenManagerWrapPermissions" style="display:block;margin-top:8px;">
+          <label>Stored Nielsen Books</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <select id="nielsenStoredSelect" style="min-width:240px;"></select>
+            <button class="btn" id="btnLoadNielsenStored" type="button">Load</button>
+            <button class="btn" id="btnPreviewNielsenStored" type="button">Preview</button>
+            <button class="btn" id="btnSetDefaultNielsen" type="button">Set Default</button>
+            <button class="btn danger" id="btnDeleteNielsenStored" type="button">Delete</button>
+          </div>
+          <pre id="nielsenPreview" style="max-height:140px;overflow:auto;margin-top:8px;padding:8px;background:var(--surface-2);border-radius:8px;display:none;"></pre>
+        </div>
+
         <div id="userAccessCard" class="hidden">
           <div class="title">SuperAdmin: User Access</div>
           <div class="muted" style="font-size:12px;margin-bottom:8px;">
@@ -641,6 +679,65 @@
         <div class="muted" style="font-size:12px;margin-bottom:8px;">
           Browse each user’s deal calcs (includes your own). (Role changes live in Permissions & Access.)
         </div>
+          <div class="filters-card" style="margin-top:6px;">
+            <div class="title" style="margin-bottom:6px;">Search Deal Calcs (Admin)</div>
+
+            <div class="row" style="margin-bottom:8px;">
+              <div class="field grow">
+                <label for="adminDealsSearchName">Name</label>
+                <input id="adminDealsSearchName" type="text" placeholder="Search by deal name..." />
+              </div>
+
+              <div class="field grow">
+                <label for="adminDealsSearchParent">Parent Company</label>
+                <input id="adminDealsSearchParent" type="text" placeholder="Search by parent company..." />
+              </div>
+            </div>
+
+            <div class="row" style="margin-bottom:8px;">
+              <div class="field" style="min-width:160px;">
+                <label for="adminDealsPricingType">Pricing Type</label>
+                <select id="adminDealsPricingType">
+                  <option value="">Any</option>
+                  <option value="cash">Cash</option>
+                  <option value="barter">Barter</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
+
+              <div class="field grow">
+                <label for="adminDealsSearchProduct">Has Product</label>
+                <input id="adminDealsSearchProduct" type="text" placeholder='e.g. "TopicPulse" (matches selected products)' />
+              </div>
+
+              <div class="field" style="min-width:160px;">
+                <label for="adminDealsSortBy">Sort</label>
+                <select id="adminDealsSortBy">
+                  <option value="newest" selected>Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                  <option value="name">Name A → Z</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field" style="min-width:160px;">
+                <label for="adminDealsDateFrom">Date From</label>
+                <input id="adminDealsDateFrom" type="date" />
+              </div>
+
+              <div class="field" style="min-width:160px;">
+                <label for="adminDealsDateTo">Date To</label>
+                <input id="adminDealsDateTo" type="date" />
+              </div>
+
+              <div class="row" style="align-self:flex-end; margin-left:auto; gap:8px;">
+                <div id="adminDealsQuerySummary" class="muted" style="font-size:12px;align-self:center;">Showing all users</div>
+                <button class="btn" id="btnAdminLoadFirstMatch" type="button">Load First Match</button>
+                <button class="btn" id="btnClearAdminDealsFilters" type="button">Clear Filters</button>
+              </div>
+            </div>
+          </div>
         <div id="adminUsersList" class="list"></div>
       </section>
     </div>
@@ -785,8 +882,8 @@
         </div>
         <div id="barterBreakdown" class="list"></div>
         <div class="row" style="margin-top:12px;" id="barterTotals">
-          <div class="pill">Total Prime: <span id="totalPrimeMinutes">0</span></div>
-          <div class="pill">Total ROS: <span id="totalROSMinutes">0</span></div>
+          <div class="pill">Total Prime (mins/day): <span id="totalPrimeMinutes">0</span></div>
+          <div class="pill">Total ROS (mins/day): <span id="totalROSMinutes">0</span></div>
         </div>
       </section>
 
@@ -843,33 +940,16 @@
           </div>
 
           <div class="modal-grid" style="margin-top:10px;">
-            <div class="field grow">
-              <label for="nielsenSeason">Nielsen Book (Season)</label>
-              <select id="nielsenSeason">
-                <option value="Spring">Spring</option>
-                <option value="Fall" selected>Fall</option>
-              </select>
+            <div class="field grow" id="proposalActiveNielsenWrap" style="display:block;">
+              <label>Active Nielsen Book</label>
+              <div id="proposalActiveNielsen" class="muted">None selected</div>
             </div>
-
-            <div class="field grow">
-              <label for="nielsenYear">Nielsen Book (Year)</label>
-              <input id="nielsenYear" type="number" min="2025" step="1" value="" />
-            </div>
+            <div class="muted" style="font-size:12px;margin-top:6px;">Nielsen books are managed in Permissions &amp; Access.</div>
           </div>
 
           <div class="subtle-divider"></div>
 
-          <div class="row">
-            <div class="muted" style="font-size:12px;">
-              Approval email: <span class="kbd" id="approvalEmailText">sabrinacarlo@futurimedia.com</span>
-            </div>
-            <button class="btn" id="btnCopyApprovalEmail" type="button">Copy Email</button>
-            <button class="btn" id="btnOpenApprovalDraft" type="button">Open Email Draft</button>
-          </div>
-
-          <div class="muted" style="font-size:11px;margin-top:8px;">
-            Note: This tool does not send email; it prepares a draft (mailto) or copies text for you.
-          </div>
+          <!-- approval email removed -->
         </div>
 
         <div class="row" style="margin-bottom:12px;">
@@ -909,9 +989,9 @@
       signOut
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
     import {
-      getFirestore, doc, getDoc, setDoc, updateDoc,
+      getFirestore, doc, getDoc, setDoc, updateDoc, onSnapshot,
       collection, addDoc, getDocs,
-      query, orderBy, serverTimestamp
+      query, orderBy, limit, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const firebaseConfig = {
@@ -933,9 +1013,9 @@
       onAuthStateChanged,
       GoogleAuthProvider, signInWithPopup,
       signOut,
-      doc, getDoc, setDoc, updateDoc,
+      doc, getDoc, setDoc, updateDoc, onSnapshot,
       collection, addDoc, getDocs,
-      query, orderBy, serverTimestamp
+      query, orderBy, limit, serverTimestamp
     };
   </script>
 
@@ -1076,6 +1156,12 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
 
     // cache of my deals for client-side search
     let MY_DEALS_CACHE = [];
+    // my deals preview entry: { loadedAll: bool, deals: [...] }
+    let MY_DEALS_ENTRY = { loadedAll: false, deals: [] };
+    let MY_DEALS_EXPANDED = false;
+    // cache of admin-per-user deals (lazy-loaded per user)
+    // map uid => { loadedAll: boolean, deals: [...] }
+    const ADMIN_DEALS_CACHE = new Map();
 
     function getOverrides(){
       return (CURRENT_USER && CURRENT_USER.permOverrides && typeof CURRENT_USER.permOverrides === "object")
@@ -1328,7 +1414,7 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       autoRenewCustomMonths: null,
       nielsenSeason: "Fall",
       nielsenYear: null,
-      approvalEmail: "sabrinacarlo@futurimedia.com"
+      // approvalEmail removed
     };
     window.dealMetaState = dealMetaState;
 
@@ -1361,7 +1447,6 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       dealMetaState.nielsenSeason = el("nielsenSeason")?.value || dealMetaState.nielsenSeason;
       const parsedNYear = parsePositiveInt(el("nielsenYear")?.value);
       dealMetaState.nielsenYear = parsedNYear === null ? null : parsedNYear;
-      dealMetaState.approvalEmail = (el("approvalEmailText")?.textContent || dealMetaState.approvalEmail);
 
       window.dealMetaState = dealMetaState;
     }
@@ -1391,9 +1476,10 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
         el("autoRenewCustomMonths").value = String(dealMetaState.autoRenewMonths || "");
       }
 
-      el("nielsenSeason").value = dealMetaState.nielsenSeason || "Fall";
-      el("nielsenYear").value = dealMetaState.nielsenYear != null ? String(dealMetaState.nielsenYear) : "";
-      if (el("approvalEmailText")) el("approvalEmailText").textContent = dealMetaState.approvalEmail;
+      const seasonEl = el("nielsenSeason");
+      const yearEl = el("nielsenYear");
+      if (seasonEl) seasonEl.value = dealMetaState.nielsenSeason || "Fall";
+      if (yearEl) yearEl.value = dealMetaState.nielsenYear != null ? String(dealMetaState.nielsenYear) : "";
     }
 
     function wireDealMetaUI(){
@@ -1419,42 +1505,162 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       arSel.addEventListener("change", () => { toggleWraps(); syncDealMetaFromUI(); });
       arCustom.addEventListener("input", () => syncDealMetaFromUI());
 
-      el("nielsenSeason").addEventListener("change", () => syncDealMetaFromUI());
-      el("nielsenYear").addEventListener("input", () => syncDealMetaFromUI());
+      const nSeasonEl = el("nielsenSeason");
+      if (nSeasonEl) nSeasonEl.addEventListener("change", () => syncDealMetaFromUI());
+      const nYearEl = el("nielsenYear");
+      if (nYearEl) nYearEl.addEventListener("input", () => syncDealMetaFromUI());
 
-      el("btnCopyApprovalEmail").addEventListener("click", async () => {
-        try{
-          syncDealMetaFromUI();
-          await navigator.clipboard.writeText(dealMetaState.approvalEmail);
-          const b = el("btnCopyApprovalEmail");
-          const t = b.textContent;
-          b.textContent = "✓ Copied";
-          setTimeout(()=>b.textContent=t,1200);
-        }catch{
-          alert("Could not copy. Email is: " + dealMetaState.approvalEmail);
+      // Nielsen JSON upload handling + manager wiring
+      const nUpload = el('nielsenUpload');
+      if (nUpload) {
+        nUpload.addEventListener('change', async (ev) => {
+          const f = ev?.target?.files?.[0];
+          if (!f) return;
+          try{
+            const txt = await f.text();
+            const name = f.name || '';
+            const uploadType = (el('nielsenUploadType')?.value || 'radio');
+            window._tempNielsenUpload = { raw: txt, name, type: uploadType };
+            const nameInput = el('nielsenUploadName'); if (nameInput) nameInput.value = name;
+            const preview = el('nielsenPreview');
+            try{ const js = JSON.parse(txt); preview.textContent = JSON.stringify(js, null, 2).slice(0,12000); }catch(e){ preview.textContent = txt.slice(0,12000); }
+            if (preview) preview.style.display = 'block';
+            const saveBtn = el('btnSaveNielsenUpload'); if (saveBtn) saveBtn.disabled = false;
+            const status = el('nielsenUploadStatus'); if (status) status.textContent = 'Ready to save';
+          }catch(err){
+            console.warn('Failed reading Nielsen JSON', err);
+            alert('Could not parse Nielsen JSON file.');
+          }
+        });
+      }
+
+      const btnSaveUpload = el('btnSaveNielsenUpload');
+      if (btnSaveUpload) {
+        btnSaveUpload.addEventListener('click', () => {
+          const temp = window._tempNielsenUpload;
+          if (!temp || !temp.raw) return alert('No uploaded file to save.');
+          const givenName = (el('nielsenUploadName')?.value || temp.name || `book_${Date.now()}`).trim();
+          const chosenType = (el('nielsenUploadType')?.value || temp.type || 'radio');
+          // Persist and apply; pass persist=true so it is saved to localStorage
+          const ok = loadNielsenFromString(temp.raw, true, true, givenName);
+          if (ok) {
+            try{ delete window._tempNielsenUpload; }catch(e){}
+            btnSaveUpload.disabled = true;
+            const status = el('nielsenUploadStatus'); if (status) status.textContent = 'Saved';
+            // Ensure stored book has type recorded
+            try{
+              const id = givenName.replace(/\s+/g,'_');
+              const books = getStoredNielsenBooks();
+              if (books[id]) books[id].type = chosenType; else books[id] = { name: givenName, uploadedAt: Date.now(), raw: temp.raw, type: chosenType };
+              saveStoredNielsenBooks(books);
+            }catch(e){ console.warn('Could not set stored book type', e); }
+            // Attempt to set as base dataset for radio or tv depending on chosenType
+            try{
+              const parsed = window.NIELSEN_BOOKS;
+              const baseDS = buildBaseDSFromNielsen(parsed);
+              if (chosenType === 'tv') {
+                window.BASE_TV_DS = baseDS;
+              } else {
+                window.BASE_DS = baseDS;
+              }
+              window.DS = mergeUserIntoDataset(window.BASE_DS || {parents:[],markets:[],stations:[]}, window.UserData.getMerged());
+              rebuildIndex();
+              window.renderParents('');
+            }catch(e){ console.warn('Could not apply uploaded book as base dataset', e); }
+          }
+        });
+      }
+
+      // render manager UI and wire actions
+      try{
+        renderNielsenManager();
+        const btnLoad = el('btnLoadNielsenStored');
+        const btnPreview = el('btnPreviewNielsenStored');
+        const btnSetDefault = el('btnSetDefaultNielsen');
+        const btnDelete = el('btnDeleteNielsenStored');
+        const sel = el('nielsenStoredSelect');
+        const preview = el('nielsenPreview');
+
+        if (btnLoad && sel) btnLoad.addEventListener('click', () => {
+          const id = sel.value; if (!id) return alert('Select a stored Nielsen book first.');
+          const books = getStoredNielsenBooks(); const b = books[id]; if (!b) return alert('Selected book not found.');
+          // Load but do not re-persist; then apply to radio or tv depending on stored type
+          const ok = loadNielsenFromString(b.raw || JSON.stringify(b.content || {}), false, true, b.name || id);
+          if (!ok) return;
+          try{
+            const parsed = window.NIELSEN_BOOKS;
+            const baseDS = buildBaseDSFromNielsen(parsed);
+            if (b.type === 'tv') {
+              window.BASE_TV_DS = baseDS;
+            } else {
+              window.BASE_DS = baseDS;
+            }
+            window.DS = mergeUserIntoDataset(window.BASE_DS || {parents:[],markets:[],stations:[]}, window.UserData.getMerged());
+            rebuildIndex();
+            window.renderParents('');
+          }catch(e){ console.warn('Applying stored Nielsen as base failed', e); }
+        });
+
+        if (btnPreview && sel && preview) btnPreview.addEventListener('click', () => {
+          const id = sel.value; if (!id) return alert('Select a stored Nielsen book first.');
+          const books = getStoredNielsenBooks(); const b = books[id]; if (!b) return alert('Selected book not found.');
+          let raw = b.raw || JSON.stringify(b.content || {});
+          try{ const js = JSON.parse(raw); raw = JSON.stringify(js, null, 2); }catch(e){}
+          preview.textContent = raw.slice(0, 12000);
+          preview.style.display = 'block';
+        });
+
+        if (btnSetDefault && sel) {
+          if (!can('import_export')) btnSetDefault.style.display = 'none';
+          else btnSetDefault.addEventListener('click', () => {
+            const id = sel.value; if (!id) return alert('Select a stored Nielsen book first.');
+            if (!confirm('Set this stored Nielsen book as the default for this browser?')) return;
+            try{
+              const books = getStoredNielsenBooks(); const b = books[id]; if (!b) return alert('Selected book not found.');
+              books._defaultId = id; saveStoredNielsenBooks(books); renderNielsenManager();
+              alert('Default Nielsen book set locally.');
+            }catch(err){ console.warn('Error setting local default', err); alert('Could not set default Nielsen book.'); }
+          });
         }
-      });
 
-      el("btnOpenApprovalDraft").addEventListener("click", () => {
-        syncDealMetaFromUI();
-        const subject = encodeURIComponent("Deal Calc approval request");
-        const body = encodeURIComponent(
-          `Hi,\n\nPlease approve this deal.\n\n` +
-          `Parent: ${(window.state?.parent) || "—"}\n` +
-          `Pricing: ${(window.productState?.pricingType) || "—"}\n` +
-          `Term (months): ${dealMetaState.termMonths || "—"}\n` +
-          `Auto Renew: ${dealMetaState.autoRenewEnabled ? "Yes" : "No"}\n` +
-          `Auto Renew Term (months): ${dealMetaState.autoRenewEnabled ? dealMetaState.autoRenewMonths : "—"}\n` +
-          `Nielsen Book: ${dealMetaState.nielsenSeason || "—"} ${dealMetaState.nielsenYear || "—"}\n\n` +
-          `Thanks.`
-        );
-        const href = `mailto:${dealMetaState.approvalEmail}?subject=${subject}&body=${body}`;
-        window.location.href = href;
-      });
+        // hide admin-only controls if user lacks import/export permission
+        if (!can('import_export')){
+          if (nUpload) nUpload.style.display = 'none';
+          if (btnDelete) btnDelete.style.display = 'none';
+        }
+
+        if (btnDelete && sel) btnDelete.addEventListener('click', () => {
+          const id = sel.value; if (!id) return alert('Select a stored Nielsen book first.');
+          if (!confirm('Delete stored Nielsen book?')) return;
+          const books = getStoredNielsenBooks(); delete books[id]; saveStoredNielsenBooks(books); renderNielsenManager();
+        });
+      }catch(e){ console.warn('Could not wire Nielsen manager', e); }
+
+      // approval email actions removed
 
       toggleWraps();
       applyDealMetaToUI();
       syncDealMetaFromUI();
+
+      // Auto-load default Nielsen book: prefer localStorage stored book, else bundled file
+      try{
+        try{
+          const books = getStoredNielsenBooks();
+          const keys = Object.keys(books || {}).filter(k=>!k.startsWith('_'));
+          if (keys.length) {
+            keys.sort((a,b)=> (books[b].uploadedAt||0) - (books[a].uploadedAt||0));
+            const id = keys[0]; const b = books[id];
+            if (b && b.raw) {
+              const loaded = loadNielsenFromString(b.raw, false, false, b.name || id);
+              try{ books._defaultId = id; saveStoredNielsenBooks(books); }catch(e){}
+              if (loaded) { console.info('Nielsen book loaded from local storage'); renderNielsenManager(); return; }
+            }
+          }
+        }catch(e){ console.warn('Failed loading stored Nielsen book', e); }
+
+        // No bundled Nielsen fallback by design for upload testing
+        try{ renderNielsenManager(); }catch(e){ console.warn('Failed rendering Nielsen manager', e); }
+      }catch(e){ console.warn('Failed loading default Nielsen book', e); try{ renderNielsenManager(); }catch(e){} }
     }
 
     /**********************
@@ -1477,8 +1683,105 @@ function buildDealPayload(){
 
     dealMeta: { ...dealMetaState },
 
+    // include the active Nielsen book id so saved deals can be re-linked
+    nielsenBookId: (window._activeNielsenId || (getStoredNielsenBooks()._defaultId || null)),
+
     proposalHTML: el("proposalTable")?.innerHTML || null
   };
+}
+
+// Refresh all currently expanded admin user deal panes (re-apply filters)
+async function refreshExpandedAdminUsers(){
+  const root = el("adminUsersList");
+  if (!root) return;
+  const children = Array.from(root.children || []);
+  for (const card of children){
+    const uid = card.dataset?.uid;
+    if (!uid) continue;
+    const expandBtn = card.querySelector('button[data-expanded]') || card.querySelector('button.btn');
+    const dealsBox = card.querySelector('.list');
+    if (!expandBtn || expandBtn.dataset.expanded !== "1") continue;
+
+    try{
+      let entry = ADMIN_DEALS_CACHE.get(uid) || null;
+      let deals;
+      if (!entry || !entry.loadedAll){
+        deals = await getDealsForUser(uid);
+        ADMIN_DEALS_CACHE.set(uid, { loadedAll: true, deals });
+      } else {
+        deals = entry.deals;
+      }
+
+      const filtered = applyAdminDealsFilters(deals);
+      dealsBox.innerHTML = "";
+      if (!filtered.length){
+        dealsBox.innerHTML = `<div class="placeholder">No deals match filters.</div>`;
+      } else {
+        filtered.forEach(d => {
+          const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+          const label = when ? when.toLocaleString() : "(pending)";
+          const row = document.createElement("div");
+          row.className = "el";
+          row.innerHTML = `
+            <div>
+              <strong>${d.name || "Deal"}</strong>
+              <div class="muted" style="font-size:11px">${label}</div>
+              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+              ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+            </div>
+            <button class="btn" type="button">Load</button>
+          `;
+          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          dealsBox.appendChild(row);
+        });
+      }
+    }catch(e){
+      console.warn('refreshExpandedAdminUsers failed for', uid, e);
+    }
+  }
+}
+
+// Refresh previews for admin list where we already have cached preview data.
+function refreshAdminPreviews(){
+  const root = el("adminUsersList");
+  if (!root) return;
+  const cards = Array.from(root.children || []);
+  for (const card of cards){
+    const uid = card.dataset?.uid; if (!uid) continue;
+    const entry = ADMIN_DEALS_CACHE.get(uid) || null;
+    if (!entry || !Array.isArray(entry.deals)) continue; // skip if no cached preview
+    const dealsBox = card.querySelector('.list'); if (!dealsBox) continue;
+
+    // Use cached deals, apply filters and show up to 3 preview items
+    try{
+      const filtered = applyAdminDealsFilters(entry.deals || []);
+      const preview = filtered.slice(0,3);
+      dealsBox.innerHTML = "";
+      if (!preview.length){
+        dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
+      } else {
+        preview.forEach(d => {
+          const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+          const label = when ? when.toLocaleString() : "(pending)";
+          const row = document.createElement("div");
+          row.className = "el";
+          row.innerHTML = `
+            <div>
+              <strong>${d.name || "Deal"}</strong>
+              <div class="muted" style="font-size:11px">${label}</div>
+              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+              ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+            </div>
+            <button class="btn" type="button">Load</button>
+          `;
+          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          dealsBox.appendChild(row);
+        });
+      }
+    }catch(e){
+      console.warn('refreshAdminPreviews failed for', uid, e);
+    }
+  }
 }
 
 function loadDeal(payload){
@@ -1486,6 +1789,15 @@ function loadDeal(payload){
 
   showView("radioView");
   window.scrollTo(0,0);
+
+    // If the saved deal references a Nielsen book, attempt to apply it automatically
+    try{
+      const bid = payload.nielsenBookId || (payload.dealMeta && payload.dealMeta.nielsenBookId) || null;
+      if (bid) {
+        const applied = applyStoredBookById(bid);
+        if (!applied) console.warn('Referenced Nielsen book not found locally:', bid);
+      }
+    }catch(e){ console.warn('Error applying referenced Nielsen book for deal', e); }
 
   window.state.parent = payload.parent || "";
   window.state.markets = new Set(payload.markets || []);
@@ -1620,28 +1932,92 @@ function applyMyDealsFilters(list){
   return out;
 }
 
+function applyAdminDealsFilters(list){
+  const nameQ   = (el("adminDealsSearchName")?.value || "").trim().toLowerCase();
+  const parentQ = (el("adminDealsSearchParent")?.value || "").trim().toLowerCase();
+  const prodQ   = (el("adminDealsSearchProduct")?.value || "").trim().toLowerCase();
+  const pType   = (el("adminDealsPricingType")?.value || "").trim().toLowerCase();
+  const sortBy  = (el("adminDealsSortBy")?.value || "newest");
+
+  const fromStr = el("adminDealsDateFrom")?.value || "";
+  const toStr   = el("adminDealsDateTo")?.value || "";
+
+  const fromDate = fromStr ? new Date(fromStr + "T00:00:00") : null;
+  const toDate   = toStr   ? new Date(toStr   + "T23:59:59") : null;
+
+  let out = list.filter(deal => {
+    const name   = (deal.name || "").toLowerCase();
+    const parent = (deal.payload?.parent || "").toLowerCase();
+    const pricingType = (deal.payload?.pricingType || "").toLowerCase();
+
+    const productIds = Array.isArray(deal.payload?.products) ? deal.payload.products : [];
+    const productNames = productIds
+      .map(pid => (window.PRODUCTS?.find(p => p.id === pid)?.name || pid))
+      .join(" ")
+      .toLowerCase();
+
+    const created = deal.createdAt?.toDate ? deal.createdAt.toDate() : null;
+
+    if (nameQ && !name.includes(nameQ)) return false;
+    if (parentQ && !parent.includes(parentQ)) return false;
+    if (pType && pricingType !== pType) return false;
+    if (prodQ && !productNames.includes(prodQ)) return false;
+
+    if (fromDate && created && created < fromDate) return false;
+    if (toDate && created && created > toDate) return false;
+
+    return true;
+  });
+
+  if (sortBy === "oldest") {
+    out.sort((a,b)=>{
+      const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+      const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+      return ad-bd;
+    });
+  } else if (sortBy === "name") {
+    out.sort((a,b)=> (a.name||"").localeCompare(b.name||""));
+  } else {
+    out.sort((a,b)=>{
+      const ad=a.createdAt?.toDate? a.createdAt.toDate().getTime():0;
+      const bd=b.createdAt?.toDate? b.createdAt.toDate().getTime():0;
+      return bd-ad;
+    });
+  }
+
+  return out;
+}
+
 /**
  * ✅ UPDATED: getDealsForUser is now resilient:
  * - each collection read is try/catch'd so one failing collection doesn't nuke the whole view
  * - falls back to no ordering if createdAt is missing on legacy docs
  */
-async function getDealsForUser(uid){
-  const { db, collection, getDocs, query, orderBy } = window.fb;
+async function getDealsForUser(uid, limitN = null){
+  const { db, collection, getDocs, query, orderBy, limit } = window.fb;
 
   const all = [];
 
   for (const colName of DEALS_READ_COLLECTIONS){
     try{
-      // Try with ordering (preferred)
-      const q1 = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"));
+      // Try with ordering (preferred). Apply limit if requested.
+      let q1;
+      if (limitN && typeof limit === 'function') q1 = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"), limit(limitN));
+      else q1 = query(collection(db, "users", uid, colName), orderBy("createdAt","desc"));
       const snap1 = await getDocs(q1);
       snap1.forEach(d => all.push({ id: d.id, ...d.data() }));
     }catch(err){
       console.warn(`Deals read failed for users/${uid}/${colName} (ordered). Trying without orderBy.`, err);
       try{
-        // Fallback: no orderBy (handles docs missing createdAt)
-        const snap2 = await getDocs(collection(db, "users", uid, colName));
-        snap2.forEach(d => all.push({ id: d.id, ...d.data() }));
+        // Fallback: no orderBy (handles docs missing createdAt). Apply limit if available.
+        if (limitN && typeof limit === 'function'){
+          const q2 = query(collection(db, "users", uid, colName), limit(limitN));
+          const snap2 = await getDocs(q2);
+          snap2.forEach(d => all.push({ id: d.id, ...d.data() }));
+        } else {
+          const snap2 = await getDocs(collection(db, "users", uid, colName));
+          snap2.forEach(d => all.push({ id: d.id, ...d.data() }));
+        }
       }catch(err2){
         console.warn(`Deals read failed for users/${uid}/${colName} (no order).`, err2);
       }
@@ -1677,42 +2053,90 @@ async function renderMyDeals(){
     root.innerHTML = `<div class="placeholder">Sign in to view your deals.</div>`;
     return;
   }
+  // If expanded, ensure we have the full list and render all filtered results.
+  if (MY_DEALS_EXPANDED){
+    let deals = [];
+    try{
+      // If we already have a full cache, use it; otherwise fetch full
+      if (Array.isArray(MY_DEALS_CACHE) && MY_DEALS_CACHE.length){
+        deals = MY_DEALS_CACHE.slice();
+      } else {
+        deals = await getDealsForUser(CURRENT_USER.uid);
+        MY_DEALS_CACHE = deals.slice();
+        MY_DEALS_ENTRY = { loadedAll: true, deals: MY_DEALS_CACHE };
+      }
+    }catch(err){
+      console.error("MY DEALS FAILED:", err);
+      root.innerHTML = `<div class="placeholder">Could not load your deals: ${err?.message || err}</div>`;
+      return;
+    }
 
-  let deals = [];
+    const filtered = applyMyDealsFilters(deals);
+    if (!filtered.length){
+      root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
+      return;
+    }
+
+    filtered.forEach(d => {
+      const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+      const label = when ? when.toLocaleString() : "(pending)";
+
+      const row = document.createElement("div");
+      row.className = "el";
+      row.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <strong>${d.name || "Untitled Deal"}</strong>
+          <div class="muted" style="font-size:11px">${label}</div>
+          ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+          ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+        </div>
+        <button class="btn" type="button">Load</button>
+      `;
+      row.querySelector("button").onclick = () => loadDeal(d.payload);
+      root.appendChild(row);
+    });
+    return;
+  }
+
+  // Preview mode: show up to 3 items from cached preview or fetch a preview
   try{
-    deals = await getDealsForUser(CURRENT_USER.uid);
+    let entry = MY_DEALS_ENTRY || { loadedAll: false, deals: [] };
+    if (!entry.deals || !entry.deals.length){
+      const preview = await getDealsForUser(CURRENT_USER.uid, 3);
+      entry.deals = preview || [];
+      entry.loadedAll = false;
+      MY_DEALS_ENTRY = entry;
+    }
+    const filtered = applyMyDealsFilters(entry.deals || []);
+    const previewList = filtered.slice(0,3);
+
+    if (!previewList.length){
+      root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
+      return;
+    }
+
+    previewList.forEach(d => {
+      const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+      const label = when ? when.toLocaleString() : "(pending)";
+
+      const row = document.createElement("div");
+      row.className = "el";
+      row.innerHTML = `
+        <div style="display:flex; flex-direction:column; gap:4px;">
+          <strong>${d.name || "Untitled Deal"}</strong>
+          <div class="muted" style="font-size:11px">${label}</div>
+          ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+          ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+        </div>
+        <button class="btn" type="button">Load</button>
+      `;
+      row.querySelector("button").onclick = () => loadDeal(d.payload);
+      root.appendChild(row);
+    });
   }catch(err){
-    console.error("MY DEALS FAILED:", err);
+    console.error('MY DEALS preview failed', err);
     root.innerHTML = `<div class="placeholder">Could not load your deals: ${err?.message || err}</div>`;
-    return;
   }
-
-  MY_DEALS_CACHE = deals.slice();
-  const filtered = applyMyDealsFilters(MY_DEALS_CACHE);
-
-  if (!filtered.length){
-    root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
-    return;
-  }
-
-  filtered.forEach(d => {
-    const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
-    const label = when ? when.toLocaleString() : "(pending)";
-
-    const row = document.createElement("div");
-    row.className = "el";
-    row.innerHTML = `
-      <div style="display:flex; flex-direction:column; gap:4px;">
-        <strong>${d.name || "Untitled Deal"}</strong>
-        <div class="muted" style="font-size:11px">${label}</div>
-        ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
-        ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
-      </div>
-      <button class="btn" type="button">Load</button>
-    `;
-    row.querySelector("button").onclick = () => loadDeal(d.payload);
-    root.appendChild(row);
-  });
 }
 
 /**
@@ -1790,45 +2214,151 @@ async function renderAllUsersDeals(){
     header.appendChild(roleBadge);
 
     card.appendChild(header);
+    // remember uid on card for later refreshes
+    card.dataset.uid = uid;
 
+    // By default show a small preview (limit 3) so lists start filled.
     const dealsBox = document.createElement("div");
     dealsBox.className = "list";
-    dealsBox.innerHTML = `<div class="placeholder">Loading deals…</div>`;
+    dealsBox.innerHTML = `<div class="placeholder">Loading preview…</div>`;
 
-    let deals = [];
+    const expandBtn = document.createElement("button");
+    expandBtn.className = "btn";
+    expandBtn.type = "button";
+    expandBtn.textContent = "Expand";
+    expandBtn.style.marginLeft = "8px";
+
+    // Load a small preview (limit 3) and cache as not fully loaded
     try{
-      deals = await getDealsForUser(uid);
+      let entry = ADMIN_DEALS_CACHE.get(uid) || null;
+      let preview = null;
+      if (entry && Array.isArray(entry.deals) && entry.deals.length){
+        preview = entry.deals.slice(0,3);
+      } else {
+        // fetch only 3 docs for preview
+        try{
+          preview = await getDealsForUser(uid, 3);
+          ADMIN_DEALS_CACHE.set(uid, { loadedAll: false, deals: preview });
+        }catch(e){
+          console.warn('Could not load preview for', uid, e);
+          dealsBox.innerHTML = `<div class="placeholder">Could not load preview</div>`;
+          header.appendChild(expandBtn);
+          card.appendChild(dealsBox);
+          root.appendChild(card);
+          continue;
+        }
+      }
+
+      // render preview
+      dealsBox.innerHTML = "";
+      if (!preview || !preview.length){
+        dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
+      } else {
+        preview.forEach(d => {
+          const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+          const label = when ? when.toLocaleString() : "(pending)";
+          const row = document.createElement("div");
+          row.className = "el";
+          row.innerHTML = `
+            <div>
+              <strong>${d.name || "Deal"}</strong>
+              <div class="muted" style="font-size:11px">${label}</div>
+              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+              ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+            </div>
+            <button class="btn" type="button">Load</button>
+          `;
+          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          dealsBox.appendChild(row);
+        });
+      }
     }catch(e){
-      console.warn("Could not load deals for user", uid, e);
-      dealsBox.innerHTML = `<div class="placeholder">Could not load deals (see console)</div>`;
-      card.appendChild(dealsBox);
-      root.appendChild(card);
-      continue;
+      console.warn('Preview logic failed for', uid, e);
+      dealsBox.innerHTML = `<div class="placeholder">Could not load preview</div>`;
     }
 
-    dealsBox.innerHTML = "";
+    expandBtn.onclick = async () => {
+      // Collapse if already expanded
+      if (expandBtn.dataset.expanded === "1"){
+        expandBtn.dataset.expanded = "0";
+        expandBtn.textContent = "Expand";
+        // show only preview (if available)
+        const entry = ADMIN_DEALS_CACHE.get(uid) || null;
+        const prev = entry && Array.isArray(entry.deals) ? entry.deals.slice(0,3) : [];
+        dealsBox.innerHTML = "";
+        if (!prev.length) dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
+        else prev.forEach(d => {
+          const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+          const label = when ? when.toLocaleString() : "(pending)";
+          const row = document.createElement("div");
+          row.className = "el";
+          row.innerHTML = `
+            <div>
+              <strong>${d.name || "Deal"}</strong>
+              <div class="muted" style="font-size:11px">${label}</div>
+              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+              ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+            </div>
+            <button class="btn" type="button">Load</button>
+          `;
+          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          dealsBox.appendChild(row);
+        });
+        return;
+      }
 
-    if (!deals.length){
-      dealsBox.innerHTML = `<div class="placeholder">No deals</div>`;
-    } else {
-      deals.forEach(d => {
-        const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
-        const label = when ? when.toLocaleString() : "(pending)";
+      expandBtn.disabled = true;
+      expandBtn.textContent = "Loading…";
 
-        const row = document.createElement("div");
-        row.className = "el";
-        row.innerHTML = `
-          <div>
-            <strong>${d.name || "Deal"}</strong>
-            <div class="muted" style="font-size:11px">${label}</div>
-          </div>
-          <button class="btn" type="button">Load</button>
-        `;
-        row.querySelector("button").onclick = () => loadDeal(d.payload);
-        dealsBox.appendChild(row);
-      });
-    }
+      try{
+        let entry = ADMIN_DEALS_CACHE.get(uid) || null;
+        let dealsToUse = null;
+        if (!entry || !entry.loadedAll){
+          const full = await getDealsForUser(uid);
+          ADMIN_DEALS_CACHE.set(uid, { loadedAll: true, deals: full });
+          dealsToUse = full;
+        } else {
+          dealsToUse = entry.deals;
+        }
 
+        const filtered = applyAdminDealsFilters(dealsToUse);
+
+        dealsBox.innerHTML = "";
+        if (!filtered.length){
+          dealsBox.innerHTML = `<div class="placeholder">No deals match filters.</div>`;
+        } else {
+          filtered.forEach(d => {
+            const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
+            const label = when ? when.toLocaleString() : "(pending)";
+            const row = document.createElement("div");
+            row.className = "el";
+            row.innerHTML = `
+              <div>
+                <strong>${d.name || "Deal"}</strong>
+                <div class="muted" style="font-size:11px">${label}</div>
+                ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+                ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
+              </div>
+              <button class="btn" type="button">Load</button>
+            `;
+            row.querySelector("button").onclick = () => loadDeal(d.payload);
+            dealsBox.appendChild(row);
+          });
+        }
+
+        expandBtn.dataset.expanded = "1";
+        expandBtn.textContent = "Collapse";
+      }catch(e){
+        console.warn("Could not load deals for user", uid, e);
+        dealsBox.innerHTML = `<div class="placeholder">Could not load deals (see console)</div>`;
+        expandBtn.textContent = "Expand";
+      }
+
+      expandBtn.disabled = false;
+    };
+
+    // place control on header and attach box (preview)
+    header.appendChild(expandBtn);
     card.appendChild(dealsBox);
     root.appendChild(card);
   }
@@ -1905,6 +2435,149 @@ async function renderAllUsersDeals(){
         el("myDealsDateTo").value = "";
         renderMyDeals();
       };
+
+      // Admin Deals filters: re-render expanded user panes when changed
+      [
+        "adminDealsSearchName",
+        "adminDealsSearchParent",
+        "adminDealsSearchProduct",
+        "adminDealsPricingType",
+        "adminDealsSortBy",
+        "adminDealsDateFrom",
+        "adminDealsDateTo"
+      ].forEach(id => {
+        const node = el(id);
+        if (!node) return;
+        node.addEventListener("input", () => { refreshExpandedAdminUsers(); refreshAdminPreviews(); });
+        node.addEventListener("change", () => { refreshExpandedAdminUsers(); refreshAdminPreviews(); });
+      });
+
+      el("btnClearAdminDealsFilters").onclick = () => {
+        el("adminDealsSearchName").value = "";
+        el("adminDealsSearchParent").value = "";
+        el("adminDealsSearchProduct").value = "";
+        el("adminDealsPricingType").value = "";
+        el("adminDealsSortBy").value = "newest";
+        el("adminDealsDateFrom").value = "";
+        el("adminDealsDateTo").value = "";
+        // refresh any visible expanded panes and cached previews
+        refreshExpandedAdminUsers(); refreshAdminPreviews();
+      };
+
+      // Show current query summary for My/Admin filters and wire first-match buttons
+      function buildMyDealsQuerySummary(){
+        const parts = [];
+        const n = (el("myDealsSearchName")?.value || "").trim();
+        const p = (el("myDealsSearchParent")?.value || "").trim();
+        const prod = (el("myDealsSearchProduct")?.value || "").trim();
+        const pt = (el("myDealsPricingType")?.value || "").trim();
+        if (n) parts.push(`Name: ${n}`);
+        if (p) parts.push(`Parent: ${p}`);
+        if (prod) parts.push(`Product: ${prod}`);
+        if (pt) parts.push(`Pricing: ${pt}`);
+        if (!parts.length) return 'Showing all deals';
+        return 'Filters: ' + parts.join(' • ');
+      }
+
+      function updateMyDealsQuerySummary(){
+        const elsum = el('myDealsQuerySummary');
+        if (!elsum) return;
+        elsum.textContent = buildMyDealsQuerySummary();
+      }
+
+      function buildAdminDealsQuerySummary(){
+        const parts = [];
+        const n = (el("adminDealsSearchName")?.value || "").trim();
+        const p = (el("adminDealsSearchParent")?.value || "").trim();
+        const prod = (el("adminDealsSearchProduct")?.value || "").trim();
+        const pt = (el("adminDealsPricingType")?.value || "").trim();
+        if (n) parts.push(`Name: ${n}`);
+        if (p) parts.push(`Parent: ${p}`);
+        if (prod) parts.push(`Product: ${prod}`);
+        if (pt) parts.push(`Pricing: ${pt}`);
+        if (!parts.length) return 'Showing all users';
+        return 'Filters: ' + parts.join(' • ');
+      }
+
+      function updateAdminDealsQuerySummary(){
+        const elsum = el('adminDealsQuerySummary');
+        if (!elsum) return;
+        elsum.textContent = buildAdminDealsQuerySummary();
+      }
+
+      // Hook summary updates to my-deals filter inputs
+      [
+        'myDealsSearchName','myDealsSearchParent','myDealsSearchProduct','myDealsPricingType','myDealsSortBy','myDealsDateFrom','myDealsDateTo'
+      ].forEach(id=>{
+        const n = el(id); if (!n) return; n.addEventListener('input', updateMyDealsQuerySummary); n.addEventListener('change', updateMyDealsQuerySummary);
+      });
+
+      // Hook admin summary updates
+      [
+        'adminDealsSearchName','adminDealsSearchParent','adminDealsSearchProduct','adminDealsPricingType','adminDealsSortBy','adminDealsDateFrom','adminDealsDateTo'
+      ].forEach(id=>{
+        const n = el(id); if (!n) return; n.addEventListener('input', updateAdminDealsQuerySummary); n.addEventListener('change', updateAdminDealsQuerySummary);
+      });
+
+      // initial summary set
+      updateMyDealsQuerySummary(); updateAdminDealsQuerySummary();
+
+      // Load first match for my deals
+      el('btnLoadMyFirstMatch')?.addEventListener('click', async ()=>{
+        try{
+          // Ensure full list is available for accurate matching
+          if (!Array.isArray(MY_DEALS_CACHE) || !MY_DEALS_CACHE.length){
+            try{
+              const full = await getDealsForUser(CURRENT_USER.uid);
+              MY_DEALS_CACHE = full.slice();
+              MY_DEALS_ENTRY = { loadedAll: true, deals: MY_DEALS_CACHE };
+            }catch(e){ console.warn('Could not fetch full my deals for first-match', e); }
+          }
+
+          const list = MY_DEALS_CACHE.slice();
+          const filtered = applyMyDealsFilters(list);
+          if (!filtered.length) return alert('No matching deals found');
+          loadDeal(filtered[0].payload);
+        }catch(e){ console.warn('btnLoadMyFirstMatch failed', e); alert('Could not load first match'); }
+      });
+
+      // Toggle expand/collapse for My Deals (show preview vs full list)
+      el('btnToggleMyDealsExpand')?.addEventListener('click', async ()=>{
+        try{
+          MY_DEALS_EXPANDED = !MY_DEALS_EXPANDED;
+          const btn = el('btnToggleMyDealsExpand');
+          btn.textContent = MY_DEALS_EXPANDED ? 'Collapse' : 'Expand';
+          await renderMyDeals();
+        }catch(e){ console.warn('btnToggleMyDealsExpand failed', e); }
+      });
+
+      // Load first match across admin users (sequential, uses cache when possible)
+      el('btnAdminLoadFirstMatch')?.addEventListener('click', async ()=>{
+        try{
+          const root = el('adminUsersList'); if (!root) return alert('Admin list not loaded');
+          const cards = Array.from(root.children || []);
+          for (const card of cards){
+            const uid = card.dataset?.uid; if (!uid) continue;
+            let entry = ADMIN_DEALS_CACHE.get(uid) || null;
+            let deals = null;
+            if (entry && Array.isArray(entry.deals)) deals = entry.deals;
+            else {
+              try{ deals = await getDealsForUser(uid, 3); ADMIN_DEALS_CACHE.set(uid, { loadedAll: false, deals }); }catch(e){ continue; }
+            }
+            const filtered = applyAdminDealsFilters(deals);
+            if (filtered.length){
+              // expand the card if collapsed
+              const expandBtn = card.querySelector('button.btn'); if (expandBtn && expandBtn.dataset.expanded !== '1') { expandBtn.click(); }
+              // load first match
+              loadDeal(filtered[0].payload);
+              // scroll into view
+              card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              return;
+            }
+          }
+          alert('No matching deals found across users');
+        }catch(e){ console.warn('btnAdminLoadFirstMatch failed', e); alert('Could not search admin deals'); }
+      });
 
       onAuthStateChanged(auth, async (user) => {
         if (!user){
@@ -2256,7 +2929,8 @@ document.addEventListener("click", async (e) => {
         return data;
       } catch (error) {
         console.error('Failed to load dataset:', error);
-        alert('Failed to load radio station data. Make sure radio_data.json is deployed next to index.html.');
+        // No bundled dataset available (uploads required). Fail silently and continue with empty base.
+        console.warn('No base dataset available; start by uploading a Nielsen book in Permissions & Access.');
         return { parents: [], markets: [], stations: [] };
       }
     }
@@ -2307,10 +2981,20 @@ document.addEventListener("click", async (e) => {
       window.initApp._ran = true;
 
       await window.UserData.init(DATA_URL);
-
+      // load base dataset first (may be empty if no bundled file)
       window.BASE_DS = await loadDataset();
       window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
       rebuildIndex();
+
+      // then apply any previously persisted default Nielsen book (overrides BASE_DS)
+      try{
+        const books = getStoredNielsenBooks();
+        const def = books && books._defaultId ? books._defaultId : null;
+        if (def) {
+          applyStoredBookById(def);
+          updateActiveNielsenBadge();
+        }
+      }catch(e){ console.warn('No stored default Nielsen book to apply', e); }
 
       setupEventListeners();
       window.renderProducts();
@@ -2952,6 +3636,203 @@ document.addEventListener("click", async (e) => {
     return `$${Math.round(x).toLocaleString()}`;
   }
 
+  function escapeHtml(str){
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function getStoredNielsenBooks(){
+    try{ return JSON.parse(localStorage.getItem('nielsen_books') || '{}'); }catch(e){ return {}; }
+  }
+
+  function saveStoredNielsenBooks(obj){
+    try{ localStorage.setItem('nielsen_books', JSON.stringify(obj || {})); }catch(e){ console.warn('Could not save nielsen_books', e); }
+  }
+
+  function renderNielsenManager(){
+    const sel = el('nielsenStoredSelect');
+    const preview = el('nielsenPreview');
+    if (!sel) return;
+    sel.innerHTML = '';
+    const books = getStoredNielsenBooks();
+    const keys = Object.keys(books).filter(k=>!k.startsWith('_')).sort((a,b)=> (books[b].uploadedAt||0) - (books[a].uploadedAt||0));
+    // retrieve Firestore default id if present to mark option
+    let defaultId = null;
+    try{
+      const s = getStoredNielsenBooks();
+      // if the default was stored in local map under key '_defaultId'
+      if (s && s._defaultId) defaultId = s._defaultId;
+    }catch(e){}
+    keys.forEach(id => {
+      const b = books[id];
+      const opt = document.createElement('option');
+      opt.value = id;
+      const typeTag = b && b.type ? ` [${String(b.type).toUpperCase()}]` : '';
+      opt.textContent = `${b.name || id}${typeTag}` + (id === defaultId ? ' (default)' : '');
+      if (b && b.type) opt.dataset.type = b.type;
+      sel.appendChild(opt);
+    });
+    // auto-select the default if present and mark active id
+    try{
+      if (defaultId && keys.includes(defaultId)) {
+        sel.value = defaultId; window._activeNielsenId = defaultId;
+      } else if (keys.length) { sel.selectedIndex = 0; window._activeNielsenId = sel.value; }
+    }catch(e){}
+    if (preview) preview.style.display = 'none';
+    // update header/proposal active badge
+    updateActiveNielsenBadge();
+  }
+
+  function applyStoredBookById(id){
+    try{
+      if (!id) return false;
+      const books = getStoredNielsenBooks();
+      const b = books[id];
+      if (!b || !b.raw) return false;
+      // parse and set active
+      const ok = loadNielsenFromString(b.raw, false, false, b.name || id);
+      if (!ok) return false;
+      window._activeNielsenId = id;
+      try{
+        const parsed = window.NIELSEN_BOOKS;
+        const baseDS = buildBaseDSFromNielsen(parsed);
+        if (b.type === 'tv') window.BASE_TV_DS = baseDS; else window.BASE_DS = baseDS;
+        window.DS = mergeUserIntoDataset(window.BASE_DS || {parents:[],markets:[],stations:[]}, window.UserData.getMerged());
+        rebuildIndex();
+        window.renderParents('');
+      }catch(e){ console.warn('applyStoredBookById: could not build base ds', e); }
+      return true;
+    }catch(e){ console.warn('applyStoredBookById failed', e); return false; }
+  }
+
+  function updateActiveNielsenBadge(){
+    try{
+      const badge = el('activeNielsenBadge');
+      const prop = el('proposalActiveNielsen');
+      const books = getStoredNielsenBooks();
+      const id = window._activeNielsenId || (books && books._defaultId) || null;
+      if (!id) {
+        if (badge) badge.style.display = 'none';
+        if (prop) prop.textContent = 'None selected';
+        return;
+      }
+      const b = books[id] || null;
+      const name = b?.name || id;
+      const type = b?.type ? String(b.type).toUpperCase() : 'RADIO';
+      const text = `${name} [${type}]`;
+      if (badge) { badge.style.display = ''; badge.textContent = `Book: ${text}`; }
+      if (prop) prop.textContent = text;
+    }catch(e){ console.warn('updateActiveNielsenBadge failed', e); }
+  }
+
+  function loadNielsenFromString(txt, persist = true, showToast = true, givenName = null){
+    try{
+      let parsed = null;
+      try{ parsed = JSON.parse(txt); } catch(e){
+        const cleaned = txt.replace(/\uFEFF/g,'').replace(/,\s*}/g,'}').replace(/,\s*]/g,']');
+        parsed = JSON.parse(cleaned);
+      }
+
+      // Store parsed Nielsen JSON for app use
+      window.NIELSEN_BOOKS = parsed;
+      const raw = JSON.stringify(parsed);
+
+      // Persist uploaded book (and mark as local default) when requested.
+      if (persist) {
+        try{
+          const id = givenName ? (givenName.replace(/\s+/g,'_')) : `book_${Date.now()}`;
+          const books = getStoredNielsenBooks();
+          books[id] = { name: givenName || id, uploadedAt: Date.now(), raw: raw };
+          books._defaultId = id;
+          saveStoredNielsenBooks(books);
+          renderNielsenManager();
+        }catch(e){ console.warn('Failed persisting Nielsen book', e); }
+      }
+      // If we persisted a book, also try to use it as the base dataset for Steps 1-3
+      try{
+        const parsed = parsed || JSON.parse(raw);
+        const baseDS = buildBaseDSFromNielsen(parsed);
+        if (baseDS && ((baseDS.parents && baseDS.parents.length) || (baseDS.stations && baseDS.stations.length))){
+          window.BASE_DS = baseDS;
+          window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
+          rebuildIndex();
+          // re-render parents list and disable markets/stations until a parent selected
+          window.renderParents('');
+          window.setMarketsEnabled(false);
+          window.setStationsEnabled(false);
+        }
+      }catch(e){ console.warn('Could not set uploaded Nielsen as base dataset', e); }
+
+      // Non-blocking feedback instead of an alert popup
+      if (showToast) {
+        const status = el('nielsenUploadStatus');
+        if (status) {
+          status.textContent = 'Nielsen JSON loaded';
+          setTimeout(()=>{ try{ status.textContent = ''; }catch(e){} }, 3000);
+        } else {
+          console.info('Nielsen JSON loaded');
+        }
+      }
+
+      // Let the UI set season/year manually; return success
+      return true;
+    }catch(err){
+      console.warn('Failed parsing Nielsen JSON', err);
+      if (showToast) {
+        const status = el('nielsenUploadStatus'); if (status) status.textContent = 'Invalid JSON';
+        else alert('Could not parse Nielsen JSON file.');
+      }
+      return false;
+    }
+  }
+
+  // Try to coerce an uploaded Nielsen JSON into the base radio dataset shape
+  function buildBaseDSFromNielsen(parsed){
+    try{
+      // If the uploaded file already has parents/markets/stations, prefer those
+      if (parsed && Array.isArray(parsed.parents)){
+        const parents = parsed.parents.map(p => (typeof p === 'string') ? p : (p.name || '')) .filter(Boolean);
+        const marketsSet = new Set();
+        const stations = [];
+        parsed.parents.forEach(p => {
+          const pName = (typeof p === 'string') ? p : (p.name || '');
+          (p.markets || []).forEach(m => {
+            const mName = (typeof m === 'string') ? m : (m.name || '');
+            if (mName) marketsSet.add(mName);
+            (m.stations || []).forEach(s => {
+              const sName = String(s || '');
+              if (!sName) return;
+              stations.push({ parent: pName, market: mName, station: sName, primeAQH: 0, rosAQH: 0, format: '' });
+            });
+          });
+        });
+        return { parents, markets: Array.from(marketsSet), stations };
+      }
+
+      // If the file contains a flat stations array, convert that
+      if (parsed && Array.isArray(parsed.stations)){
+        const parentsSet = new Set();
+        const marketsSet = new Set();
+        const stations = parsed.stations.map(s => {
+          const parent = s.parent || s.group || '';
+          const market = s.market || s.city || '';
+          const station = s.station || s.name || '';
+          parentsSet.add(parent);
+          marketsSet.add(market);
+          return { parent, market, station, primeAQH: s.primeAQH || 0, rosAQH: s.rosAQH || 0, format: s.format || '' };
+        }).filter(s=>s.station);
+        return { parents: Array.from(parentsSet).filter(Boolean), markets: Array.from(marketsSet).filter(Boolean), stations };
+      }
+
+      // As a last resort, attempt to derive from top-level object keys
+      if (parsed && typeof parsed === 'object'){
+        const parents = Object.keys(parsed).slice(0,500);
+        return { parents, markets: [], stations: [] };
+      }
+
+      return { parents: [], markets: [], stations: [] };
+    }catch(e){ console.warn('buildBaseDSFromNielsen failed', e); return { parents: [], markets: [], stations: [] }; }
+  }
+
   function getSelectedStationsDetailed(){
     const out = [];
     (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
@@ -3020,6 +3901,9 @@ document.addEventListener("click", async (e) => {
 
     const perStationMonthly = totalMonthlyAllStations / selectedStations.length;
 
+    // ensure a per-station quoted map exists (store monthly quoted values)
+    if (!window.productState.stationCashQuoted) window.productState.stationCashQuoted = new Map();
+
     selectedStations.forEach(station => {
       const row = document.createElement('div');
       row.className = 'el';
@@ -3029,37 +3913,69 @@ document.addEventListener("click", async (e) => {
       const stationName = document.createElement('div');
       stationName.innerHTML = `<strong>${station.station}</strong> <span class="muted">— ${station.market}</span>`;
 
-      const stationValue = document.createElement('div');
-      stationValue.className = 'badge';
-      stationValue.textContent = `${money(perStationMonthly)}/mo`;
+      const inputWrap = document.createElement('div');
+      inputWrap.style.display = 'flex';
+      inputWrap.style.alignItems = 'center';
+      inputWrap.style.gap = '8px';
 
+      const valInput = document.createElement('input');
+      valInput.type = 'number';
+      valInput.min = '0';
+      valInput.step = '1';
+      valInput.style.width = '140px';
+      // default to per-station monthly unless user has saved a quoted value
+      const saved = window.productState.stationCashQuoted.get(station.key);
+      valInput.value = String(Math.round(saved != null ? saved : perStationMonthly));
+
+      valInput.oninput = () => {
+        const v = parseFloat(valInput.value);
+        window.productState.stationCashQuoted.set(station.key, Number.isFinite(v) && v>=0 ? Math.round(v) : 0);
+        // refresh footer totals
+        renderCashQuotedFooter();
+      };
+
+      inputWrap.appendChild(valInput);
       row.appendChild(stationName);
-      row.appendChild(stationValue);
+      row.appendChild(inputWrap);
       breakdown.appendChild(row);
     });
 
     const annualValue = totalMonthlyAllStations * 12;
 
-    const summaryRow = document.createElement('div');
-    summaryRow.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display: flex; flex-direction: column; gap: 10px; background: rgba(15, 24, 35, 0.5);';
-    summaryRow.innerHTML = `
-      <div><strong>Per Station:</strong>
-        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}
+    // add footer and helper to render quoted vs remaining
+    const renderCashQuotedFooter = () => {
+      // remove existing footer if any
+      const existing = breakdown.querySelector('.cash-footer');
+      if (existing) existing.remove();
+
+      let quotedMonthlyTotal = 0;
+      selectedStations.forEach(st => {
+        const v = window.productState.stationCashQuoted.get(st.key);
+        quotedMonthlyTotal += Number.isFinite(v) ? Number(v) : 0;
+      });
+
+      const remainingMonthly = Math.max(0, totalMonthlyAllStations - quotedMonthlyTotal);
+
+      const footer = document.createElement('div');
+      footer.className = 'cash-footer';
+      footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; gap:20px; align-items:flex-start; background: rgba(15, 24, 35, 0.5);';
+
+      footer.innerHTML = `
+        <div style="flex:1"><strong>Remaining Value:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">Monthly: ${money(remainingMonthly)} • Annual: ${money(remainingMonthly * 12)}</div>
         </div>
-      </div>
-      <div><strong>Total Monthly Value:</strong>
-        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${money(totalMonthlyAllStations)}
+        <div style="flex:1"><strong>Quoted Value:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">Monthly: ${money(quotedMonthlyTotal)} • Annual: ${money(quotedMonthlyTotal * 12)}</div>
         </div>
-      </div>
-      <div><strong>Total Annual Value:</strong>
-        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${money(annualValue)}
+        <div style="width:220px"><strong>Per Station (default):</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}</div>
         </div>
-      </div>
-    `;
-    breakdown.appendChild(summaryRow);
+      `;
+      breakdown.appendChild(footer);
+    };
+
+    // initial render of footer
+    renderCashQuotedFooter();
   }
 
   /**********************
@@ -3215,18 +4131,41 @@ document.addEventListener("click", async (e) => {
     distributeIntegers(totalPrimeSpots, alloc, 'rawPrime', 'autoPrimeInt');
     distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
 
-    let sumPrime = 0;
-    let sumRos = 0;
+    const DAYS_PER_MONTH = 30;
+    let sumPrimeMonthly = 0;
+    let sumRosMonthly = 0;
+    let sumPrimePerDay = 0;
+    let sumRosPerDay = 0;
+    const stationQuotes = [];
 
     alloc.forEach(({ st, autoPrimeInt, autoRosInt }) => {
       const manual = window.productState.manualMinutes.get(st.key);
 
-      // manual overrides are forced whole; otherwise use whole autos
-      const primeSpots = (manual?.prime != null) ? Math.round(manual.prime) : autoPrimeInt;
-      const rosSpots   = (manual?.ros   != null) ? Math.round(manual.ros)   : autoRosInt;
+      // manual overrides are expected to be entered as minutes-per-day; convert to monthly
+      const primeSpotsMonthly = (manual?.prime != null) ? Math.round(manual.prime * DAYS_PER_MONTH) : autoPrimeInt;
+      const rosSpotsMonthly   = (manual?.ros   != null) ? Math.round(manual.ros * DAYS_PER_MONTH)   : autoRosInt;
 
-      sumPrime += primeSpots;
-      sumRos   += rosSpots;
+      sumPrimeMonthly += primeSpotsMonthly;
+      sumRosMonthly += rosSpotsMonthly;
+
+      const primePerDay = Math.round(primeSpotsMonthly / DAYS_PER_MONTH);
+      const rosPerDay = Math.round(rosSpotsMonthly / DAYS_PER_MONTH);
+
+      sumPrimePerDay += primePerDay;
+      sumRosPerDay += rosPerDay;
+
+      // collect for quoted value calculation
+      stationQuotes.push({
+        key: st.key,
+        station: st.station,
+        market: st.market,
+        primeSpotsMonthly,
+        rosSpotsMonthly,
+        primePerDay,
+        rosPerDay,
+        primeAQH: Number(st.primeAQH) || 0,
+        rosAQH: Number(st.rosAQH) || 0
+      });
 
       const row = document.createElement('div');
       row.className = 'el';
@@ -3245,29 +4184,30 @@ document.addEventListener("click", async (e) => {
       primeInput.type = 'number';
       primeInput.min = '0';
       primeInput.step = '1'; // whole only
-      primeInput.value = String(Math.round(primeSpots));
+      primeInput.value = String(primePerDay);
       primeInput.style.width = '84px';
 
       const rosInput = document.createElement('input');
       rosInput.type = 'number';
       rosInput.min = '0';
       rosInput.step = '1'; // whole only
-      rosInput.value = String(Math.round(rosSpots));
+      rosInput.value = String(rosPerDay);
       rosInput.style.width = '84px';
 
       const primeLbl = document.createElement('span');
       primeLbl.className = 'muted';
       primeLbl.style.fontSize = '12px';
-      primeLbl.textContent = 'Prime';
+      primeLbl.textContent = 'Prime (mins/day)';
 
       const rosLbl = document.createElement('span');
       rosLbl.className = 'muted';
       rosLbl.style.fontSize = '12px';
-      rosLbl.textContent = 'ROS';
+      rosLbl.textContent = 'ROS (mins/day)';
 
       const saveManual = () => {
         const p = parseFloat(primeInput.value);
         const r = parseFloat(rosInput.value);
+        // store as minutes-per-day
         window.productState.manualMinutes.set(st.key, {
           prime: Number.isFinite(p) && p >= 0 ? Math.round(p) : 0,
           ros:   Number.isFinite(r) && r >= 0 ? Math.round(r) : 0
@@ -3288,26 +4228,44 @@ document.addEventListener("click", async (e) => {
       breakdown.appendChild(row);
     });
 
-    // totals as WHOLE numbers
-    el('totalPrimeMinutes').textContent = String(Math.round(sumPrime));
-    el('totalROSMinutes').textContent = String(Math.round(sumRos));
+    // totals as WHOLE numbers (show per-day)
+    el('totalPrimeMinutes').textContent = String(Math.round(sumPrimePerDay));
+    el('totalROSMinutes').textContent = String(Math.round(sumRosPerDay));
 
     const footer = document.createElement('div');
-    footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-direction:column; gap:10px; background: rgba(15, 24, 35, 0.5);';
+    footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; gap:10px; background: rgba(15, 24, 35, 0.5);';
+
+    // build quoted value HTML per station (annual)
+    const quotedPieces = stationQuotes.map(s => {
+      // monthly value for prime = primeSpotsMonthly * (CPM * primeAQH / 1000)
+      const cpmVal = Number(window.productState.cpm || 2.0);
+      const primeMonthlyVal = (s.primeSpotsMonthly || 0) * (cpmVal * (s.primeAQH || 0) / 1000);
+      const rosMonthlyVal = (s.rosSpotsMonthly || 0) * (cpmVal * (s.rosAQH || 0) / 1000);
+      const primeAnnual = primeMonthlyVal * 12;
+      const rosAnnual = rosMonthlyVal * 12;
+      const totalAnnual = primeAnnual + rosAnnual;
+      return `<div style="margin-bottom:6px;"><strong>${escapeHtml(s.station)}</strong> — ${escapeHtml(s.market)}<div style="margin-left:8px;color:var(--muted);margin-top:4px;">Prime: ${money(primeAnnual)} • ROS: ${money(rosAnnual)} • Total: ${money(totalAnnual)}</div></div>`;
+    }).join('');
+
     footer.innerHTML = `
-      <div><strong>Remaining Value:</strong>
+      <div style="flex:1"><strong>Remaining Value:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
           Monthly: ${money(monthlyRemainingValue)} • Annual: ${money(annualRemainingValue)}
         </div>
       </div>
-      <div><strong>CPM:</strong>
+      <div style="width:160px"><strong>CPM:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
           $${Number(window.productState.cpm || 2).toFixed(2)}
         </div>
       </div>
-      <div><strong>Estimated Total Spots/Month:</strong>
+      <div style="width:200px"><strong>Estimated Total Spots/Month:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${Math.round(sumPrime + sumRos)}
+          ${Math.round(sumPrimeMonthly + sumRosMonthly)}
+        </div>
+      </div>
+      <div style="flex:1"><strong>Quoted Value (annual):</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${quotedPieces || '<div class="muted">No allocation</div>'}
         </div>
       </div>
     `;
@@ -3428,10 +4386,12 @@ function computeBarterAllocation(monthlyRemainingValue) {
     distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
 
     return alloc.map(({ st, autoPrimeInt, autoRosInt }) => {
+      const DAYS_PER_MONTH = 30;
       const manual = window.productState.manualMinutes.get(st.key);
 
-      const primeSpots = (manual?.prime != null) ? Math.round(manual.prime) : autoPrimeInt;
-      const rosSpots   = (manual?.ros   != null) ? Math.round(manual.ros)   : autoRosInt;
+      // manual values stored as minutes-per-day in the UI; convert back to monthly for allocation
+      const primeSpots = (manual?.prime != null) ? Math.round((manual.prime || 0) * DAYS_PER_MONTH) : autoPrimeInt;
+      const rosSpots   = (manual?.ros   != null) ? Math.round((manual.ros || 0) * DAYS_PER_MONTH)   : autoRosInt;
 
       return { key: st.key, station: st.station, market: st.market, primeSpots, rosSpots };
     });
@@ -3493,16 +4453,58 @@ window.generateProposal = function generateProposal() {
   const barterAllocMonthly = (pricingType === 'mixed' || pricingType === 'barter')
     ? computeBarterAllocation(remainingMonthly)
     : [];
+  // Compute per-day values so totals match the minutes-per-day calculation
+  const barterByKey = (function(){
+    const out = new Map();
+    if (!barterAllocMonthly || !barterAllocMonthly.length) return out;
 
-  const barterByKey = new Map(
-    barterAllocMonthly.map(x => [
-      x.key,
-      {
-        primePerDay: Math.round((x.primeSpots || 0) / DAYS_PER_MONTH),
-        rosPerDay:   Math.round((x.rosSpots   || 0) / DAYS_PER_MONTH)
+    // Totals per month
+    const totalPrimeMonthly = barterAllocMonthly.reduce((s,x)=>s + (Number(x.primeSpots)||0), 0);
+    const totalRosMonthly   = barterAllocMonthly.reduce((s,x)=>s + (Number(x.rosSpots)||0), 0);
+
+    // Desired rounded totals per day (based on monthly totals divided by days)
+    const totalPrimePerDayRounded = Math.round(totalPrimeMonthly / DAYS_PER_MONTH);
+    const totalRosPerDayRounded   = Math.round(totalRosMonthly   / DAYS_PER_MONTH);
+
+    // Compute floor per-station and fractional parts
+    const primeVals = barterAllocMonthly.map(x => {
+      const f = (Number(x.primeSpots)||0) / DAYS_PER_MONTH;
+      return { key: x.key, float: f, base: Math.floor(f), frac: f - Math.floor(f) };
+    });
+    const rosVals = barterAllocMonthly.map(x => {
+      const f = (Number(x.rosSpots)||0) / DAYS_PER_MONTH;
+      return { key: x.key, float: f, base: Math.floor(f), frac: f - Math.floor(f) };
+    });
+
+    // Distribute remainders by largest fractional parts
+    function distribute(vals, targetTotal){
+      const outMap = new Map();
+      let sumBase = vals.reduce((s,v)=>s+v.base,0);
+      let remaining = targetTotal - sumBase;
+      vals.slice().sort((a,b)=> b.frac - a.frac).forEach(v => {
+        let add = 0;
+        if (remaining > 0){ add = 1; remaining -= 1; }
+        outMap.set(v.key, v.base + add);
+      });
+      // If there are still remainders (rare), add to first entries
+      if (remaining > 0){
+        vals.forEach(v => { if (remaining>0){ outMap.set(v.key, (outMap.get(v.key)||0)+1); remaining--; } });
       }
-    ])
-  );
+      return outMap;
+    }
+
+    const primePerDayMap = distribute(primeVals, totalPrimePerDayRounded);
+    const rosPerDayMap   = distribute(rosVals,   totalRosPerDayRounded);
+
+    barterAllocMonthly.forEach(x => {
+      out.set(x.key, {
+        primePerDay: primePerDayMap.get(x.key) || 0,
+        rosPerDay:   rosPerDayMap.get(x.key)   || 0
+      });
+    });
+
+    return out;
+  })();
 
   // Products cell (3): show as a comma-separated list in the horizontal row
   const productNames = products.map(p => p.name).join(", ");
