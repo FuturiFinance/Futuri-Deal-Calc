@@ -4422,7 +4422,6 @@ document.addEventListener("click", async (e) => {
 
     window.PRODUCTS
       .filter(p => (p.name || '').toLowerCase().includes(q))
-      .sort((a,b)=>a.name.localeCompare(b.name))
       .forEach(product => {
         const row = document.createElement('div');
         row.className = 'el';
