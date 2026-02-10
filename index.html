@@ -1943,6 +1943,9 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
           // Load but do not re-persist; then apply to radio or tv depending on stored type
           const ok = loadNielsenFromString(b.raw || JSON.stringify(b.content || {}), false, true, b.name || id);
           if (!ok) return;
+          // Set active Nielsen ID and update badge
+          window._activeNielsenId = id;
+          updateActiveNielsenBadge();
           try{
             const parsed = window.NIELSEN_BOOKS;
             const baseDS = buildBaseDSFromNielsen(parsed);
@@ -2008,8 +2011,13 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
             const id = keys[0]; const b = books[id];
             if (b && b.raw) {
               const loaded = loadNielsenFromString(b.raw, false, false, b.name || id);
-              try{ books._defaultId = id; saveStoredNielsenBooks(books); }catch(e){}
-              if (loaded) { console.info('Nielsen book loaded from local storage'); renderNielsenManager(); return; }
+              if (loaded) {
+                window._activeNielsenId = id;
+                try{ books._defaultId = id; saveStoredNielsenBooks(books); }catch(e){}
+                console.info('Nielsen book loaded from local storage');
+                renderNielsenManager();
+                return;
+              }
             }
           }
         }catch(e){ console.warn('Failed loading stored Nielsen book', e); }
@@ -4425,9 +4433,27 @@ document.addEventListener("click", async (e) => {
         leftSide.style.alignItems = 'center';
         leftSide.style.gap = '8px';
 
+        // Handle cash-only products - check before creating checkbox
+        const isCashOnly = product.cashOnly === true;
+        const isCashOnlyDisabled = isCashOnly && pricingType !== 'cash';
+
+        // If cash-only product in barter/mixed mode, deselect it
+        if (isCashOnlyDisabled && window.productState.selectedProducts.has(product.id)) {
+          window.productState.selectedProducts.delete(product.id);
+          window.productState.customPrices.delete(product.id);
+        }
+
         const cb = document.createElement('input');
         cb.type = 'checkbox';
         cb.checked = window.productState.selectedProducts.has(product.id);
+
+        // Disable checkbox for cash-only products in barter/mixed mode
+        if (isCashOnlyDisabled) {
+          cb.disabled = true;
+          row.style.opacity = '0.5';
+          row.style.pointerEvents = 'none';
+        }
+
         cb.onchange = () => {
           if (cb.checked) window.productState.selectedProducts.add(product.id);
           else {
@@ -4446,6 +4472,11 @@ document.addEventListener("click", async (e) => {
           name.innerHTML = `<strong>${product.name}</strong>`;
         }
 
+        // Add "Cash Only" label next to product name when disabled
+        if (isCashOnlyDisabled) {
+          name.innerHTML += ` <span style="font-size:11px; color:#e65100; font-weight:normal;">(Cash Only)</span>`;
+        }
+
         leftSide.appendChild(cb);
         leftSide.appendChild(name);
 
@@ -4454,18 +4485,16 @@ document.addEventListener("click", async (e) => {
         priceContainer.style.alignItems = 'center';
         priceContainer.style.gap = '8px';
 
-        // Handle cash-only products
-        const isCashOnly = product.cashOnly === true;
         const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : product.barter;
         const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
 
-        if (isCashOnly && pricingType !== 'cash') {
+        if (isCashOnlyDisabled) {
           // Show "Cash Only" badge for cash-only products in barter/mixed mode
           const cashOnlyBadge = document.createElement('span');
           cashOnlyBadge.className = 'badge';
           cashOnlyBadge.style.background = 'rgba(255, 152, 0, 0.15)';
           cashOnlyBadge.style.color = '#e65100';
-          cashOnlyBadge.textContent = `Cash Only: $${Number(product.cash).toLocaleString()}/mo`;
+          cashOnlyBadge.textContent = `$${Number(product.cash).toLocaleString()}/mo`;
           priceContainer.appendChild(cashOnlyBadge);
         } else if (rateCardValue === null || rateCardValue === undefined) {
           const tbdBadge = document.createElement('span');
@@ -4955,6 +4984,8 @@ document.addEventListener("click", async (e) => {
         rebuildIndex();
         window.renderParents('');
       }catch(e){ console.warn('applyStoredBookById: could not build base ds', e); }
+      // Update badge after setting active ID
+      updateActiveNielsenBadge();
       return true;
     }catch(e){ console.warn('applyStoredBookById failed', e); return false; }
   }
@@ -5216,13 +5247,10 @@ document.addEventListener("click", async (e) => {
       footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; gap:20px; align-items:flex-start; background: rgba(15, 24, 35, 0.5);';
 
       footer.innerHTML = `
-        <div style="flex:1"><strong>Remaining Value:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">Monthly: ${money(remainingMonthly)} • Annual: ${money(remainingMonthly * 12)}</div>
+        <div style="flex:1"><strong>Total Cost:</strong>
+          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">Monthly: ${money(totalMonthlyAllStations)} • Annual: ${money(totalMonthlyAllStations * 12)}</div>
         </div>
-        <div style="flex:1"><strong>Quoted Value:</strong>
-          <div style="margin-left:16px;color:var(--muted);margin-top:4px;">Monthly: ${money(quotedMonthlyTotal)} • Annual: ${money(quotedMonthlyTotal * 12)}</div>
-        </div>
-        <div style="width:220px"><strong>Per Station (default):</strong>
+        <div style="width:220px"><strong>Per Station:</strong>
           <div style="margin-left:16px;color:var(--muted);margin-top:4px;">${money(perStationMonthly)}/mo × ${selectedStations.length} station${selectedStations.length!==1?'s':''}</div>
         </div>
       `;
@@ -5419,8 +5447,8 @@ document.addEventListener("click", async (e) => {
         st,
         primeAQH,
         rosAQH,
-        autoPrimeMinutes: Math.round(autoPrimeMinutes * 10) / 10, // Round to 1 decimal
-        autoRosMinutes: Math.round(autoRosMinutes * 10) / 10
+        autoPrimeMinutes: autoPrimeMinutes > 0 ? Math.ceil(autoPrimeMinutes) : 0, // Round UP to whole number
+        autoRosMinutes: autoRosMinutes > 0 ? Math.ceil(autoRosMinutes) : 0
       };
     });
 
@@ -5485,16 +5513,18 @@ document.addEventListener("click", async (e) => {
         const primeInput = document.createElement('input');
         primeInput.type = 'number';
         primeInput.min = '0';
-        primeInput.step = '0.5';
+        primeInput.step = '1';
         primeInput.value = String(primeMinutesPerDay);
         primeInput.style.width = '84px';
 
         primeInput.onchange = () => {
           const p = parseFloat(primeInput.value);
           const currentManual = window.productState.manualMinutes.get(st.key) || {};
+          // Round up to whole number
+          const roundedP = Number.isFinite(p) && p > 0 ? Math.ceil(p) : 0;
           window.productState.manualMinutes.set(st.key, {
             ...currentManual,
-            prime: Number.isFinite(p) && p >= 0 ? p : 0
+            prime: roundedP
           });
           calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
         };
@@ -5520,16 +5550,18 @@ document.addEventListener("click", async (e) => {
         const rosInput = document.createElement('input');
         rosInput.type = 'number';
         rosInput.min = '0';
-        rosInput.step = '0.5';
+        rosInput.step = '1';
         rosInput.value = String(rosMinutesPerDay);
         rosInput.style.width = '84px';
 
         rosInput.onchange = () => {
           const r = parseFloat(rosInput.value);
           const currentManual = window.productState.manualMinutes.get(st.key) || {};
+          // Round up to whole number
+          const roundedR = Number.isFinite(r) && r > 0 ? Math.ceil(r) : 0;
           window.productState.manualMinutes.set(st.key, {
             ...currentManual,
-            ros: Number.isFinite(r) && r >= 0 ? r : 0
+            ros: roundedR
           });
           calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
         };
@@ -5551,8 +5583,8 @@ document.addEventListener("click", async (e) => {
     });
 
     // Update totals display
-    el('totalPrimeMinutes').textContent = String(Math.round(sumPrimeMinutesPerDay * 10) / 10);
-    el('totalROSMinutes').textContent = String(Math.round(sumRosMinutesPerDay * 10) / 10);
+    el('totalPrimeMinutes').textContent = String(Math.round(sumPrimeMinutesPerDay));
+    el('totalROSMinutes').textContent = String(Math.round(sumRosMinutesPerDay));
 
     // Calculate total allocated value and variance
     const totalAllocatedValue = totalAllocatedPrimeValue + totalAllocatedRosValue;
@@ -5602,7 +5634,7 @@ document.addEventListener("click", async (e) => {
       <div style="min-width:140px">
         <strong>Total Minutes/Day:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${Math.round((sumPrimeMinutesPerDay + sumRosMinutesPerDay) * 10) / 10}
+          ${Math.round(sumPrimeMinutesPerDay + sumRosMinutesPerDay)}
         </div>
       </div>
       <div style="flex:1;min-width:300px">
@@ -5720,8 +5752,8 @@ function computeBarterAllocation(monthlyRemainingValue) {
 
       // Check for manual override
       const manual = window.productState.manualMinutes.get(st.key);
-      const primeMinutesPerDay = (manual?.prime != null) ? manual.prime : Math.round(autoPrimeMinutes * 10) / 10;
-      const rosMinutesPerDay = (manual?.ros != null) ? manual.ros : Math.round(autoRosMinutes * 10) / 10;
+      const primeMinutesPerDay = (manual?.prime != null) ? manual.prime : (autoPrimeMinutes > 0 ? Math.ceil(autoPrimeMinutes) : 0);
+      const rosMinutesPerDay = (manual?.ros != null) ? manual.ros : (autoRosMinutes > 0 ? Math.ceil(autoRosMinutes) : 0);
 
       return {
         key: st.key,
