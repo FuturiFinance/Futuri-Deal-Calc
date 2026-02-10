@@ -923,6 +923,108 @@
         </div>
       </section>
 
+      <!-- TopLine Configuration Section -->
+      <section class="card hidden" id="toplineConfigSection">
+        <div class="title">TopLine Configuration</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your TopLine deal options below.</div>
+
+        <!-- Base Product -->
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">1. Base Product</div>
+          <div class="modal-grid">
+            <div class="field">
+              <label for="toplineTier">Product Tier</label>
+              <select id="toplineTier">
+                <option value="access">Access ($42K/yr)</option>
+                <option value="enterprise">Enterprise ($30K/yr)</option>
+                <option value="both">Both ($72K/yr)</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="toplineUsers">Total Users Needed (5 included)</label>
+              <input id="toplineUsers" type="number" min="1" value="5" />
+            </div>
+            <div class="field">
+              <label for="toplineAccounts">Total Accounts Needed (220 included)</label>
+              <input id="toplineAccounts" type="number" min="1" value="220" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Attribution Add-on -->
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">2. Attribution Add-on</div>
+          <label style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="toplineAttribution" />
+            <span>Attribution Add-on ($5K/yr)</span>
+            <span class="muted" style="font-size:11px;">Includes SimilarWeb, Unicast</span>
+          </label>
+        </div>
+
+        <!-- Custom Services -->
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">3. Custom Data & Integration Services</div>
+          <div class="muted" style="font-size:12px; margin-bottom:10px;">$300/hr + 10% annual maintenance fee</div>
+          <div class="modal-grid">
+            <div class="field">
+              <label for="toplineDataSetHours">Data Sets (hours)</label>
+              <input id="toplineDataSetHours" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="toplineCrmHours">CRM Integration (hours)</label>
+              <input id="toplineCrmHours" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="toplineDataIntHours">Data Integration (hours)</label>
+              <input id="toplineDataIntHours" type="number" min="0" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Add-ons -->
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">4. Add-ons</div>
+
+          <label style="display:flex;align-items:center;gap:10px; margin-bottom:12px;">
+            <input type="checkbox" id="toplineSpotOn" />
+            <span>SpotOn Audio ($18K/yr)</span>
+            <span class="muted" style="font-size:11px;">750 spots included</span>
+          </label>
+
+          <div class="modal-grid" style="margin-bottom:12px;">
+            <div class="field">
+              <label for="toplineVideos15">:15 Videos (3 credits each)</label>
+              <input id="toplineVideos15" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="toplineVideos30">:30 Videos (6 credits each)</label>
+              <input id="toplineVideos30" type="number" min="0" value="0" />
+            </div>
+          </div>
+          <div class="muted" style="font-size:12px; margin-bottom:12px;">$500 per 300-credit package</div>
+
+          <div class="modal-grid" style="margin-bottom:12px;">
+            <div class="field">
+              <label for="toplineChuyDevices">CHUY Devices ($99 setup + $10/mo each)</label>
+              <input id="toplineChuyDevices" type="number" min="0" value="0" />
+            </div>
+          </div>
+
+          <label style="display:flex;align-items:center;gap:10px;">
+            <input type="checkbox" id="toplineChuyDashboard" />
+            <span>CHUY Dashboard ($119/mo)</span>
+          </label>
+        </div>
+
+        <!-- Cost Summary -->
+        <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div id="toplineCostSummary" style="font-size:13px;">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </section>
+
       <section class="card hidden" id="cashValuesSection">
         <div class="title">Cash Values by Station (All Selected Stations)</div>
         <div class="muted" style="margin-bottom:12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
@@ -1823,6 +1925,9 @@ function buildDealPayload(){
     stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
     cpm: window.productState?.cpm ?? 2.0,
 
+    // TopLine configuration
+    toplineConfig: { ...window.toplineState },
+
     dealMeta: { ...dealMetaState },
 
     // include the active Nielsen book id so saved deals can be re-linked
@@ -1951,6 +2056,14 @@ function loadDeal(payload){
   window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
   window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
   window.productState.cpm = payload.cpm ?? 2.0;
+
+  // Restore TopLine configuration
+  if (payload.toplineConfig && typeof payload.toplineConfig === "object") {
+    Object.assign(window.toplineState, payload.toplineConfig);
+  }
+  setTimeout(() => {
+    if (typeof window.applyTopLineStateToUI === "function") window.applyTopLineStateToUI();
+  }, 0);
 
   if (payload.dealMeta && typeof payload.dealMeta === "object") {
     Object.assign(dealMetaState, payload.dealMeta);
@@ -3078,6 +3191,246 @@ document.addEventListener("click", async (e) => {
     };
 
     /**********************
+     * TopLine Configuration State
+     **********************/
+    window.toplineState = {
+      tier: 'access', // 'access', 'enterprise', 'both'
+      usersNeeded: 5,
+      accountsNeeded: 220,
+      attributionEnabled: false,
+      // Custom services (hours)
+      dataSetHours: 0,
+      crmIntegrationHours: 0,
+      dataIntegrationHours: 0,
+      // Add-ons
+      spotOnAudioEnabled: false,
+      videos15Count: 0,
+      videos30Count: 0,
+      chuyDevices: 0,
+      chuyDashboardEnabled: false
+    };
+
+    // TopLine pricing constants
+    const TOPLINE_PRICING = {
+      tierPrices: { access: 42000, enterprise: 30000, both: 72000 },
+      usersIncluded: 5,
+      additionalUserMonthly: 250,
+      accountsIncluded: 220,
+      additionalAccountBlockMonthly: 25, // per 5 accounts
+      attributionAnnual: 5000,
+      customServiceHourly: 300,
+      customServiceMaintenance: 0.10, // 10% annual maintenance
+      spotOnAudioAnnual: 18000,
+      videoCreditsPerPackage: 300,
+      videoPackagePrice: 500,
+      video15Credits: 3,
+      video30Credits: 6,
+      chuyDeviceSetup: 99,
+      chuyDeviceMonthly: 10,
+      chuyDashboardMonthly: 119
+    };
+
+    function calculateTopLineCosts() {
+      const s = window.toplineState;
+      const p = TOPLINE_PRICING;
+
+      // Base product
+      const baseAnnual = p.tierPrices[s.tier] || 0;
+
+      // Additional users
+      const additionalUsers = Math.max(0, s.usersNeeded - p.usersIncluded);
+      const usersAnnual = additionalUsers * p.additionalUserMonthly * 12;
+
+      // Additional accounts (blocks of 5)
+      const additionalAccounts = Math.max(0, s.accountsNeeded - p.accountsIncluded);
+      const accountBlocks = Math.ceil(additionalAccounts / 5);
+      const accountsAnnual = accountBlocks * p.additionalAccountBlockMonthly * 12;
+
+      // Base subtotal
+      const baseSubtotal = baseAnnual + usersAnnual + accountsAnnual;
+
+      // Attribution
+      const attributionAnnual = s.attributionEnabled ? p.attributionAnnual : 0;
+
+      // Custom services
+      const dataSetOneTime = s.dataSetHours * p.customServiceHourly;
+      const crmOneTime = s.crmIntegrationHours * p.customServiceHourly;
+      const dataIntegrationOneTime = s.dataIntegrationHours * p.customServiceHourly;
+      const customServicesOneTime = dataSetOneTime + crmOneTime + dataIntegrationOneTime;
+      const customServicesMaintenance = customServicesOneTime * p.customServiceMaintenance;
+
+      // SpotOn Audio
+      const spotOnAnnual = s.spotOnAudioEnabled ? p.spotOnAudioAnnual : 0;
+
+      // Video credits
+      const totalCredits = (s.videos15Count * p.video15Credits) + (s.videos30Count * p.video30Credits);
+      const packagesNeeded = Math.ceil(totalCredits / p.videoCreditsPerPackage);
+      const videoAnnual = packagesNeeded * p.videoPackagePrice;
+
+      // CHUY
+      const chuySetup = s.chuyDevices * p.chuyDeviceSetup;
+      const chuyDeviceAnnual = s.chuyDevices * p.chuyDeviceMonthly * 12;
+      const chuyDashboardAnnual = s.chuyDashboardEnabled ? p.chuyDashboardMonthly * 12 : 0;
+
+      // Totals
+      const totalOneTime = customServicesOneTime + chuySetup;
+      const totalAnnual = baseSubtotal + attributionAnnual + customServicesMaintenance + spotOnAnnual + videoAnnual + chuyDeviceAnnual + chuyDashboardAnnual;
+
+      return {
+        baseAnnual,
+        usersAnnual,
+        accountsAnnual,
+        baseSubtotal,
+        attributionAnnual,
+        dataSetOneTime,
+        crmOneTime,
+        dataIntegrationOneTime,
+        customServicesOneTime,
+        customServicesMaintenance,
+        spotOnAnnual,
+        totalCredits,
+        packagesNeeded,
+        videoAnnual,
+        chuySetup,
+        chuyDeviceAnnual,
+        chuyDashboardAnnual,
+        totalOneTime,
+        totalAnnual,
+        totalMonthly: totalAnnual / 12
+      };
+    }
+
+    function getTopLineProductName() {
+      const s = window.toplineState;
+      let name = '';
+      if (s.tier === 'access') name = 'TopLine Access';
+      else if (s.tier === 'enterprise') name = 'TopLine Enterprise';
+      else if (s.tier === 'both') name = 'TopLine w/ Enterprise';
+      if (s.attributionEnabled) name += ' w/ Attribution';
+      return name;
+    }
+
+    function updateTopLineSummary() {
+      const costs = calculateTopLineCosts();
+      const summaryEl = el('toplineCostSummary');
+      if (!summaryEl) return;
+
+      const money = (v) => '$' + Math.round(v).toLocaleString();
+
+      let html = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+          <div><strong>Upfront/One-Time:</strong></div>
+          <div style="text-align:right;">${money(costs.totalOneTime)}</div>
+          <div><strong>Annual Cost:</strong></div>
+          <div style="text-align:right;">${money(costs.totalAnnual)}</div>
+          <div><strong>Monthly Cost:</strong></div>
+          <div style="text-align:right;">${money(costs.totalMonthly)}</div>
+        </div>
+        <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(103,36,119,.18); font-size:12px; color:var(--muted);">
+          <div><strong>Breakdown:</strong></div>
+          <div>Base (${window.toplineState.tier}): ${money(costs.baseSubtotal)}/yr</div>
+      `;
+
+      if (costs.attributionAnnual > 0) {
+        html += `<div>Attribution: ${money(costs.attributionAnnual)}/yr</div>`;
+      }
+      if (costs.customServicesOneTime > 0) {
+        html += `<div>Custom Services: ${money(costs.customServicesOneTime)} one-time + ${money(costs.customServicesMaintenance)}/yr maint.</div>`;
+      }
+      if (costs.spotOnAnnual > 0) {
+        html += `<div>SpotOn Audio: ${money(costs.spotOnAnnual)}/yr</div>`;
+      }
+      if (costs.videoAnnual > 0) {
+        html += `<div>Video Credits (${costs.packagesNeeded} pkg): ${money(costs.videoAnnual)}/yr</div>`;
+      }
+      if (costs.chuySetup > 0 || costs.chuyDeviceAnnual > 0) {
+        html += `<div>CHUY Devices: ${money(costs.chuySetup)} setup + ${money(costs.chuyDeviceAnnual)}/yr</div>`;
+      }
+      if (costs.chuyDashboardAnnual > 0) {
+        html += `<div>CHUY Dashboard: ${money(costs.chuyDashboardAnnual)}/yr</div>`;
+      }
+
+      html += '</div>';
+      summaryEl.innerHTML = html;
+    }
+
+    function wireTopLineUI() {
+      const tierEl = el('toplineTier');
+      const usersEl = el('toplineUsers');
+      const accountsEl = el('toplineAccounts');
+      const attrEl = el('toplineAttribution');
+      const dataSetEl = el('toplineDataSetHours');
+      const crmEl = el('toplineCrmHours');
+      const dataIntEl = el('toplineDataIntHours');
+      const spotOnEl = el('toplineSpotOn');
+      const v15El = el('toplineVideos15');
+      const v30El = el('toplineVideos30');
+      const chuyDevEl = el('toplineChuyDevices');
+      const chuyDashEl = el('toplineChuyDashboard');
+
+      if (!tierEl) return; // UI not present
+
+      const syncState = () => {
+        const s = window.toplineState;
+        s.tier = tierEl.value;
+        s.usersNeeded = Math.max(1, parseInt(usersEl.value) || 5);
+        s.accountsNeeded = Math.max(1, parseInt(accountsEl.value) || 220);
+        s.attributionEnabled = attrEl.checked;
+        s.dataSetHours = Math.max(0, parseInt(dataSetEl.value) || 0);
+        s.crmIntegrationHours = Math.max(0, parseInt(crmEl.value) || 0);
+        s.dataIntegrationHours = Math.max(0, parseInt(dataIntEl.value) || 0);
+        s.spotOnAudioEnabled = spotOnEl.checked;
+        s.videos15Count = Math.max(0, parseInt(v15El.value) || 0);
+        s.videos30Count = Math.max(0, parseInt(v30El.value) || 0);
+        s.chuyDevices = Math.max(0, parseInt(chuyDevEl.value) || 0);
+        s.chuyDashboardEnabled = chuyDashEl.checked;
+
+        updateTopLineSummary();
+        window.updateProductSummary();
+      };
+
+      // Apply current state to UI
+      const applyStateToUI = () => {
+        const s = window.toplineState;
+        tierEl.value = s.tier;
+        usersEl.value = s.usersNeeded;
+        accountsEl.value = s.accountsNeeded;
+        attrEl.checked = s.attributionEnabled;
+        dataSetEl.value = s.dataSetHours;
+        crmEl.value = s.crmIntegrationHours;
+        dataIntEl.value = s.dataIntegrationHours;
+        spotOnEl.checked = s.spotOnAudioEnabled;
+        v15El.value = s.videos15Count;
+        v30El.value = s.videos30Count;
+        chuyDevEl.value = s.chuyDevices;
+        chuyDashEl.checked = s.chuyDashboardEnabled;
+        updateTopLineSummary();
+      };
+
+      // Wire up events
+      [tierEl, usersEl, accountsEl, dataSetEl, crmEl, dataIntEl, v15El, v30El, chuyDevEl].forEach(inp => {
+        if (inp) inp.addEventListener('change', syncState);
+      });
+      [attrEl, spotOnEl, chuyDashEl].forEach(cb => {
+        if (cb) cb.addEventListener('change', syncState);
+      });
+
+      // Initial state apply
+      applyStateToUI();
+
+      // Make applyStateToUI available globally for deal loading
+      window.applyTopLineStateToUI = applyStateToUI;
+    }
+
+    function showTopLineConfig(show) {
+      const section = el('toplineConfigSection');
+      if (section) {
+        section.classList.toggle('hidden', !show);
+        if (show) updateTopLineSummary();
+      }
+    }
+
+    /**********************
      * Lazy Loading with IndexedDB Cache
      **********************/
     const RADIO_DB_NAME = 'FuturiRadioCache';
@@ -3695,10 +4048,18 @@ document.addEventListener("click", async (e) => {
     const pricingType = window.productState.pricingType;
     let totalMonthlyPerStation = 0;
     let productCount = 0;
+    let toplineSelected = false;
 
     window.productState.selectedProducts.forEach(productId => {
       const product = window.PRODUCTS.find(p => p.id === productId);
       if (!product) return;
+
+      // Check if TopLine is selected
+      if (productId === 'topline') {
+        toplineSelected = true;
+        productCount++;
+        return; // TopLine pricing handled separately
+      }
 
       const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
       if (rateCardValue === null || rateCardValue === undefined) return;
@@ -3709,7 +4070,17 @@ document.addEventListener("click", async (e) => {
     });
 
     const numStations = window.state.stations.size;
-    const totalMonthlyAllStations = totalMonthlyPerStation * numStations;
+    let totalMonthlyAllStations = totalMonthlyPerStation * numStations;
+
+    // Add TopLine costs if selected
+    let toplineCosts = null;
+    if (toplineSelected) {
+      toplineCosts = calculateTopLineCosts();
+      totalMonthlyAllStations += toplineCosts.totalMonthly;
+    }
+
+    // Show/hide TopLine config section
+    showTopLineConfig(toplineSelected);
 
     el('productCount').textContent = String(productCount);
     el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
@@ -3843,6 +4214,9 @@ document.addEventListener("click", async (e) => {
         }
       );
     };
+
+    // TopLine configuration UI wiring
+    wireTopLineUI();
 
     el('btnGenerateProposal').onclick = () => {
       // Debug helper: surface why generation may not run
@@ -4754,7 +5128,15 @@ window.generateProposal = function generateProposal() {
   // - For cash-only, uses cash rates
   const monthlyPerStationProposal = computeProposalMonthlyPerStation(pricingType);
   const monthlyAllStationsProposal = monthlyPerStationProposal * stations.length;
-  const annualAllStationsProposal  = monthlyAllStationsProposal * 12;
+  let annualAllStationsProposal  = monthlyAllStationsProposal * 12;
+
+  // Check for TopLine selection and calculate costs
+  const toplineSelected = window.productState.selectedProducts.has('topline');
+  let toplineCosts = null;
+  if (toplineSelected) {
+    toplineCosts = calculateTopLineCosts();
+    annualAllStationsProposal += toplineCosts.totalAnnual;
+  }
 
   // Mixed cash inputs are MONTHLY per station (UI accepts monthly values)
   let totalCashMonthly = 0;
@@ -4910,6 +5292,135 @@ window.generateProposal = function generateProposal() {
 
   lines.push(`</tbody></table>`);
   lines.push(`</div>`);
+
+  // TopLine section if selected
+  if (toplineSelected && toplineCosts) {
+    const tl = toplineCosts;
+    const tlName = getTopLineProductName();
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">TopLine Products</div>`);
+
+    // Cost summary at top
+    lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap; margin-bottom:12px;">`);
+    if (tl.totalOneTime > 0) {
+      lines.push(`<span class="pill">Upfront/One-Time: <strong>${money(tl.totalOneTime)}</strong></span>`);
+    }
+    lines.push(`<span class="pill">Annual Cost: <strong>${money(tl.totalAnnual)}</strong></span>`);
+    lines.push(`</div>`);
+
+    // Line items table
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">One-Time</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+    </tr></thead><tbody>`);
+
+    // Base product with user/account add-ons rolled in
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${tlName}</strong><br><span style="font-size:11px;color:var(--muted);">${window.toplineState.usersNeeded} users, ${window.toplineState.accountsNeeded} accounts</span></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal)}</td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal / 12)}</td>
+    </tr>`);
+
+    // Attribution
+    if (window.toplineState.attributionEnabled) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Attribution Add-on</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.attributionAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.attributionAnnual / 12)}</td>
+      </tr>`);
+    }
+
+    // Custom services - Data Sets
+    if (window.toplineState.dataSetHours > 0) {
+      const maint = tl.dataSetOneTime * 0.10;
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Custom: Data Sets (${window.toplineState.dataSetHours} hrs)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.dataSetOneTime)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint / 12)}</td>
+      </tr>`);
+    }
+
+    // Custom services - CRM Integration
+    if (window.toplineState.crmIntegrationHours > 0) {
+      const maint = tl.crmOneTime * 0.10;
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Custom: CRM Integration (${window.toplineState.crmIntegrationHours} hrs)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmOneTime)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint / 12)}</td>
+      </tr>`);
+    }
+
+    // Custom services - Data Integration
+    if (window.toplineState.dataIntegrationHours > 0) {
+      const maint = tl.dataIntegrationOneTime * 0.10;
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Custom: Data Integration (${window.toplineState.dataIntegrationHours} hrs)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.dataIntegrationOneTime)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint / 12)}</td>
+      </tr>`);
+    }
+
+    // SpotOn Audio
+    if (window.toplineState.spotOnAudioEnabled) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn Audio (750 spots incl.)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotOnAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotOnAnnual / 12)}</td>
+      </tr>`);
+    }
+
+    // Video Credits
+    if (tl.videoAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Video Credits (${tl.packagesNeeded} pkg × 300 credits)<br><span style="font-size:11px;color:var(--muted);">${window.toplineState.videos15Count} :15s, ${window.toplineState.videos30Count} :30s = ${tl.totalCredits} credits</span></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.videoAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.videoAnnual / 12)}</td>
+      </tr>`);
+    }
+
+    // CHUY Devices
+    if (window.toplineState.chuyDevices > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Devices (${window.toplineState.chuyDevices} units)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuySetup)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDeviceAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDeviceAnnual / 12)}</td>
+      </tr>`);
+    }
+
+    // CHUY Dashboard
+    if (window.toplineState.chuyDashboardEnabled) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Dashboard</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDashboardAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDashboardAnnual / 12)}</td>
+      </tr>`);
+    }
+
+    // Totals row
+    lines.push(`<tr style="background:rgba(103,36,119,.06);">
+      <td style="padding:8px;"><strong>TopLine Total</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${money(tl.totalOneTime)}</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${money(tl.totalAnnual)}</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${money(tl.totalMonthly)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
 
   // Proposal mode badge
   const modeBadge = el('proposalMode');
