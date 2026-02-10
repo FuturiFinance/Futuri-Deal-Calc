@@ -1064,6 +1064,70 @@
         </div>
       </section>
 
+      <!-- FB Groups Configuration -->
+      <section class="card hidden" id="fbGroupsConfigSection">
+        <div class="title">TopicPulse Community Radar (FB Groups) Configuration</div>
+        <div class="muted" style="margin-bottom:12px;">Enter the number of Facebook groups to monitor at $50/group per month.</div>
+
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div class="modal-grid">
+            <div class="field">
+              <label for="fbGroupCount">Number of Facebook Groups</label>
+              <input id="fbGroupCount" type="number" min="0" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Summary -->
+        <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div id="fbGroupsCostSummary" style="font-size:13px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Groups:</span>
+              <strong id="fbGroupsCount">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Rate:</span>
+              <strong>$50/group/month</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
+              <span style="font-weight:700;">Monthly Cost:</span>
+              <strong id="fbGroupsTotalCost" style="color:var(--primary);">$0</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAAI Configuration -->
+      <section class="card hidden" id="faaiConfigSection">
+        <div class="title">FAAI Configuration</div>
+        <div class="muted" style="margin-bottom:12px;">Enter the monthly price for FAAI.</div>
+
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div class="modal-grid">
+            <div class="field">
+              <label for="faaiMonthlyPrice">Monthly Price ($)</label>
+              <input id="faaiMonthlyPrice" type="number" min="0" step="1" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Summary -->
+        <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div id="faaiCostSummary" style="font-size:13px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Monthly:</span>
+              <strong id="faaiMonthlyCost">$0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
+              <span style="font-weight:700;">Annual Cost:</span>
+              <strong id="faaiAnnualCost" style="color:var(--primary);">$0</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card hidden" id="cashValuesSection">
         <div class="title">Cash Values by Station (All Selected Stations)</div>
         <div class="muted" style="margin-bottom:12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
@@ -1970,6 +2034,12 @@ function buildDealPayload(){
     // SpotOn Video configuration
     spotonVideoConfig: { ...window.spotonVideoState },
 
+    // FB Groups configuration
+    fbGroupsConfig: { ...window.fbGroupsState },
+
+    // FAAI configuration
+    faaiConfig: { ...window.faaiState },
+
     dealMeta: { ...dealMetaState },
 
     // include the active Nielsen book id so saved deals can be re-linked
@@ -2113,6 +2183,22 @@ function loadDeal(payload){
   }
   setTimeout(() => {
     if (typeof window.applySpotOnVideoStateToUI === "function") window.applySpotOnVideoStateToUI();
+  }, 0);
+
+  // Restore FB Groups configuration
+  if (payload.fbGroupsConfig && typeof payload.fbGroupsConfig === "object") {
+    Object.assign(window.fbGroupsState, payload.fbGroupsConfig);
+  }
+  setTimeout(() => {
+    if (typeof window.applyFbGroupsStateToUI === "function") window.applyFbGroupsStateToUI();
+  }, 0);
+
+  // Restore FAAI configuration
+  if (payload.faaiConfig && typeof payload.faaiConfig === "object") {
+    Object.assign(window.faaiState, payload.faaiConfig);
+  }
+  setTimeout(() => {
+    if (typeof window.applyFaaiStateToUI === "function") window.applyFaaiStateToUI();
   }, 0);
 
   if (payload.dealMeta && typeof payload.dealMeta === "object") {
@@ -3214,22 +3300,20 @@ document.addEventListener("click", async (e) => {
 
     // Fallback products if rate card fails to load
     window.PRODUCTS_FALLBACK = [
-      { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1020, industry: 'Radio/TV' },
-      { id: 'topicpulse_community_radar_fb', name: 'TopicPulse Community Radar (per FB Group) - Addon', cash: 50, barter: 68, industry: 'Radio/TV' },
-      { id: 'topicpulse_community_radar_nextdoor', name: 'TopicPulse Community Radar (Next Door Integration) - Addon', cash: 150, barter: 204, industry: 'Radio/TV' },
-      { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1700, industry: 'Radio/TV' },
-      { id: 'instant_video', name: 'IV Add-on', cash: 500, barter: 680, industry: 'Radio/TV' },
       { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
+      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020, industry: 'Radio/TV', note: 'up to 750 spots a month' },
+      { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' },
+      { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1020, industry: 'Radio/TV' },
+      { id: 'instant_video', name: 'IV Add-on', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1700, industry: 'Radio/TV' },
+      { id: 'topicpulse_community_radar_fb', name: 'TopicPulse Community Radar (FB Groups)', cash: null, barter: null, industry: 'Radio/TV', note: '$50/group' },
+      { id: 'topicpulse_community_radar_nextdoor', name: 'TopicPulse Community Radar (Next Door)', cash: 150, barter: 204, industry: 'Radio/TV' },
       { id: 'post', name: 'POST', cash: 1000, barter: 1360, industry: 'Radio/TV' },
-      { id: 'mobile', name: 'Mobile', cash: 500, barter: 680, industry: 'Radio/TV' },
       { id: 'streaming', name: 'Streaming', cash: 300, barter: 408, industry: 'Radio/TV' },
       { id: 'ldr', name: 'LDR', cash: 500, barter: 680, industry: 'Radio/TV' },
-      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680, industry: 'Radio/TV' },
-      { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040, industry: 'Radio/TV' },
-      { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800, industry: 'Radio/TV' },
-      { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360, industry: 'Radio/TV' },
-      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020, industry: 'Radio/TV', note: 'up to 750 spots a month' },
-      { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' }
+      { id: 'mobile', name: 'Mobile', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'faai', name: 'FAAI', cash: null, barter: null, industry: 'Radio/TV' },
+      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680, industry: 'Radio/TV' }
     ];
     window.PRODUCTS = [...window.PRODUCTS_FALLBACK];
 
@@ -3294,6 +3378,25 @@ document.addEventListener("click", async (e) => {
       credits30: 6,        // credits per :30 video
       creditsPerPackage: 300,
       pricePerPackage: 500
+    };
+
+    /**********************
+     * FB Groups Configuration State
+     **********************/
+    window.fbGroupsState = {
+      groupCount: 0
+    };
+
+    // FB Groups pricing constants
+    const FB_GROUPS_PRICING = {
+      pricePerGroup: 50
+    };
+
+    /**********************
+     * FAAI Configuration State
+     **********************/
+    window.faaiState = {
+      monthlyPrice: 0
     };
 
     // TopLine pricing constants
@@ -3588,6 +3691,118 @@ document.addEventListener("click", async (e) => {
       if (section) {
         section.classList.toggle('hidden', !show);
         if (show) updateSpotOnVideoSummary();
+      }
+    }
+
+    /**********************
+     * FB Groups Configuration Functions
+     **********************/
+    function calculateFbGroupsCosts() {
+      const s = window.fbGroupsState;
+      const p = FB_GROUPS_PRICING;
+
+      const monthlyCost = s.groupCount * p.pricePerGroup;
+      const annualCost = monthlyCost * 12;
+
+      return {
+        groupCount: s.groupCount,
+        monthlyCost,
+        annualCost
+      };
+    }
+
+    function updateFbGroupsSummary() {
+      const costs = calculateFbGroupsCosts();
+
+      const countEl = el('fbGroupsCount');
+      const totalEl = el('fbGroupsTotalCost');
+
+      if (countEl) countEl.textContent = costs.groupCount.toLocaleString();
+      if (totalEl) totalEl.textContent = '$' + costs.monthlyCost.toLocaleString();
+    }
+
+    function wireFbGroupsUI() {
+      const groupCountInput = el('fbGroupCount');
+
+      if (groupCountInput) {
+        groupCountInput.addEventListener('input', () => {
+          window.fbGroupsState.groupCount = Math.max(0, parseInt(groupCountInput.value) || 0);
+          updateFbGroupsSummary();
+          window.updateProductSummary();
+        });
+      }
+    }
+
+    function applyFbGroupsStateToUI() {
+      const s = window.fbGroupsState;
+      const groupCountInput = el('fbGroupCount');
+
+      if (groupCountInput) groupCountInput.value = s.groupCount;
+
+      updateFbGroupsSummary();
+    }
+    window.applyFbGroupsStateToUI = applyFbGroupsStateToUI;
+
+    function showFbGroupsConfig(show) {
+      const section = el('fbGroupsConfigSection');
+      if (section) {
+        section.classList.toggle('hidden', !show);
+        if (show) updateFbGroupsSummary();
+      }
+    }
+
+    /**********************
+     * FAAI Configuration Functions
+     **********************/
+    function calculateFaaiCosts() {
+      const s = window.faaiState;
+
+      const monthlyCost = s.monthlyPrice || 0;
+      const annualCost = monthlyCost * 12;
+
+      return {
+        monthlyCost,
+        annualCost
+      };
+    }
+
+    function updateFaaiSummary() {
+      const costs = calculateFaaiCosts();
+
+      const monthlyEl = el('faaiMonthlyCost');
+      const annualEl = el('faaiAnnualCost');
+
+      if (monthlyEl) monthlyEl.textContent = '$' + costs.monthlyCost.toLocaleString();
+      if (annualEl) annualEl.textContent = '$' + costs.annualCost.toLocaleString();
+    }
+
+    function wireFaaiUI() {
+      const priceInput = el('faaiMonthlyPrice');
+
+      if (priceInput) {
+        priceInput.addEventListener('input', () => {
+          window.faaiState.monthlyPrice = Math.max(0, parseFloat(priceInput.value) || 0);
+          updateFaaiSummary();
+          window.updateProductSummary();
+        });
+      }
+    }
+
+    function applyFaaiStateToUI() {
+      const s = window.faaiState;
+      const priceInput = el('faaiMonthlyPrice');
+
+      if (priceInput) priceInput.value = s.monthlyPrice;
+
+      updateFaaiSummary();
+    }
+    window.applyFaaiStateToUI = applyFaaiStateToUI;
+
+    function showFaaiConfig(show) {
+      const section = el('faaiConfigSection');
+      if (section) {
+        section.classList.toggle('hidden', !show);
+        if (show) updateFaaiSummary();
       }
     }
 
@@ -4219,6 +4434,8 @@ document.addEventListener("click", async (e) => {
     let productCount = 0;
     let toplineSelected = false;
     let spotonVideoSelected = false;
+    let fbGroupsSelected = false;
+    let faaiSelected = false;
 
     window.productState.selectedProducts.forEach(productId => {
       const product = window.PRODUCTS.find(p => p.id === productId);
@@ -4236,6 +4453,20 @@ document.addEventListener("click", async (e) => {
         spotonVideoSelected = true;
         productCount++;
         return; // SpotOn Video pricing handled separately
+      }
+
+      // Check if FB Groups is selected
+      if (productId === 'topicpulse_community_radar_fb') {
+        fbGroupsSelected = true;
+        productCount++;
+        return; // FB Groups pricing handled separately
+      }
+
+      // Check if FAAI is selected
+      if (productId === 'faai') {
+        faaiSelected = true;
+        productCount++;
+        return; // FAAI pricing handled separately
       }
 
       const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
@@ -4267,11 +4498,31 @@ document.addEventListener("click", async (e) => {
       }
     }
 
+    // Add FB Groups costs if selected
+    let fbGroupsCosts = null;
+    if (fbGroupsSelected) {
+      fbGroupsCosts = calculateFbGroupsCosts();
+      totalMonthlyAllStations += fbGroupsCosts.monthlyCost;
+    }
+
+    // Add FAAI costs if selected
+    let faaiCosts = null;
+    if (faaiSelected) {
+      faaiCosts = calculateFaaiCosts();
+      totalMonthlyAllStations += faaiCosts.monthlyCost;
+    }
+
     // Show/hide TopLine config section
     showTopLineConfig(toplineSelected);
 
     // Show/hide SpotOn Video config section
     showSpotOnVideoConfig(spotonVideoSelected);
+
+    // Show/hide FB Groups config section
+    showFbGroupsConfig(fbGroupsSelected);
+
+    // Show/hide FAAI config section
+    showFaaiConfig(faaiSelected);
 
     el('productCount').textContent = String(productCount);
     el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
@@ -4411,6 +4662,12 @@ document.addEventListener("click", async (e) => {
 
     // SpotOn Video configuration UI wiring
     wireSpotOnVideoUI();
+
+    // FB Groups configuration UI wiring
+    wireFbGroupsUI();
+
+    // FAAI configuration UI wiring
+    wireFaaiUI();
 
     el('btnGenerateProposal').onclick = () => {
       // Debug helper: surface why generation may not run
@@ -5340,6 +5597,22 @@ window.generateProposal = function generateProposal() {
     annualAllStationsProposal += spotonVideoCosts.totalCost; // one-time cost added to annual
   }
 
+  // Check for FB Groups selection and calculate costs
+  const fbGroupsSelected = window.productState.selectedProducts.has('topicpulse_community_radar_fb');
+  let fbGroupsCosts = null;
+  if (fbGroupsSelected) {
+    fbGroupsCosts = calculateFbGroupsCosts();
+    annualAllStationsProposal += fbGroupsCosts.annualCost;
+  }
+
+  // Check for FAAI selection and calculate costs
+  const faaiSelected = window.productState.selectedProducts.has('faai');
+  let faaiCosts = null;
+  if (faaiSelected) {
+    faaiCosts = calculateFaaiCosts();
+    annualAllStationsProposal += faaiCosts.annualCost;
+  }
+
   // Mixed cash inputs are MONTHLY per station (UI accepts monthly values)
   let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
@@ -5644,6 +5917,59 @@ window.generateProposal = function generateProposal() {
         <span style="font-size:11px;color:var(--muted);">${sv.totalCredits} credits, ${sv.packagesNeeded} package${sv.packagesNeeded !== 1 ? 's' : ''} (300 credits each @ $500/pkg)</span>
       </td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sv.totalCost)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
+  // FB Groups section if selected
+  if (fbGroupsSelected && fbGroupsCosts && fbGroupsCosts.groupCount > 0) {
+    const fg = fbGroupsCosts;
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">TopicPulse Community Radar (FB Groups)</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>FB Groups Monitoring</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${fg.groupCount} group${fg.groupCount !== 1 ? 's' : ''} @ $50/group/month</span>
+      </td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fg.monthlyCost)}</td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fg.annualCost)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
+  // FAAI section if selected
+  if (faaiSelected && faaiCosts && faaiCosts.monthlyCost > 0) {
+    const fa = faaiCosts;
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">FAAI</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>FAAI</strong></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fa.monthlyCost)}</td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fa.annualCost)}</strong></td>
     </tr>`);
 
     lines.push(`</tbody></table>`);
