@@ -437,6 +437,64 @@
     #proposalTable td, #proposalTable th{
       padding:10px 8px;
     }
+
+    /* Loading spinner */
+    .loading-spinner {
+      display: inline-block;
+      width: 18px;
+      height: 18px;
+      border: 2px solid var(--edge);
+      border-top-color: var(--brand);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .loading-overlay {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* Confirmation modal styling */
+    .confirm-modal {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(26, 21, 35, .45);
+      z-index: 10000;
+    }
+    .confirm-modal-card {
+      width: min(400px, 90vw);
+      background: var(--surface);
+      border: 1px solid var(--edge);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+    .confirm-modal-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .confirm-modal-message {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+    .confirm-modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
   </style>
 </head>
 
@@ -846,7 +904,8 @@
         <div id="cpmDisplay" class="hidden" style="margin-bottom:12px;">
           <div class="row">
             <span class="muted">CPM:</span>
-            <span class="badge">$2.00</span>
+            <span id="cpmBadge" class="badge">$2.00</span>
+            <input id="cpmInput" type="number" min="0.01" max="100" step="0.01" value="2.00" style="width:90px; height:32px; display:none;" title="Cost Per Mille (admin only)"/>
           </div>
         </div>
 
@@ -911,7 +970,7 @@
 
             <div class="field grow" id="dealTermCustomWrap" style="display:none;">
               <label for="dealTermCustomMonths">Custom Term (months)</label>
-              <input id="dealTermCustomMonths" type="number" min="1" step="1" placeholder="e.g. 18" />
+              <input id="dealTermCustomMonths" type="number" min="1" max="240" step="1" placeholder="e.g. 18" />
             </div>
           </div>
 
@@ -935,7 +994,7 @@
 
             <div class="field grow" id="autoRenewCustomWrap" style="display:none;">
               <label for="autoRenewCustomMonths">Custom Auto-Renew (months)</label>
-              <input id="autoRenewCustomMonths" type="number" min="1" step="1" placeholder="e.g. 12" />
+              <input id="autoRenewCustomMonths" type="number" min="1" max="240" step="1" placeholder="e.g. 12" />
             </div>
           </div>
 
@@ -1174,6 +1233,69 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       const ov = getOverrides();
       if (Object.prototype.hasOwnProperty.call(ov, action)) return !!ov[action];
       return base;
+    }
+
+    function isAdmin(){
+      return CURRENT_ROLE === 'admin' || CURRENT_ROLE === 'superadmin';
+    }
+
+    /**********************
+     * Confirmation Dialog Utility
+     **********************/
+    function showConfirmDialog(title, message, onConfirm, onCancel) {
+      const existing = document.querySelector('.confirm-modal');
+      if (existing) existing.remove();
+
+      const modal = document.createElement('div');
+      modal.className = 'confirm-modal';
+      modal.innerHTML = `
+        <div class="confirm-modal-card">
+          <div class="confirm-modal-title">${title}</div>
+          <div class="confirm-modal-message">${message}</div>
+          <div class="confirm-modal-actions">
+            <button class="btn" id="confirmCancel" type="button">Cancel</button>
+            <button class="btn danger" id="confirmOk" type="button">Confirm</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      modal.querySelector('#confirmCancel').onclick = () => {
+        modal.remove();
+        if (onCancel) onCancel();
+      };
+      modal.querySelector('#confirmOk').onclick = () => {
+        modal.remove();
+        if (onConfirm) onConfirm();
+      };
+      // Close on backdrop click
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.remove();
+          if (onCancel) onCancel();
+        }
+      });
+    }
+
+    /**********************
+     * Loading Spinner Utility
+     **********************/
+    function showLoading(container, message = 'Loading...') {
+      if (typeof container === 'string') container = el(container);
+      if (!container) return;
+      const overlay = document.createElement('div');
+      overlay.className = 'loading-overlay';
+      overlay.innerHTML = `<span class="loading-spinner"></span>${message}`;
+      overlay.dataset.loadingOverlay = 'true';
+      container.innerHTML = '';
+      container.appendChild(overlay);
+    }
+
+    function hideLoading(container) {
+      if (typeof container === 'string') container = el(container);
+      if (!container) return;
+      const overlay = container.querySelector('[data-loading-overlay]');
+      if (overlay) overlay.remove();
     }
 
     function showGoogleLogin(){ el("googleLoginScreen").style.display = "flex"; }
@@ -1418,21 +1540,41 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
     };
     window.dealMetaState = dealMetaState;
 
+    // Term months bounds: 1-240 (1 month to 20 years)
+    const TERM_MONTHS_MIN = 1;
+    const TERM_MONTHS_MAX = 240;
+
     function parsePositiveInt(v){
       const n = Math.floor(parseFloat(v));
       return Number.isFinite(n) && n > 0 ? n : null;
     }
 
+    function clampTermMonths(n) {
+      if (!Number.isFinite(n) || n < TERM_MONTHS_MIN) return TERM_MONTHS_MIN;
+      if (n > TERM_MONTHS_MAX) return TERM_MONTHS_MAX;
+      return Math.floor(n);
+    }
+
     function getEffectiveTermMonths(){
       const sel = el("dealTermSelect")?.value || "36";
-      if (sel === "custom") return parsePositiveInt(el("dealTermCustomMonths")?.value) || dealMetaState.termMonths;
-      return parsePositiveInt(sel) || dealMetaState.termMonths;
+      let val;
+      if (sel === "custom") {
+        val = parsePositiveInt(el("dealTermCustomMonths")?.value) || dealMetaState.termMonths;
+      } else {
+        val = parsePositiveInt(sel) || dealMetaState.termMonths;
+      }
+      return clampTermMonths(val);
     }
 
     function getEffectiveAutoRenewMonths(){
       const sel = el("autoRenewTermSelect")?.value || "12";
-      if (sel === "custom") return parsePositiveInt(el("autoRenewCustomMonths")?.value) || dealMetaState.autoRenewMonths;
-      return parsePositiveInt(sel) || dealMetaState.autoRenewMonths;
+      let val;
+      if (sel === "custom") {
+        val = parsePositiveInt(el("autoRenewCustomMonths")?.value) || dealMetaState.autoRenewMonths;
+      } else {
+        val = parsePositiveInt(sel) || dealMetaState.autoRenewMonths;
+      }
+      return clampTermMonths(val);
     }
 
     function syncDealMetaFromUI(){
@@ -1857,6 +1999,10 @@ async function saveDeal(){
 
   const payload = buildDealPayload();
 
+  // Show saving indicator
+  const statusEl = el("myDealsStatus");
+  statusEl.innerHTML = '<span class="loading-spinner"></span>Saving...';
+
   try{
     await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
       type: "deal",
@@ -1865,13 +2011,14 @@ async function saveDeal(){
       createdAt: serverTimestamp()
     });
 
-    el("myDealsStatus").textContent = "Saved!";
-    setTimeout(() => (el("myDealsStatus").textContent = ""), 1500);
+    statusEl.textContent = "Saved!";
+    setTimeout(() => (statusEl.textContent = ""), 1500);
 
     if (!el("myDealsView").classList.contains("hidden")) await renderMyDeals();
     if (!el("allDealsView").classList.contains("hidden") && can("view_all_deals")) await renderAllUsersDeals();
   }catch(err){
     console.error("SAVE DEAL FAILED:", err);
+    statusEl.textContent = "";
     alert(`Save failed: ${err?.message || err}`);
   }
 }
@@ -2053,6 +2200,10 @@ async function renderMyDeals(){
     root.innerHTML = `<div class="placeholder">Sign in to view your deals.</div>`;
     return;
   }
+
+  // Show loading indicator
+  showLoading(root, 'Loading your deals...');
+
   // If expanded, ensure we have the full list and render all filtered results.
   if (MY_DEALS_EXPANDED){
     let deals = [];
@@ -2076,6 +2227,9 @@ async function renderMyDeals(){
       root.innerHTML = `<div class="placeholder">No deals found for those filters.</div>`;
       return;
     }
+
+    // Clear loading spinner before rendering
+    root.innerHTML = '';
 
     filtered.forEach(d => {
       const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
@@ -2115,6 +2269,9 @@ async function renderMyDeals(){
       return;
     }
 
+    // Clear loading spinner before rendering
+    root.innerHTML = '';
+
     previewList.forEach(d => {
       const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
       const label = when ? when.toLocaleString() : "(pending)";
@@ -2147,7 +2304,7 @@ async function renderAllUsersDeals(){
   if (!can("view_all_deals")) return;
 
   const root = el("adminUsersList");
-  root.innerHTML = `<div class="placeholder">Loading users…</div>`;
+  showLoading(root, 'Loading all users...');
 
   const { db, collection, getDocs, query, orderBy } = window.fb;
 
@@ -2920,15 +3077,122 @@ document.addEventListener("click", async (e) => {
       stationCashValues: new Map()
     };
 
-    async function loadDataset() {
+    /**********************
+     * Lazy Loading with IndexedDB Cache
+     **********************/
+    const RADIO_DB_NAME = 'FuturiRadioCache';
+    const RADIO_DB_VERSION = 1;
+    const RADIO_STORE_NAME = 'radioData';
+    const RADIO_CACHE_KEY = 'mainDataset';
+    const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    let radioDataLoading = false;
+    let radioDataLoaded = false;
+
+    function openRadioDb() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open(RADIO_DB_NAME, RADIO_DB_VERSION);
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = (event) => {
+          const db = event.target.result;
+          if (!db.objectStoreNames.contains(RADIO_STORE_NAME)) {
+            db.createObjectStore(RADIO_STORE_NAME);
+          }
+        };
+      });
+    }
+
+    async function getCachedRadioData() {
       try {
-        const response = await fetch(DATA_URL, { cache:'no-store' });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        console.log(`Loaded ${data.stations?.length || 0} stations`);
+        const db = await openRadioDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(RADIO_STORE_NAME, 'readonly');
+          const store = tx.objectStore(RADIO_STORE_NAME);
+          const request = store.get(RADIO_CACHE_KEY);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      } catch (e) {
+        console.warn('IndexedDB cache read failed', e);
+        return null;
+      }
+    }
+
+    async function setCachedRadioData(data) {
+      try {
+        const db = await openRadioDb();
+        return new Promise((resolve, reject) => {
+          const tx = db.transaction(RADIO_STORE_NAME, 'readwrite');
+          const store = tx.objectStore(RADIO_STORE_NAME);
+          const record = { data, timestamp: Date.now() };
+          const request = store.put(record, RADIO_CACHE_KEY);
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      } catch (e) {
+        console.warn('IndexedDB cache write failed', e);
+      }
+    }
+
+    async function fetchRadioDataFromNetwork() {
+      const response = await fetch(DATA_URL, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      return await response.json();
+    }
+
+    async function loadDataset() {
+      if (radioDataLoading) {
+        // Wait for existing load to complete
+        return new Promise(resolve => {
+          const check = setInterval(() => {
+            if (radioDataLoaded) {
+              clearInterval(check);
+              resolve(window.BASE_DS);
+            }
+          }, 100);
+        });
+      }
+
+      radioDataLoading = true;
+
+      // Show loading state in parent list
+      const parentsList = el('parentsList');
+      if (parentsList) {
+        showLoading(parentsList, 'Loading radio stations...');
+      }
+
+      try {
+        // Try to get cached data first (fast path)
+        const cached = await getCachedRadioData();
+        if (cached && cached.data && (Date.now() - cached.timestamp < CACHE_MAX_AGE_MS)) {
+          console.log(`Loaded ${cached.data.stations?.length || 0} stations from cache`);
+          radioDataLoaded = true;
+          radioDataLoading = false;
+
+          // Refresh cache in background if older than 1 hour
+          if (Date.now() - cached.timestamp > 60 * 60 * 1000) {
+            fetchRadioDataFromNetwork()
+              .then(data => setCachedRadioData(data))
+              .catch(e => console.warn('Background cache refresh failed', e));
+          }
+
+          return cached.data;
+        }
+
+        // No valid cache, fetch from network
+        const data = await fetchRadioDataFromNetwork();
+        console.log(`Loaded ${data.stations?.length || 0} stations from network`);
+
+        // Cache the data for next time
+        await setCachedRadioData(data);
+
+        radioDataLoaded = true;
+        radioDataLoading = false;
         return data;
       } catch (error) {
         console.error('Failed to load dataset:', error);
+        radioDataLoading = false;
         // No bundled dataset available (uploads required). Fail silently and continue with empty base.
         console.warn('No base dataset available; start by uploading a Nielsen book in Permissions & Access.');
         return { parents: [], markets: [], stations: [] };
@@ -3406,11 +3670,16 @@ document.addEventListener("click", async (e) => {
           input.style.height = '32px';
 
           input.onchange = () => {
-            const val = parseFloat(input.value);
-            if (Number.isFinite(val) && val >= 0) {
-              window.productState.customPrices.set(product.id, Math.round(val));
-              window.updateProductSummary();
+            let val = parseFloat(input.value);
+            // Validate: must be non-negative, cap at reasonable max (1M)
+            if (!Number.isFinite(val) || val < 0) {
+              val = 0;
+            } else if (val > 1000000) {
+              val = 1000000;
             }
+            input.value = Math.round(val);
+            window.productState.customPrices.set(product.id, Math.round(val));
+            window.updateProductSummary();
           };
 
           overrideRow.appendChild(label);
@@ -3451,7 +3720,25 @@ document.addEventListener("click", async (e) => {
     else proposalSection.classList.add('hidden');
 
     // CPM visible for barter/mixed only
-    el('cpmDisplay').classList.toggle('hidden', !(pricingType === 'barter' || pricingType === 'mixed'));
+    const showCpm = pricingType === 'barter' || pricingType === 'mixed';
+    el('cpmDisplay').classList.toggle('hidden', !showCpm);
+
+    // CPM input editable for admins only
+    const cpmBadge = el('cpmBadge');
+    const cpmInput = el('cpmInput');
+    if (cpmBadge && cpmInput) {
+      const cpmVal = Number(window.productState.cpm || 2.0);
+      cpmBadge.textContent = `$${cpmVal.toFixed(2)}`;
+      cpmInput.value = cpmVal.toFixed(2);
+
+      if (isAdmin() && showCpm) {
+        cpmBadge.style.display = 'none';
+        cpmInput.style.display = '';
+      } else {
+        cpmBadge.style.display = '';
+        cpmInput.style.display = 'none';
+      }
+    }
 
     // Clear proposal output whenever pricing changes/selection changes
     el("proposalOutput").classList.add("hidden");
@@ -3494,6 +3781,27 @@ document.addEventListener("click", async (e) => {
 
     el('productSearch').addEventListener('input', window.renderProducts);
 
+    // CPM input handler (admin only, with validation)
+    const cpmInput = el('cpmInput');
+    if (cpmInput) {
+      cpmInput.addEventListener('change', () => {
+        if (!isAdmin()) {
+          cpmInput.value = window.productState.cpm.toFixed(2);
+          return;
+        }
+        let val = parseFloat(cpmInput.value);
+        // Validate: must be positive, max 100
+        if (!Number.isFinite(val) || val <= 0) {
+          val = 0.01;
+        } else if (val > 100) {
+          val = 100;
+        }
+        cpmInput.value = val.toFixed(2);
+        window.productState.cpm = val;
+        window.updateProductSummary();
+      });
+    }
+
     el('btnSelAllProducts').onclick = () => {
       window.PRODUCTS.forEach(p => window.productState.selectedProducts.add(p.id));
       window.renderProducts();
@@ -3501,21 +3809,39 @@ document.addEventListener("click", async (e) => {
     };
 
     el('btnClrAllProducts').onclick = () => {
-      window.productState.selectedProducts.clear();
-      window.productState.customPrices.clear();
-      window.renderProducts();
-      window.updateProductSummary();
+      showConfirmDialog(
+        'Clear All Products',
+        'Are you sure you want to clear all selected products?',
+        () => {
+          window.productState.selectedProducts.clear();
+          window.productState.customPrices.clear();
+          window.renderProducts();
+          window.updateProductSummary();
+        }
+      );
     };
 
     el('btnResetPricing').onclick = () => {
-      window.productState.customPrices.clear();
-      window.renderProducts();
-      window.updateProductSummary();
+      showConfirmDialog(
+        'Reset to Rate Card',
+        'Are you sure you want to reset all prices to the default rate card values? Custom pricing overrides will be lost.',
+        () => {
+          window.productState.customPrices.clear();
+          window.renderProducts();
+          window.updateProductSummary();
+        }
+      );
     };
 
     el('btnResetMinutes').onclick = () => {
-      window.productState.manualMinutes.clear();
-      window.updateProductSummary();
+      showConfirmDialog(
+        'Reset Barter Minutes',
+        'Are you sure you want to reset all manual minute/spot adjustments to auto-calculated values?',
+        () => {
+          window.productState.manualMinutes.clear();
+          window.updateProductSummary();
+        }
+      );
     };
 
     el('btnGenerateProposal').onclick = () => {
@@ -4258,9 +4584,9 @@ document.addEventListener("click", async (e) => {
           $${Number(window.productState.cpm || 2).toFixed(2)}
         </div>
       </div>
-      <div style="width:200px"><strong>Estimated Total Spots/Month:</strong>
+      <div style="width:200px"><strong>Minutes/Week:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${Math.round(sumPrimeMonthly + sumRosMonthly)}
+          ${Math.round((sumPrimePerDay + sumRosPerDay) * 7)}
         </div>
       </div>
       <div style="flex:1"><strong>Quoted Value (annual):</strong>
