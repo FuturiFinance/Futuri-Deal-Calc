@@ -3310,6 +3310,7 @@ document.addEventListener("click", async (e) => {
     // Fallback products if rate card fails to load (Barter = Cash × 1.4)
     window.PRODUCTS_FALLBACK = [
       { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
+      { id: 'topline_cx_war_room', name: 'TopLine CX War Room', cash: 1000, barter: null, industry: 'Radio/TV', cashOnly: true },
       { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1050, industry: 'Radio/TV', note: 'up to 750 spots a month' },
       { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV' },
@@ -4453,10 +4454,20 @@ document.addEventListener("click", async (e) => {
         priceContainer.style.alignItems = 'center';
         priceContainer.style.gap = '8px';
 
-        const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+        // Handle cash-only products
+        const isCashOnly = product.cashOnly === true;
+        const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : product.barter;
         const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
 
-        if (rateCardValue === null || rateCardValue === undefined) {
+        if (isCashOnly && pricingType !== 'cash') {
+          // Show "Cash Only" badge for cash-only products in barter/mixed mode
+          const cashOnlyBadge = document.createElement('span');
+          cashOnlyBadge.className = 'badge';
+          cashOnlyBadge.style.background = 'rgba(255, 152, 0, 0.15)';
+          cashOnlyBadge.style.color = '#e65100';
+          cashOnlyBadge.textContent = `Cash Only: $${Number(product.cash).toLocaleString()}/mo`;
+          priceContainer.appendChild(cashOnlyBadge);
+        } else if (rateCardValue === null || rateCardValue === undefined) {
           const tbdBadge = document.createElement('span');
           tbdBadge.className = 'badge';
           tbdBadge.textContent = 'Inputs needed';
@@ -4560,7 +4571,9 @@ document.addEventListener("click", async (e) => {
         return; // FAAI pricing handled separately
       }
 
-      const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
+      // Cash-only products always use cash rate
+      const isCashOnly = product.cashOnly === true;
+      const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : product.barter;
       if (rateCardValue === null || rateCardValue === undefined) return;
 
       const value = window.productState.customPrices.get(productId) ?? rateCardValue;
@@ -5532,9 +5545,11 @@ document.addEventListener("click", async (e) => {
 
 // --- helper: get product value for PROPOSAL based on deal type ---
 function getProposalProductValue(product, pricingType) {
+  // Cash-only products always use cash rate
+  const isCashOnly = product.cashOnly === true;
   // For mixed, proposal should show CASH pricing (barter handled separately by remaining value)
   const baseRate =
-    (pricingType === 'cash' || pricingType === 'mixed') ? product.cash : product.barter;
+    (pricingType === 'cash' || pricingType === 'mixed' || isCashOnly) ? product.cash : product.barter;
 
   if (baseRate === null || baseRate === undefined) return null;
 
