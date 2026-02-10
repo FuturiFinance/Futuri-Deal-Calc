@@ -4937,9 +4937,17 @@ document.addEventListener("click", async (e) => {
     const preview = el('nielsenPreview');
     if (!sel) return;
     sel.innerHTML = '';
+
+    // Always add bundled Spring 2025 as first option
+    const bundledOpt = document.createElement('option');
+    bundledOpt.value = BUNDLED_NIELSEN_BOOK.id;
+    bundledOpt.textContent = `${BUNDLED_NIELSEN_BOOK.name} [${BUNDLED_NIELSEN_BOOK.type}] (bundled)`;
+    bundledOpt.dataset.type = BUNDLED_NIELSEN_BOOK.type.toLowerCase();
+    sel.appendChild(bundledOpt);
+
     const books = getStoredNielsenBooks();
     const keys = Object.keys(books).filter(k=>!k.startsWith('_')).sort((a,b)=> (books[b].uploadedAt||0) - (books[a].uploadedAt||0));
-    // retrieve Firestore default id if present to mark option
+    // retrieve default id if present to mark option
     let defaultId = null;
     try{
       const s = getStoredNielsenBooks();
@@ -4955,11 +4963,15 @@ document.addEventListener("click", async (e) => {
       if (b && b.type) opt.dataset.type = b.type;
       sel.appendChild(opt);
     });
-    // auto-select the default if present and mark active id
+    // auto-select the default if present and mark active id, otherwise select bundled
     try{
       if (defaultId && keys.includes(defaultId)) {
         sel.value = defaultId; window._activeNielsenId = defaultId;
-      } else if (keys.length) { sel.selectedIndex = 0; window._activeNielsenId = sel.value; }
+      } else {
+        // Default to bundled Spring 2025
+        sel.value = BUNDLED_NIELSEN_BOOK.id;
+        window._activeNielsenId = BUNDLED_NIELSEN_BOOK.id;
+      }
     }catch(e){}
     if (preview) preview.style.display = 'none';
     // update header/proposal active badge
@@ -4990,15 +5002,25 @@ document.addEventListener("click", async (e) => {
     }catch(e){ console.warn('applyStoredBookById failed', e); return false; }
   }
 
+  // Default bundled Nielsen book info
+  const BUNDLED_NIELSEN_BOOK = {
+    id: '_bundled_spring_2025',
+    name: 'Spring 2025',
+    type: 'RADIO'
+  };
+
   function updateActiveNielsenBadge(){
     try{
       const badge = el('activeNielsenBadge');
       const prop = el('proposalActiveNielsen');
       const books = getStoredNielsenBooks();
       const id = window._activeNielsenId || (books && books._defaultId) || null;
-      if (!id) {
-        if (badge) badge.style.display = 'none';
-        if (prop) prop.textContent = 'None selected';
+
+      // If no uploaded book is selected, default to bundled Spring 2025
+      if (!id || id === BUNDLED_NIELSEN_BOOK.id) {
+        const text = `${BUNDLED_NIELSEN_BOOK.name} [${BUNDLED_NIELSEN_BOOK.type}]`;
+        if (badge) { badge.style.display = ''; badge.textContent = `Book: ${text}`; }
+        if (prop) prop.textContent = text;
         return;
       }
       const b = books[id] || null;
