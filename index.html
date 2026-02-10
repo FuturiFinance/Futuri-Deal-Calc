@@ -3966,7 +3966,12 @@ document.addEventListener("click", async (e) => {
         };
 
         const name = document.createElement('span');
-        name.innerHTML = `<strong>${product.name}</strong>`;
+        // Add special note for SpotOn - Audio
+        if (product.id === 'spoton_audio') {
+          name.innerHTML = `<strong>${product.name}</strong> <em style="font-size:12px; color:var(--muted);">up to 750 spots a month</em>`;
+        } else {
+          name.innerHTML = `<strong>${product.name}</strong>`;
+        }
 
         leftSide.appendChild(cb);
         leftSide.appendChild(name);
