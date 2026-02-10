@@ -3162,22 +3162,44 @@ document.addEventListener("click", async (e) => {
 
     window.state = { parent: '', markets: new Set(), stations: new Set() };
 
-    window.PRODUCTS = [
-      { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
-      { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
-      { id: 'post', name: 'POST', cash: 1000, barter: 1360 },
-      { id: 'mobile', name: 'Mobile', cash: 750, barter: 1020 },
-      { id: 'streaming', name: 'Streaming', cash: 500, barter: 680 },
-      { id: 'ldr', name: 'LDR', cash: 750, barter: 1020 },
-      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680 },
-      { id: 'instant_video', name: 'Instant Video add-on', cash: 500, barter: 680 },
-      { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040 },
-      { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800 },
-      { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360 },
-      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020 },
-      { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null },
-      { id: 'topline', name: 'TopLine', cash: null, barter: null }
+    // Fallback products if rate card fails to load
+    window.PRODUCTS_FALLBACK = [
+      { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1020, industry: 'Radio/TV' },
+      { id: 'topicpulse_community_radar_fb', name: 'TopicPulse Community Radar (per FB Group) - Addon', cash: 50, barter: 68, industry: 'Radio/TV' },
+      { id: 'topicpulse_community_radar_nextdoor', name: 'TopicPulse Community Radar (Next Door Integration) - Addon', cash: 150, barter: 204, industry: 'Radio/TV' },
+      { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1700, industry: 'Radio/TV' },
+      { id: 'instant_video', name: 'IV Add-on', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
+      { id: 'post', name: 'POST', cash: 1000, barter: 1360, industry: 'Radio/TV' },
+      { id: 'mobile', name: 'Mobile', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'streaming', name: 'Streaming', cash: 300, barter: 408, industry: 'Radio/TV' },
+      { id: 'ldr', name: 'LDR', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'faai_nights', name: 'FAAI - Nights/Overnights/Weekends', cash: 1500, barter: 2040, industry: 'Radio/TV' },
+      { id: 'faai_247', name: 'FAAI - 24/7', cash: 5000, barter: 6800, industry: 'Radio/TV' },
+      { id: 'faai_daily', name: 'FAAI - Daily Weather/News', cash: 1000, barter: 1360, industry: 'Radio/TV' },
+      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020, industry: 'Radio/TV', note: 'up to 750 spots a month' },
+      { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' }
     ];
+    window.PRODUCTS = [...window.PRODUCTS_FALLBACK];
+
+    // Load products from rate card JSON
+    async function loadRateCard() {
+      try {
+        const response = await fetch('radio_rate_card.json?v=' + Date.now());
+        if (!response.ok) throw new Error('Failed to fetch rate card');
+        const data = await response.json();
+        if (data.products && Array.isArray(data.products)) {
+          // Merge: rate card products take priority, but keep any fallback products not in rate card
+          const rateCardIds = new Set(data.products.map(p => p.id));
+          const extraFallbacks = window.PRODUCTS_FALLBACK.filter(p => !rateCardIds.has(p.id));
+          window.PRODUCTS = [...data.products, ...extraFallbacks];
+          console.log('Rate card loaded successfully, last updated:', data.lastUpdated);
+        }
+      } catch (err) {
+        console.warn('Failed to load rate card, using fallback products:', err);
+      }
+    }
 
     window.productState = {
       selectedProducts: new Set(),
@@ -3595,6 +3617,9 @@ document.addEventListener("click", async (e) => {
       if (window.initApp._ran) return;
       window.initApp._ran = true;
 
+      // Load rate card products dynamically
+      await loadRateCard();
+
       await window.UserData.init(DATA_URL);
       // load base dataset first (may be empty if no bundled file)
       window.BASE_DS = await loadDataset();
@@ -3966,9 +3991,9 @@ document.addEventListener("click", async (e) => {
         };
 
         const name = document.createElement('span');
-        // Add special note for SpotOn - Audio
-        if (product.id === 'spoton_audio') {
-          name.innerHTML = `<strong>${product.name}</strong> <em style="font-size:12px; color:var(--muted);">up to 750 spots a month</em>`;
+        // Add note if product has one (e.g., SpotOn Audio)
+        if (product.note) {
+          name.innerHTML = `<strong>${product.name}</strong> <em style="font-size:12px; color:var(--muted);">${product.note}</em>`;
         } else {
           name.innerHTML = `<strong>${product.name}</strong>`;
         }

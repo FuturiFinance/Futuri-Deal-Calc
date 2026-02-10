@@ -1,0 +1,21 @@
+{
+  "products": [
+    { "id": "topicpulse", "name": "TopicPulse", "cash": 750, "barter": 1020, "industry": "Radio/TV" },
+    { "id": "topicpulse_community_radar_fb", "name": "TopicPulse Community Radar (per FB Group) - Addon", "cash": 50, "barter": 68, "industry": "Radio/TV" },
+    { "id": "topicpulse_community_radar_nextdoor", "name": "TopicPulse Community Radar (Next Door Integration) - Addon", "cash": 150, "barter": 204, "industry": "Radio/TV" },
+    { "id": "topicpulse_iv", "name": "TopicPulse IV", "cash": 1250, "barter": 1700, "industry": "Radio/TV" },
+    { "id": "instant_video", "name": "IV Add-on", "cash": 500, "barter": 680, "industry": "Radio/TV" },
+    { "id": "topline", "name": "TopLine", "cash": null, "barter": null, "industry": "Radio/TV" },
+    { "id": "post", "name": "POST", "cash": 1000, "barter": 1360, "industry": "Radio/TV" },
+    { "id": "mobile", "name": "Mobile", "cash": 500, "barter": 680, "industry": "Radio/TV" },
+    { "id": "streaming", "name": "Streaming", "cash": 300, "barter": 408, "industry": "Radio/TV" },
+    { "id": "ldr", "name": "LDR", "cash": 500, "barter": 680, "industry": "Radio/TV" },
+    { "id": "prep_plus", "name": "Prep+", "cash": 500, "barter": 680, "industry": "Radio/TV" },
+    { "id": "faai_nights", "name": "FAAI - Nights/Overnights/Weekends", "cash": 1500, "barter": 2040, "industry": "Radio/TV" },
+    { "id": "faai_247", "name": "FAAI - 24/7", "cash": 5000, "barter": 6800, "industry": "Radio/TV" },
+    { "id": "faai_daily", "name": "FAAI - Daily Weather/News", "cash": 1000, "barter": 1360, "industry": "Radio/TV" },
+    { "id": "spoton_audio", "name": "SpotOn - Audio", "cash": 750, "barter": 1020, "industry": "Radio/TV", "note": "up to 750 spots a month" },
+    { "id": "spoton_video", "name": "SpotOn Video", "cash": null, "barter": null, "industry": "Radio/TV" }
+  ],
+  "lastUpdated": "2026-02-10"
+}
