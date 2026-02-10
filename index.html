@@ -1025,6 +1025,45 @@
         </div>
       </section>
 
+      <!-- SpotOn Video Configuration -->
+      <section class="card hidden" id="spotonVideoConfigSection">
+        <div class="title">SpotOn Video Configuration</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your video package below. Credits are sold in 300-credit packages at $500 each.</div>
+
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Video Quantities</div>
+          <div class="modal-grid">
+            <div class="field">
+              <label for="spotonVideos15">Number of :15 videos (3 credits each)</label>
+              <input id="spotonVideos15" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="spotonVideos30">Number of :30 videos (6 credits each)</label>
+              <input id="spotonVideos30" type="number" min="0" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Summary -->
+        <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div id="spotonVideoCostSummary" style="font-size:13px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Total Credits Needed:</span>
+              <strong id="spotonTotalCredits">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Packages Required (300 credits each):</span>
+              <strong id="spotonPackagesNeeded">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
+              <span style="font-weight:700;">Total Video Cost:</span>
+              <strong id="spotonVideoTotalCost" style="color:var(--primary);">$0</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card hidden" id="cashValuesSection">
         <div class="title">Cash Values by Station (All Selected Stations)</div>
         <div class="muted" style="margin-bottom:12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
@@ -1928,6 +1967,9 @@ function buildDealPayload(){
     // TopLine configuration
     toplineConfig: { ...window.toplineState },
 
+    // SpotOn Video configuration
+    spotonVideoConfig: { ...window.spotonVideoState },
+
     dealMeta: { ...dealMetaState },
 
     // include the active Nielsen book id so saved deals can be re-linked
@@ -2063,6 +2105,14 @@ function loadDeal(payload){
   }
   setTimeout(() => {
     if (typeof window.applyTopLineStateToUI === "function") window.applyTopLineStateToUI();
+  }, 0);
+
+  // Restore SpotOn Video configuration
+  if (payload.spotonVideoConfig && typeof payload.spotonVideoConfig === "object") {
+    Object.assign(window.spotonVideoState, payload.spotonVideoConfig);
+  }
+  setTimeout(() => {
+    if (typeof window.applySpotOnVideoStateToUI === "function") window.applySpotOnVideoStateToUI();
   }, 0);
 
   if (payload.dealMeta && typeof payload.dealMeta === "object") {
@@ -3230,6 +3280,22 @@ document.addEventListener("click", async (e) => {
       chuyDashboardEnabled: false
     };
 
+    /**********************
+     * SpotOn Video Configuration State
+     **********************/
+    window.spotonVideoState = {
+      videos15Count: 0,
+      videos30Count: 0
+    };
+
+    // SpotOn Video pricing constants
+    const SPOTON_VIDEO_PRICING = {
+      credits15: 3,        // credits per :15 video
+      credits30: 6,        // credits per :30 video
+      creditsPerPackage: 300,
+      pricePerPackage: 500
+    };
+
     // TopLine pricing constants
     const TOPLINE_PRICING = {
       tierPrices: { access: 42000, enterprise: 30000, both: 72000 },
@@ -3447,6 +3513,81 @@ document.addEventListener("click", async (e) => {
       if (section) {
         section.classList.toggle('hidden', !show);
         if (show) updateTopLineSummary();
+      }
+    }
+
+    /**********************
+     * SpotOn Video Configuration Functions
+     **********************/
+    function calculateSpotOnVideoCosts() {
+      const s = window.spotonVideoState;
+      const p = SPOTON_VIDEO_PRICING;
+
+      const totalCredits = (s.videos15Count * p.credits15) + (s.videos30Count * p.credits30);
+      const packagesNeeded = totalCredits > 0 ? Math.ceil(totalCredits / p.creditsPerPackage) : 0;
+      const totalCost = packagesNeeded * p.pricePerPackage;
+
+      return {
+        videos15: s.videos15Count,
+        videos30: s.videos30Count,
+        totalCredits,
+        packagesNeeded,
+        totalCost,
+        // Annual cost (one-time purchase, but shown as annual for consistency)
+        annualCost: totalCost
+      };
+    }
+
+    function updateSpotOnVideoSummary() {
+      const costs = calculateSpotOnVideoCosts();
+
+      const creditsEl = el('spotonTotalCredits');
+      const packagesEl = el('spotonPackagesNeeded');
+      const totalEl = el('spotonVideoTotalCost');
+
+      if (creditsEl) creditsEl.textContent = costs.totalCredits.toLocaleString();
+      if (packagesEl) packagesEl.textContent = costs.packagesNeeded.toLocaleString();
+      if (totalEl) totalEl.textContent = '$' + costs.totalCost.toLocaleString();
+    }
+
+    function wireSpotOnVideoUI() {
+      const videos15Input = el('spotonVideos15');
+      const videos30Input = el('spotonVideos30');
+
+      if (videos15Input) {
+        videos15Input.addEventListener('input', () => {
+          window.spotonVideoState.videos15Count = Math.max(0, parseInt(videos15Input.value) || 0);
+          updateSpotOnVideoSummary();
+          window.updateProductSummary();
+        });
+      }
+
+      if (videos30Input) {
+        videos30Input.addEventListener('input', () => {
+          window.spotonVideoState.videos30Count = Math.max(0, parseInt(videos30Input.value) || 0);
+          updateSpotOnVideoSummary();
+          window.updateProductSummary();
+        });
+      }
+    }
+
+    function applySpotOnVideoStateToUI() {
+      const s = window.spotonVideoState;
+      const videos15Input = el('spotonVideos15');
+      const videos30Input = el('spotonVideos30');
+
+      if (videos15Input) videos15Input.value = s.videos15Count;
+      if (videos30Input) videos30Input.value = s.videos30Count;
+
+      updateSpotOnVideoSummary();
+    }
+    window.applySpotOnVideoStateToUI = applySpotOnVideoStateToUI;
+
+    function showSpotOnVideoConfig(show) {
+      const section = el('spotonVideoConfigSection');
+      if (section) {
+        section.classList.toggle('hidden', !show);
+        if (show) updateSpotOnVideoSummary();
       }
     }
 
@@ -4077,6 +4218,7 @@ document.addEventListener("click", async (e) => {
     let totalMonthlyPerStation = 0;
     let productCount = 0;
     let toplineSelected = false;
+    let spotonVideoSelected = false;
 
     window.productState.selectedProducts.forEach(productId => {
       const product = window.PRODUCTS.find(p => p.id === productId);
@@ -4087,6 +4229,13 @@ document.addEventListener("click", async (e) => {
         toplineSelected = true;
         productCount++;
         return; // TopLine pricing handled separately
+      }
+
+      // Check if SpotOn Video is selected
+      if (productId === 'spoton_video') {
+        spotonVideoSelected = true;
+        productCount++;
+        return; // SpotOn Video pricing handled separately
       }
 
       const rateCardValue = (pricingType === 'cash') ? product.cash : product.barter;
@@ -4107,8 +4256,22 @@ document.addEventListener("click", async (e) => {
       totalMonthlyAllStations += toplineCosts.totalMonthly;
     }
 
+    // Add SpotOn Video costs if selected
+    let spotonVideoCosts = null;
+    if (spotonVideoSelected) {
+      spotonVideoCosts = calculateSpotOnVideoCosts();
+      // SpotOn Video is a one-time cost, not monthly - we'll show it in proposal
+      // but for display purposes, we can show it as annual / 12 for monthly equivalent
+      if (spotonVideoCosts.totalCost > 0) {
+        totalMonthlyAllStations += spotonVideoCosts.totalCost / 12;
+      }
+    }
+
     // Show/hide TopLine config section
     showTopLineConfig(toplineSelected);
+
+    // Show/hide SpotOn Video config section
+    showSpotOnVideoConfig(spotonVideoSelected);
 
     el('productCount').textContent = String(productCount);
     el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
@@ -4245,6 +4408,9 @@ document.addEventListener("click", async (e) => {
 
     // TopLine configuration UI wiring
     wireTopLineUI();
+
+    // SpotOn Video configuration UI wiring
+    wireSpotOnVideoUI();
 
     el('btnGenerateProposal').onclick = () => {
       // Debug helper: surface why generation may not run
@@ -5166,6 +5332,14 @@ window.generateProposal = function generateProposal() {
     annualAllStationsProposal += toplineCosts.totalAnnual;
   }
 
+  // Check for SpotOn Video selection and calculate costs
+  const spotonVideoSelected = window.productState.selectedProducts.has('spoton_video');
+  let spotonVideoCosts = null;
+  if (spotonVideoSelected) {
+    spotonVideoCosts = calculateSpotOnVideoCosts();
+    annualAllStationsProposal += spotonVideoCosts.totalCost; // one-time cost added to annual
+  }
+
   // Mixed cash inputs are MONTHLY per station (UI accepts monthly values)
   let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
@@ -5444,6 +5618,32 @@ window.generateProposal = function generateProposal() {
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalOneTime)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalAnnual)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalMonthly)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
+  // SpotOn Video section if selected (standalone, not through TopLine)
+  if (spotonVideoSelected && spotonVideoCosts && spotonVideoCosts.totalCost > 0) {
+    const sv = spotonVideoCosts;
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">SpotOn Video</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Cost</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>SpotOn Video</strong> — ${sv.videos15} :15s, ${sv.videos30} :30s<br>
+        <span style="font-size:11px;color:var(--muted);">${sv.totalCredits} credits, ${sv.packagesNeeded} package${sv.packagesNeeded !== 1 ? 's' : ''} (300 credits each @ $500/pkg)</span>
+      </td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sv.totalCost)}</strong></td>
     </tr>`);
 
     lines.push(`</tbody></table>`);
