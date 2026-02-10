@@ -5297,9 +5297,51 @@ document.addEventListener("click", async (e) => {
   }
 
   /**********************
-   * Barter spots calculator (NO SPLITTING)
+   * Barter Minutes Calculator
+   *
+   * Formula:
+   * - Value from Minutes: Weekly GIs = (AQH / 1000) × 2 dayparts × 7 days × Minutes/day
+   *                       Annual Value = Weekly GIs × CPM × 52 weeks
+   * - Minutes from Value: Minutes/day = (Annual Value × 1000) / (AQH × CPM × 728)
+   *                       Where 728 = 2 dayparts × 7 days × 52 weeks
+   *
+   * Allocation rules:
+   * - Prime and ROS are calculated independently (separate inventory)
+   * - Minutes distributed across all stations proportionally by AQH
+   * - Skip daypart if station has 0 AQH for it
+   * - Use lowest minutes required to hit target value
+   * - Final allocated value must be within 5% of target
+   * - Users can override minutes; tool recalculates value
    **********************/
-  function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue){
+
+  // Constants for barter calculation
+  const BARTER_FORMULA = {
+    DAYPARTS: 2,           // 2 dayparts (Prime + ROS counted separately when calculating)
+    DAYS_PER_WEEK: 7,
+    WEEKS_PER_YEAR: 52,
+    get ANNUAL_MULTIPLIER() { return this.DAYPARTS * this.DAYS_PER_WEEK * this.WEEKS_PER_YEAR; } // 728
+  };
+
+  /**
+   * Calculate annual value from minutes/day for a given AQH
+   * Formula: Annual Value = (AQH / 1000) × 2 × 7 × Minutes/day × CPM × 52
+   *        = (AQH × Minutes/day × CPM × 728) / 1000
+   */
+  function calculateValueFromMinutes(minutesPerDay, aqh, cpm) {
+    if (!aqh || !cpm || !minutesPerDay) return 0;
+    return (aqh * minutesPerDay * cpm * BARTER_FORMULA.ANNUAL_MULTIPLIER) / 1000;
+  }
+
+  /**
+   * Calculate minutes/day from annual value for a given AQH
+   * Formula: Minutes/day = (Annual Value × 1000) / (AQH × CPM × 728)
+   */
+  function calculateMinutesFromValue(annualValue, aqh, cpm) {
+    if (!aqh || !cpm || !annualValue) return 0;
+    return (annualValue * 1000) / (aqh * cpm * BARTER_FORMULA.ANNUAL_MULTIPLIER);
+  }
+
+  function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue) {
     const section = el('barterMinutesSection');
     const breakdown = el('barterBreakdown');
     const sectionTitle = el('barterSectionTitle');
@@ -5307,218 +5349,264 @@ document.addEventListener("click", async (e) => {
     const barterTotals = el('barterTotals');
 
     const stations = getSelectedStationsDetailed();
-    if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) {
+    if (!stations.length || !annualRemainingValue || annualRemainingValue <= 0) {
       section.classList.add('hidden');
       return;
     }
 
     section.classList.remove('hidden');
     breakdown.innerHTML = '';
-    if (sectionTitle) sectionTitle.textContent = 'Barter Spots Required (Distributed)';
+    if (sectionTitle) sectionTitle.textContent = 'Barter Minutes Required';
     if (barterControls) barterControls.classList.remove('hidden');
     if (barterTotals) barterTotals.classList.remove('hidden');
 
-    let totalPrime = 0;
-    let totalRos = 0;
+    const cpm = Number(window.productState.cpm || 2.0);
+    const targetAnnualValue = annualRemainingValue;
+
+    // Calculate total AQH for Prime and ROS separately
+    let totalPrimeAQH = 0;
+    let totalRosAQH = 0;
     stations.forEach(s => {
-      totalPrime += (Number(s.primeAQH) || 0);
-      totalRos   += (Number(s.rosAQH) || 0);
+      totalPrimeAQH += (Number(s.primeAQH) || 0);
+      totalRosAQH += (Number(s.rosAQH) || 0);
     });
 
-    const hasAQH = (totalPrime + totalRos) > 0;
-    const cpm = Number(window.productState.cpm || 2.0);
+    const hasPrimeAQH = totalPrimeAQH > 0;
+    const hasRosAQH = totalRosAQH > 0;
+    const hasAnyAQH = hasPrimeAQH || hasRosAQH;
 
-    let totalSpotsPerMonth = 0;
-    if (hasAQH && cpm > 0) {
-      totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
-    } else {
-      totalSpotsPerMonth = stations.length; // fallback
+    if (!hasAnyAQH || cpm <= 0) {
+      // No AQH data - show message
+      breakdown.innerHTML = '<div class="el muted">No AQH data available for selected stations. Please add AQH values to calculate barter minutes.</div>';
+      el('totalPrimeMinutes').textContent = '0';
+      el('totalROSMinutes').textContent = '0';
+      return;
     }
 
-    // FORCE WHOLE total spots (no fractional minutes)
-    totalSpotsPerMonth = Math.max(0, Math.round(totalSpotsPerMonth));
+    // Split target value between Prime and ROS proportionally by total AQH
+    const totalAQH = totalPrimeAQH + totalRosAQH;
+    const primeValueShare = hasPrimeAQH ? (totalPrimeAQH / totalAQH) : 0;
+    const rosValueShare = hasRosAQH ? (totalRosAQH / totalAQH) : 0;
 
-    let primeShare = 0.5;
-    if (hasAQH) {
-      const denom = (totalPrime + totalRos);
-      primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
-    }
-    const rosShare = 1 - primeShare;
+    const targetPrimeAnnualValue = targetAnnualValue * primeValueShare;
+    const targetRosAnnualValue = targetAnnualValue * rosValueShare;
 
-    // WHOLE split: prime gets rounded share, ROS gets remainder
-    const totalPrimeSpots = Math.round(totalSpotsPerMonth * primeShare);
-    const totalRosSpots   = totalSpotsPerMonth - totalPrimeSpots;
+    // Calculate minutes needed for each station/daypart independently
+    const stationAllocations = stations.map(st => {
+      const primeAQH = Number(st.primeAQH) || 0;
+      const rosAQH = Number(st.rosAQH) || 0;
 
-    // Largest remainder integer distribution helper
-    function distributeIntegers(total, entries, rawKey, outKey){
-      entries.forEach(x => {
-        x[outKey] = Math.floor(x[rawKey]);
-        x._frac = x[rawKey] - x[outKey];
-      });
-      let used = entries.reduce((sum,x)=>sum + x[outKey], 0);
-      let remaining = total - used;
+      // Calculate this station's share of value (proportional to its AQH)
+      const stationPrimeValueShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / totalPrimeAQH) : 0;
+      const stationRosValueShare = hasRosAQH && rosAQH > 0 ? (rosAQH / totalRosAQH) : 0;
 
-      entries
-        .slice()
-        .sort((a,b)=> b._frac - a._frac)
-        .forEach(x => {
-          if (remaining > 0) { x[outKey] += 1; remaining -= 1; }
-        });
+      const stationPrimeTargetValue = targetPrimeAnnualValue * stationPrimeValueShare;
+      const stationRosTargetValue = targetRosAnnualValue * stationRosValueShare;
 
-      entries.forEach(x => delete x._frac);
-    }
+      // Calculate minutes/day needed to hit target value
+      // Skip daypart if station has 0 AQH for it
+      let autoPrimeMinutes = 0;
+      let autoRosMinutes = 0;
 
-    // Build allocation weights
-    const alloc = stations.map(st => {
-      const pAQH = Number(st.primeAQH) || 0;
-      const rAQH = Number(st.rosAQH) || 0;
-
-      const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
-      const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
+      if (primeAQH > 0) {
+        autoPrimeMinutes = calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm);
+      }
+      if (rosAQH > 0) {
+        autoRosMinutes = calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm);
+      }
 
       return {
         st,
-        rawPrime: totalPrimeSpots * pWeight,
-        rawRos:   totalRosSpots   * rWeight
+        primeAQH,
+        rosAQH,
+        autoPrimeMinutes: Math.round(autoPrimeMinutes * 10) / 10, // Round to 1 decimal
+        autoRosMinutes: Math.round(autoRosMinutes * 10) / 10
       };
     });
 
-    distributeIntegers(totalPrimeSpots, alloc, 'rawPrime', 'autoPrimeInt');
-    distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
-
-    const DAYS_PER_MONTH = 30;
-    let sumPrimeMonthly = 0;
-    let sumRosMonthly = 0;
-    let sumPrimePerDay = 0;
-    let sumRosPerDay = 0;
+    // Track totals
+    let sumPrimeMinutesPerDay = 0;
+    let sumRosMinutesPerDay = 0;
+    let totalAllocatedPrimeValue = 0;
+    let totalAllocatedRosValue = 0;
     const stationQuotes = [];
 
-    alloc.forEach(({ st, autoPrimeInt, autoRosInt }) => {
+    stationAllocations.forEach(({ st, primeAQH, rosAQH, autoPrimeMinutes, autoRosMinutes }) => {
       const manual = window.productState.manualMinutes.get(st.key);
 
-      // manual overrides are expected to be entered as minutes-per-day; convert to monthly
-      const primeSpotsMonthly = (manual?.prime != null) ? Math.round(manual.prime * DAYS_PER_MONTH) : autoPrimeInt;
-      const rosSpotsMonthly   = (manual?.ros   != null) ? Math.round(manual.ros * DAYS_PER_MONTH)   : autoRosInt;
+      // Use manual override if set, otherwise use calculated
+      const primeMinutesPerDay = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
+      const rosMinutesPerDay = (manual?.ros != null) ? manual.ros : autoRosMinutes;
 
-      sumPrimeMonthly += primeSpotsMonthly;
-      sumRosMonthly += rosSpotsMonthly;
+      sumPrimeMinutesPerDay += primeMinutesPerDay;
+      sumRosMinutesPerDay += rosMinutesPerDay;
 
-      const primePerDay = Math.round(primeSpotsMonthly / DAYS_PER_MONTH);
-      const rosPerDay = Math.round(rosSpotsMonthly / DAYS_PER_MONTH);
+      // Calculate value from actual minutes (for quoted value)
+      const primeAnnualValue = calculateValueFromMinutes(primeMinutesPerDay, primeAQH, cpm);
+      const rosAnnualValue = calculateValueFromMinutes(rosMinutesPerDay, rosAQH, cpm);
 
-      sumPrimePerDay += primePerDay;
-      sumRosPerDay += rosPerDay;
+      totalAllocatedPrimeValue += primeAnnualValue;
+      totalAllocatedRosValue += rosAnnualValue;
 
-      // collect for quoted value calculation
       stationQuotes.push({
         key: st.key,
         station: st.station,
         market: st.market,
-        primeSpotsMonthly,
-        rosSpotsMonthly,
-        primePerDay,
-        rosPerDay,
-        primeAQH: Number(st.primeAQH) || 0,
-        rosAQH: Number(st.rosAQH) || 0
+        primeMinutesPerDay,
+        rosMinutesPerDay,
+        primeAQH,
+        rosAQH,
+        primeAnnualValue,
+        rosAnnualValue,
+        totalAnnualValue: primeAnnualValue + rosAnnualValue
       });
 
+      // Build UI row
       const row = document.createElement('div');
       row.className = 'el';
       row.style.alignItems = 'center';
       row.style.justifyContent = 'space-between';
 
       const left = document.createElement('div');
-      left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+      left.innerHTML = `<strong>${escapeHtml(st.station)}</strong> <span class="muted">— ${escapeHtml(st.market)}</span>`;
 
       const right = document.createElement('div');
       right.style.display = 'flex';
       right.style.alignItems = 'center';
       right.style.gap = '10px';
 
-      const primeInput = document.createElement('input');
-      primeInput.type = 'number';
-      primeInput.min = '0';
-      primeInput.step = '1'; // whole only
-      primeInput.value = String(primePerDay);
-      primeInput.style.width = '84px';
+      // Prime input (only show if station has Prime AQH)
+      if (primeAQH > 0) {
+        const primeLbl = document.createElement('span');
+        primeLbl.className = 'muted';
+        primeLbl.style.fontSize = '12px';
+        primeLbl.textContent = 'Prime (mins/day)';
 
-      const rosInput = document.createElement('input');
-      rosInput.type = 'number';
-      rosInput.min = '0';
-      rosInput.step = '1'; // whole only
-      rosInput.value = String(rosPerDay);
-      rosInput.style.width = '84px';
+        const primeInput = document.createElement('input');
+        primeInput.type = 'number';
+        primeInput.min = '0';
+        primeInput.step = '0.5';
+        primeInput.value = String(primeMinutesPerDay);
+        primeInput.style.width = '84px';
 
-      const primeLbl = document.createElement('span');
-      primeLbl.className = 'muted';
-      primeLbl.style.fontSize = '12px';
-      primeLbl.textContent = 'Prime (mins/day)';
+        primeInput.onchange = () => {
+          const p = parseFloat(primeInput.value);
+          const currentManual = window.productState.manualMinutes.get(st.key) || {};
+          window.productState.manualMinutes.set(st.key, {
+            ...currentManual,
+            prime: Number.isFinite(p) && p >= 0 ? p : 0
+          });
+          calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
+        };
 
-      const rosLbl = document.createElement('span');
-      rosLbl.className = 'muted';
-      rosLbl.style.fontSize = '12px';
-      rosLbl.textContent = 'ROS (mins/day)';
+        right.appendChild(primeLbl);
+        right.appendChild(primeInput);
+      } else {
+        const skipLbl = document.createElement('span');
+        skipLbl.className = 'muted';
+        skipLbl.style.fontSize = '11px';
+        skipLbl.textContent = 'Prime: N/A (0 AQH)';
+        right.appendChild(skipLbl);
+      }
 
-      const saveManual = () => {
-        const p = parseFloat(primeInput.value);
-        const r = parseFloat(rosInput.value);
-        // store as minutes-per-day
-        window.productState.manualMinutes.set(st.key, {
-          prime: Number.isFinite(p) && p >= 0 ? Math.round(p) : 0,
-          ros:   Number.isFinite(r) && r >= 0 ? Math.round(r) : 0
-        });
-        calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
-      };
+      // ROS input (only show if station has ROS AQH)
+      if (rosAQH > 0) {
+        const rosLbl = document.createElement('span');
+        rosLbl.className = 'muted';
+        rosLbl.style.fontSize = '12px';
+        rosLbl.style.marginLeft = '8px';
+        rosLbl.textContent = 'ROS (mins/day)';
 
-      primeInput.onchange = saveManual;
-      rosInput.onchange = saveManual;
+        const rosInput = document.createElement('input');
+        rosInput.type = 'number';
+        rosInput.min = '0';
+        rosInput.step = '0.5';
+        rosInput.value = String(rosMinutesPerDay);
+        rosInput.style.width = '84px';
 
-      right.appendChild(primeLbl);
-      right.appendChild(primeInput);
-      right.appendChild(rosLbl);
-      right.appendChild(rosInput);
+        rosInput.onchange = () => {
+          const r = parseFloat(rosInput.value);
+          const currentManual = window.productState.manualMinutes.get(st.key) || {};
+          window.productState.manualMinutes.set(st.key, {
+            ...currentManual,
+            ros: Number.isFinite(r) && r >= 0 ? r : 0
+          });
+          calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
+        };
+
+        right.appendChild(rosLbl);
+        right.appendChild(rosInput);
+      } else {
+        const skipLbl = document.createElement('span');
+        skipLbl.className = 'muted';
+        skipLbl.style.fontSize = '11px';
+        skipLbl.style.marginLeft = '8px';
+        skipLbl.textContent = 'ROS: N/A (0 AQH)';
+        right.appendChild(skipLbl);
+      }
 
       row.appendChild(left);
       row.appendChild(right);
       breakdown.appendChild(row);
     });
 
-    // totals as WHOLE numbers (show per-day)
-    el('totalPrimeMinutes').textContent = String(Math.round(sumPrimePerDay));
-    el('totalROSMinutes').textContent = String(Math.round(sumRosPerDay));
+    // Update totals display
+    el('totalPrimeMinutes').textContent = String(Math.round(sumPrimeMinutesPerDay * 10) / 10);
+    el('totalROSMinutes').textContent = String(Math.round(sumRosMinutesPerDay * 10) / 10);
 
-    const footer = document.createElement('div');
-    footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; gap:10px; background: rgba(15, 24, 35, 0.5);';
+    // Calculate total allocated value and variance
+    const totalAllocatedValue = totalAllocatedPrimeValue + totalAllocatedRosValue;
+    const variance = ((totalAllocatedValue - targetAnnualValue) / targetAnnualValue) * 100;
+    const isWithinTolerance = Math.abs(variance) <= 5;
 
-    // build quoted value HTML per station (annual)
+    // Build quoted value HTML per station
     const quotedPieces = stationQuotes.map(s => {
-      // monthly value for prime = primeSpotsMonthly * (CPM * primeAQH / 1000)
-      const cpmVal = Number(window.productState.cpm || 2.0);
-      const primeMonthlyVal = (s.primeSpotsMonthly || 0) * (cpmVal * (s.primeAQH || 0) / 1000);
-      const rosMonthlyVal = (s.rosSpotsMonthly || 0) * (cpmVal * (s.rosAQH || 0) / 1000);
-      const primeAnnual = primeMonthlyVal * 12;
-      const rosAnnual = rosMonthlyVal * 12;
-      const totalAnnual = primeAnnual + rosAnnual;
-      return `<div style="margin-bottom:6px;"><strong>${escapeHtml(s.station)}</strong> — ${escapeHtml(s.market)}<div style="margin-left:8px;color:var(--muted);margin-top:4px;">Prime: ${money(primeAnnual)} • ROS: ${money(rosAnnual)} • Total: ${money(totalAnnual)}</div></div>`;
+      return `<div style="margin-bottom:6px;">
+        <strong>${escapeHtml(s.station)}</strong> — ${escapeHtml(s.market)}
+        <div style="margin-left:8px;color:var(--muted);margin-top:4px;">
+          ${s.primeAQH > 0 ? `Prime: ${money(s.primeAnnualValue)} (${s.primeMinutesPerDay} min/day)` : 'Prime: N/A'}
+          • ${s.rosAQH > 0 ? `ROS: ${money(s.rosAnnualValue)} (${s.rosMinutesPerDay} min/day)` : 'ROS: N/A'}
+          • Total: ${money(s.totalAnnualValue)}
+        </div>
+      </div>`;
     }).join('');
 
+    // Variance indicator
+    const varianceColor = isWithinTolerance ? 'var(--accent)' : '#ff6b6b';
+    const varianceIcon = isWithinTolerance ? '✓' : '⚠';
+    const varianceText = variance >= 0 ? `+${variance.toFixed(1)}%` : `${variance.toFixed(1)}%`;
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'padding: 12px; font-size: 12px; border-top: 1px solid var(--edge); margin-top: 8px; display:flex; flex-wrap:wrap; gap:16px; background: rgba(15, 24, 35, 0.5);';
+
     footer.innerHTML = `
-      <div style="flex:1"><strong>Remaining Value:</strong>
+      <div style="min-width:180px">
+        <strong>Target Value (Annual):</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          Monthly: ${money(monthlyRemainingValue)} • Annual: ${money(annualRemainingValue)}
+          ${money(targetAnnualValue)}
         </div>
       </div>
-      <div style="width:160px"><strong>CPM:</strong>
+      <div style="min-width:180px">
+        <strong>Allocated Value (Annual):</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          $${Number(window.productState.cpm || 2).toFixed(2)}
+          ${money(totalAllocatedValue)}
+          <span style="color:${varianceColor};margin-left:8px;">${varianceIcon} ${varianceText}</span>
         </div>
       </div>
-      <div style="width:200px"><strong>Minutes/Week:</strong>
+      <div style="min-width:120px">
+        <strong>CPM:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
-          ${Math.round((sumPrimePerDay + sumRosPerDay) * 7)}
+          $${cpm.toFixed(2)}
         </div>
       </div>
-      <div style="flex:1"><strong>Quoted Value (annual):</strong>
+      <div style="min-width:140px">
+        <strong>Total Minutes/Day:</strong>
+        <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
+          ${Math.round((sumPrimeMinutesPerDay + sumRosMinutesPerDay) * 10) / 10}
+        </div>
+      </div>
+      <div style="flex:1;min-width:300px">
+        <strong>Breakdown by Station:</strong>
         <div style="margin-left:16px;color:var(--muted);margin-top:4px;">
           ${quotedPieces || '<div class="muted">No allocation</div>'}
         </div>
@@ -5575,82 +5663,75 @@ function computeProposalMonthlyPerStation(pricingType) {
   }
 }
 
-// --- helper: compute barter allocation (spots per month) without rendering UI ---
+// --- helper: compute barter allocation (minutes per day) without rendering UI ---
+// Uses the same formula as calculateBarterMinutes:
+// Minutes/day = (Annual Value × 1000) / (AQH × CPM × 728)
 function computeBarterAllocation(monthlyRemainingValue) {
   try {
     const stations = getSelectedStationsDetailed();
     if (!stations.length || !monthlyRemainingValue || monthlyRemainingValue <= 0) return [];
 
-    let totalPrime = 0;
-    let totalRos = 0;
-    stations.forEach(s => {
-      totalPrime += (Number(s.primeAQH) || 0);
-      totalRos   += (Number(s.rosAQH) || 0);
-    });
-
-    const hasAQH = (totalPrime + totalRos) > 0;
+    const annualRemainingValue = monthlyRemainingValue * 12;
     const cpm = Number(window.productState.cpm || 2.0);
 
-    let totalSpotsPerMonth = 0;
-    if (hasAQH && cpm > 0) {
-      totalSpotsPerMonth = (monthlyRemainingValue * 1000) / (cpm * (totalPrime + totalRos));
-    } else {
-      totalSpotsPerMonth = stations.length; // fallback
-    }
-    totalSpotsPerMonth = Math.max(0, Math.round(totalSpotsPerMonth)); // whole
-
-    let primeShare = 0.5;
-    if (hasAQH) {
-      const denom = (totalPrime + totalRos);
-      primeShare = denom > 0 ? (totalPrime / denom) : 0.5;
-    }
-    const totalPrimeSpots = Math.round(totalSpotsPerMonth * primeShare);
-    const totalRosSpots   = totalSpotsPerMonth - totalPrimeSpots;
-
-    function distributeIntegers(total, entries, rawKey, outKey) {
-      entries.forEach(x => {
-        x[outKey] = Math.floor(x[rawKey]);
-        x._frac = x[rawKey] - x[outKey];
-      });
-      let used = entries.reduce((sum, x) => sum + x[outKey], 0);
-      let remaining = total - used;
-
-      entries
-        .slice()
-        .sort((a, b) => b._frac - a._frac)
-        .forEach(x => {
-          if (remaining > 0) { x[outKey] += 1; remaining -= 1; }
-        });
-
-      entries.forEach(x => delete x._frac);
-    }
-
-    const alloc = stations.map(st => {
-      const pAQH = Number(st.primeAQH) || 0;
-      const rAQH = Number(st.rosAQH) || 0;
-
-      const pWeight = hasAQH ? (pAQH / (totalPrime || 1)) : (1 / stations.length);
-      const rWeight = hasAQH ? (rAQH / (totalRos   || 1)) : (1 / stations.length);
-
-      return {
-        st,
-        rawPrime: totalPrimeSpots * pWeight,
-        rawRos:   totalRosSpots   * rWeight
-      };
+    // Calculate total AQH for Prime and ROS separately
+    let totalPrimeAQH = 0;
+    let totalRosAQH = 0;
+    stations.forEach(s => {
+      totalPrimeAQH += (Number(s.primeAQH) || 0);
+      totalRosAQH += (Number(s.rosAQH) || 0);
     });
 
-    distributeIntegers(totalPrimeSpots, alloc, 'rawPrime', 'autoPrimeInt');
-    distributeIntegers(totalRosSpots,   alloc, 'rawRos',   'autoRosInt');
+    const hasPrimeAQH = totalPrimeAQH > 0;
+    const hasRosAQH = totalRosAQH > 0;
+    const hasAnyAQH = hasPrimeAQH || hasRosAQH;
 
-    return alloc.map(({ st, autoPrimeInt, autoRosInt }) => {
-      const DAYS_PER_MONTH = 30;
+    if (!hasAnyAQH || cpm <= 0) return [];
+
+    // Split target value between Prime and ROS proportionally by total AQH
+    const totalAQH = totalPrimeAQH + totalRosAQH;
+    const primeValueShare = hasPrimeAQH ? (totalPrimeAQH / totalAQH) : 0;
+    const rosValueShare = hasRosAQH ? (totalRosAQH / totalAQH) : 0;
+
+    const targetPrimeAnnualValue = annualRemainingValue * primeValueShare;
+    const targetRosAnnualValue = annualRemainingValue * rosValueShare;
+
+    return stations.map(st => {
+      const primeAQH = Number(st.primeAQH) || 0;
+      const rosAQH = Number(st.rosAQH) || 0;
+
+      // Calculate this station's share of value (proportional to its AQH)
+      const stationPrimeValueShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / totalPrimeAQH) : 0;
+      const stationRosValueShare = hasRosAQH && rosAQH > 0 ? (rosAQH / totalRosAQH) : 0;
+
+      const stationPrimeTargetValue = targetPrimeAnnualValue * stationPrimeValueShare;
+      const stationRosTargetValue = targetRosAnnualValue * stationRosValueShare;
+
+      // Calculate minutes/day using the formula: Minutes/day = (Annual Value × 1000) / (AQH × CPM × 728)
+      let autoPrimeMinutes = 0;
+      let autoRosMinutes = 0;
+
+      if (primeAQH > 0) {
+        autoPrimeMinutes = calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm);
+      }
+      if (rosAQH > 0) {
+        autoRosMinutes = calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm);
+      }
+
+      // Check for manual override
       const manual = window.productState.manualMinutes.get(st.key);
+      const primeMinutesPerDay = (manual?.prime != null) ? manual.prime : Math.round(autoPrimeMinutes * 10) / 10;
+      const rosMinutesPerDay = (manual?.ros != null) ? manual.ros : Math.round(autoRosMinutes * 10) / 10;
 
-      // manual values stored as minutes-per-day in the UI; convert back to monthly for allocation
-      const primeSpots = (manual?.prime != null) ? Math.round((manual.prime || 0) * DAYS_PER_MONTH) : autoPrimeInt;
-      const rosSpots   = (manual?.ros   != null) ? Math.round((manual.ros || 0) * DAYS_PER_MONTH)   : autoRosInt;
-
-      return { key: st.key, station: st.station, market: st.market, primeSpots, rosSpots };
+      return {
+        key: st.key,
+        station: st.station,
+        market: st.market,
+        primeMinutesPerDay,
+        rosMinutesPerDay,
+        primeAQH,
+        rosAQH
+      };
     });
   } catch (e) {
     console.error('computeBarterAllocation error', e);
@@ -5736,64 +5817,19 @@ window.generateProposal = function generateProposal() {
   const remainingMonthly = remainingAnnual / 12;
 
   // Barter allocation shown PER DAY in proposal
-  // (using 30 days/month; change to 30.4167 if you want)
-  const DAYS_PER_MONTH = 30;
-
-  const barterAllocMonthly = (pricingType === 'mixed' || pricingType === 'barter')
+  // Get barter allocation (now returns minutes per day directly)
+  const barterAlloc = (pricingType === 'mixed' || pricingType === 'barter')
     ? computeBarterAllocation(remainingMonthly)
     : [];
-  // Compute per-day values so totals match the minutes-per-day calculation
-  const barterByKey = (function(){
-    const out = new Map();
-    if (!barterAllocMonthly || !barterAllocMonthly.length) return out;
 
-    // Totals per month
-    const totalPrimeMonthly = barterAllocMonthly.reduce((s,x)=>s + (Number(x.primeSpots)||0), 0);
-    const totalRosMonthly   = barterAllocMonthly.reduce((s,x)=>s + (Number(x.rosSpots)||0), 0);
-
-    // Desired rounded totals per day (based on monthly totals divided by days)
-    const totalPrimePerDayRounded = Math.round(totalPrimeMonthly / DAYS_PER_MONTH);
-    const totalRosPerDayRounded   = Math.round(totalRosMonthly   / DAYS_PER_MONTH);
-
-    // Compute floor per-station and fractional parts
-    const primeVals = barterAllocMonthly.map(x => {
-      const f = (Number(x.primeSpots)||0) / DAYS_PER_MONTH;
-      return { key: x.key, float: f, base: Math.floor(f), frac: f - Math.floor(f) };
+  // Build lookup map by station key
+  const barterByKey = new Map();
+  barterAlloc.forEach(x => {
+    barterByKey.set(x.key, {
+      primePerDay: x.primeMinutesPerDay || 0,
+      rosPerDay: x.rosMinutesPerDay || 0
     });
-    const rosVals = barterAllocMonthly.map(x => {
-      const f = (Number(x.rosSpots)||0) / DAYS_PER_MONTH;
-      return { key: x.key, float: f, base: Math.floor(f), frac: f - Math.floor(f) };
-    });
-
-    // Distribute remainders by largest fractional parts
-    function distribute(vals, targetTotal){
-      const outMap = new Map();
-      let sumBase = vals.reduce((s,v)=>s+v.base,0);
-      let remaining = targetTotal - sumBase;
-      vals.slice().sort((a,b)=> b.frac - a.frac).forEach(v => {
-        let add = 0;
-        if (remaining > 0){ add = 1; remaining -= 1; }
-        outMap.set(v.key, v.base + add);
-      });
-      // If there are still remainders (rare), add to first entries
-      if (remaining > 0){
-        vals.forEach(v => { if (remaining>0){ outMap.set(v.key, (outMap.get(v.key)||0)+1); remaining--; } });
-      }
-      return outMap;
-    }
-
-    const primePerDayMap = distribute(primeVals, totalPrimePerDayRounded);
-    const rosPerDayMap   = distribute(rosVals,   totalRosPerDayRounded);
-
-    barterAllocMonthly.forEach(x => {
-      out.set(x.key, {
-        primePerDay: primePerDayMap.get(x.key) || 0,
-        rosPerDay:   rosPerDayMap.get(x.key)   || 0
-      });
-    });
-
-    return out;
-  })();
+  });
 
   // Products cell (3): show as a comma-separated list in the horizontal row
   const productNames = products.map(p => p.name).join(", ");
@@ -6132,18 +6168,18 @@ window.buildProposalText = function buildProposalText() {
         : 0;
 
   const remainingMonthly = remainingAnnual / 12;
-  const DAYS_PER_MONTH = 30;
 
-  const barterAllocMonthly = (pricingType === 'mixed' || pricingType === 'barter')
+  // Get barter allocation (returns minutes per day directly)
+  const barterAlloc = (pricingType === 'mixed' || pricingType === 'barter')
     ? computeBarterAllocation(remainingMonthly)
     : [];
 
   const barterByKey = new Map(
-    barterAllocMonthly.map(x => [
+    barterAlloc.map(x => [
       x.key,
       {
-        primePerDay: Math.round((x.primeSpots || 0) / DAYS_PER_MONTH),
-        rosPerDay:   Math.round((x.rosSpots   || 0) / DAYS_PER_MONTH)
+        primePerDay: x.primeMinutesPerDay || 0,
+        rosPerDay: x.rosMinutesPerDay || 0
       }
     ])
   );
