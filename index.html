@@ -1101,28 +1101,53 @@
       <!-- FAAI Configuration -->
       <section class="card hidden" id="faaiConfigSection">
         <div class="title">FAAI Configuration</div>
-        <div class="muted" style="margin-bottom:12px;">Enter the monthly price for FAAI.</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your FAAI service. Rates are calculated based on AI generation costs plus margin.</div>
 
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Service Inputs</div>
           <div class="modal-grid">
             <div class="field">
-              <label for="faaiMonthlyPrice">Monthly Price ($)</label>
-              <input id="faaiMonthlyPrice" type="number" min="0" step="1" value="0" />
+              <label for="faaiNumberOfShows">Number of Shows</label>
+              <input id="faaiNumberOfShows" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="faaiMinutesPerDay">Minutes per Day</label>
+              <input id="faaiMinutesPerDay" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="faaiMargin">Desired Margin (%)</label>
+              <input id="faaiMargin" type="number" min="0" max="99" value="90" />
             </div>
           </div>
         </div>
 
         <!-- Cost Summary -->
         <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div style="font-weight:700; margin-bottom:10px;">Cost Breakdown</div>
           <div id="faaiCostSummary" style="font-size:13px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span>Monthly:</span>
-              <strong id="faaiMonthlyCost">$0</strong>
+              <span>Characters/Month:</span>
+              <strong id="faaiCharsPerMonth">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>ElevenLabs Cost:</span>
+              <strong id="faaiElevenLabsCost">$0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>LLM Cost (25%):</span>
+              <strong id="faaiLlmCost">$0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Total AI Cost:</span>
+              <strong id="faaiTotalAiCost">$0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
-              <span style="font-weight:700;">Annual Cost:</span>
-              <strong id="faaiAnnualCost" style="color:var(--primary);">$0</strong>
+              <span style="font-weight:700;">Monthly Cash Rate:</span>
+              <strong id="faaiMonthlyCash" style="color:var(--primary);">$0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span style="font-weight:700;">Monthly Barter Rate (1.4x):</span>
+              <strong id="faaiMonthlyBarter" style="color:var(--primary);">$0</strong>
             </div>
           </div>
         </div>
@@ -3298,22 +3323,22 @@ document.addEventListener("click", async (e) => {
 
     window.state = { parent: '', markets: new Set(), stations: new Set() };
 
-    // Fallback products if rate card fails to load
+    // Fallback products if rate card fails to load (Barter = Cash × 1.4)
     window.PRODUCTS_FALLBACK = [
       { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
-      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1020, industry: 'Radio/TV', note: 'up to 750 spots a month' },
+      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1050, industry: 'Radio/TV', note: 'up to 750 spots a month' },
       { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' },
-      { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1020, industry: 'Radio/TV' },
-      { id: 'instant_video', name: 'IV Add-on', cash: 500, barter: 680, industry: 'Radio/TV' },
-      { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1700, industry: 'Radio/TV' },
+      { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV' },
+      { id: 'instant_video', name: 'IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV' },
+      { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1750, industry: 'Radio/TV' },
       { id: 'topicpulse_community_radar_fb', name: 'TopicPulse Community Radar (FB Groups)', cash: null, barter: null, industry: 'Radio/TV', note: '$50/group' },
-      { id: 'topicpulse_community_radar_nextdoor', name: 'TopicPulse Community Radar (Next Door)', cash: 150, barter: 204, industry: 'Radio/TV' },
-      { id: 'post', name: 'POST', cash: 1000, barter: 1360, industry: 'Radio/TV' },
-      { id: 'streaming', name: 'Streaming', cash: 300, barter: 408, industry: 'Radio/TV' },
-      { id: 'ldr', name: 'LDR', cash: 500, barter: 680, industry: 'Radio/TV' },
-      { id: 'mobile', name: 'Mobile', cash: 500, barter: 680, industry: 'Radio/TV' },
+      { id: 'topicpulse_community_radar_nextdoor', name: 'TopicPulse Community Radar (Next Door)', cash: 150, barter: 210, industry: 'Radio/TV' },
+      { id: 'post', name: 'POST', cash: 1000, barter: 1400, industry: 'Radio/TV' },
+      { id: 'streaming', name: 'Streaming', cash: 300, barter: 420, industry: 'Radio/TV' },
+      { id: 'ldr', name: 'LDR', cash: 500, barter: 700, industry: 'Radio/TV' },
+      { id: 'mobile', name: 'Mobile', cash: 500, barter: 700, industry: 'Radio/TV' },
       { id: 'faai', name: 'FAAI', cash: null, barter: null, industry: 'Radio/TV' },
-      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 680, industry: 'Radio/TV' }
+      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 700, industry: 'Radio/TV' }
     ];
     window.PRODUCTS = [...window.PRODUCTS_FALLBACK];
 
@@ -3372,6 +3397,9 @@ document.addEventListener("click", async (e) => {
       videos30Count: 0
     };
 
+    // Global barter multiplier (barter = cash × this value)
+    const BARTER_MULTIPLIER = 1.4;
+
     // SpotOn Video pricing constants
     const SPOTON_VIDEO_PRICING = {
       credits15: 3,        // credits per :15 video
@@ -3396,7 +3424,18 @@ document.addEventListener("click", async (e) => {
      * FAAI Configuration State
      **********************/
     window.faaiState = {
-      monthlyPrice: 0
+      numberOfShows: 0,
+      minutesPerDay: 0,
+      margin: 90  // default 90%
+    };
+
+    // FAAI pricing constants
+    const FAAI_PRICING = {
+      wordsPerMinute: 150,
+      charsPerWord: 5,
+      elevenLabsCostPer1000Chars: 0.20,
+      llmCostPercent: 0.25,  // LLM cost = 25% of ElevenLabs cost
+      daysPerMonth: 30
     };
 
     // TopLine pricing constants
@@ -3422,44 +3461,46 @@ document.addEventListener("click", async (e) => {
     function calculateTopLineCosts() {
       const s = window.toplineState;
       const p = TOPLINE_PRICING;
+      const pricingType = window.productState.pricingType;
+      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
       // Base product
-      const baseAnnual = p.tierPrices[s.tier] || 0;
+      const baseAnnual = (p.tierPrices[s.tier] || 0) * multiplier;
 
       // Additional users
       const additionalUsers = Math.max(0, s.usersNeeded - p.usersIncluded);
-      const usersAnnual = additionalUsers * p.additionalUserMonthly * 12;
+      const usersAnnual = additionalUsers * p.additionalUserMonthly * 12 * multiplier;
 
       // Additional accounts (blocks of 5)
       const additionalAccounts = Math.max(0, s.accountsNeeded - p.accountsIncluded);
       const accountBlocks = Math.ceil(additionalAccounts / 5);
-      const accountsAnnual = accountBlocks * p.additionalAccountBlockMonthly * 12;
+      const accountsAnnual = accountBlocks * p.additionalAccountBlockMonthly * 12 * multiplier;
 
       // Base subtotal
       const baseSubtotal = baseAnnual + usersAnnual + accountsAnnual;
 
       // Attribution
-      const attributionAnnual = s.attributionEnabled ? p.attributionAnnual : 0;
+      const attributionAnnual = s.attributionEnabled ? p.attributionAnnual * multiplier : 0;
 
       // Custom services
-      const dataSetOneTime = s.dataSetHours * p.customServiceHourly;
-      const crmOneTime = s.crmIntegrationHours * p.customServiceHourly;
-      const dataIntegrationOneTime = s.dataIntegrationHours * p.customServiceHourly;
+      const dataSetOneTime = s.dataSetHours * p.customServiceHourly * multiplier;
+      const crmOneTime = s.crmIntegrationHours * p.customServiceHourly * multiplier;
+      const dataIntegrationOneTime = s.dataIntegrationHours * p.customServiceHourly * multiplier;
       const customServicesOneTime = dataSetOneTime + crmOneTime + dataIntegrationOneTime;
       const customServicesMaintenance = customServicesOneTime * p.customServiceMaintenance;
 
       // SpotOn Audio
-      const spotOnAnnual = s.spotOnAudioEnabled ? p.spotOnAudioAnnual : 0;
+      const spotOnAnnual = s.spotOnAudioEnabled ? p.spotOnAudioAnnual * multiplier : 0;
 
       // Video credits
       const totalCredits = (s.videos15Count * p.video15Credits) + (s.videos30Count * p.video30Credits);
       const packagesNeeded = Math.ceil(totalCredits / p.videoCreditsPerPackage);
-      const videoAnnual = packagesNeeded * p.videoPackagePrice;
+      const videoAnnual = packagesNeeded * p.videoPackagePrice * multiplier;
 
       // CHUY
-      const chuySetup = s.chuyDevices * p.chuyDeviceSetup;
-      const chuyDeviceAnnual = s.chuyDevices * p.chuyDeviceMonthly * 12;
-      const chuyDashboardAnnual = s.chuyDashboardEnabled ? p.chuyDashboardMonthly * 12 : 0;
+      const chuySetup = s.chuyDevices * p.chuyDeviceSetup * multiplier;
+      const chuyDeviceAnnual = s.chuyDevices * p.chuyDeviceMonthly * 12 * multiplier;
+      const chuyDashboardAnnual = s.chuyDashboardEnabled ? p.chuyDashboardMonthly * 12 * multiplier : 0;
 
       // Totals
       const totalOneTime = customServicesOneTime + chuySetup;
@@ -3625,10 +3666,12 @@ document.addEventListener("click", async (e) => {
     function calculateSpotOnVideoCosts() {
       const s = window.spotonVideoState;
       const p = SPOTON_VIDEO_PRICING;
+      const pricingType = window.productState.pricingType;
+      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
       const totalCredits = (s.videos15Count * p.credits15) + (s.videos30Count * p.credits30);
       const packagesNeeded = totalCredits > 0 ? Math.ceil(totalCredits / p.creditsPerPackage) : 0;
-      const totalCost = packagesNeeded * p.pricePerPackage;
+      const totalCost = packagesNeeded * p.pricePerPackage * multiplier;
 
       return {
         videos15: s.videos15Count,
@@ -3700,8 +3743,10 @@ document.addEventListener("click", async (e) => {
     function calculateFbGroupsCosts() {
       const s = window.fbGroupsState;
       const p = FB_GROUPS_PRICING;
+      const pricingType = window.productState.pricingType;
+      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
-      const monthlyCost = s.groupCount * p.pricePerGroup;
+      const monthlyCost = s.groupCount * p.pricePerGroup * multiplier;
       const annualCost = monthlyCost * 12;
 
       return {
@@ -3756,11 +3801,40 @@ document.addEventListener("click", async (e) => {
      **********************/
     function calculateFaaiCosts() {
       const s = window.faaiState;
+      const p = FAAI_PRICING;
+      const pricingType = window.productState.pricingType;
 
-      const monthlyCost = s.monthlyPrice || 0;
+      // Calculate characters per month per show
+      // chars = minutes × words/min × chars/word × days/month
+      const charsPerDayPerShow = s.minutesPerDay * p.wordsPerMinute * p.charsPerWord;
+      const charsPerMonthPerShow = charsPerDayPerShow * p.daysPerMonth;
+      const totalCharsPerMonth = charsPerMonthPerShow * s.numberOfShows;
+
+      // Calculate AI costs
+      const elevenLabsCost = (totalCharsPerMonth / 1000) * p.elevenLabsCostPer1000Chars;
+      const llmCost = elevenLabsCost * p.llmCostPercent;
+      const totalAiCost = elevenLabsCost + llmCost;
+
+      // Calculate rates with margin
+      // cashRate = totalAiCost / (1 - margin%)
+      const marginDecimal = (s.margin || 90) / 100;
+      const monthlyCash = marginDecimal < 1 ? totalAiCost / (1 - marginDecimal) : totalAiCost;
+      const monthlyBarter = monthlyCash * BARTER_MULTIPLIER;
+
+      // Use appropriate rate based on pricing type
+      const monthlyCost = (pricingType === 'barter') ? monthlyBarter : monthlyCash;
       const annualCost = monthlyCost * 12;
 
       return {
+        numberOfShows: s.numberOfShows,
+        minutesPerDay: s.minutesPerDay,
+        margin: s.margin,
+        charsPerMonth: totalCharsPerMonth,
+        elevenLabsCost,
+        llmCost,
+        totalAiCost,
+        monthlyCash,
+        monthlyBarter,
         monthlyCost,
         annualCost
       };
@@ -3768,20 +3842,50 @@ document.addEventListener("click", async (e) => {
 
     function updateFaaiSummary() {
       const costs = calculateFaaiCosts();
+      const money = (v) => '$' + Math.round(v).toLocaleString();
 
-      const monthlyEl = el('faaiMonthlyCost');
-      const annualEl = el('faaiAnnualCost');
+      const charsEl = el('faaiCharsPerMonth');
+      const elevenLabsEl = el('faaiElevenLabsCost');
+      const llmEl = el('faaiLlmCost');
+      const totalAiEl = el('faaiTotalAiCost');
+      const cashEl = el('faaiMonthlyCash');
+      const barterEl = el('faaiMonthlyBarter');
 
-      if (monthlyEl) monthlyEl.textContent = '$' + costs.monthlyCost.toLocaleString();
-      if (annualEl) annualEl.textContent = '$' + costs.annualCost.toLocaleString();
+      if (charsEl) charsEl.textContent = costs.charsPerMonth.toLocaleString();
+      if (elevenLabsEl) elevenLabsEl.textContent = money(costs.elevenLabsCost);
+      if (llmEl) llmEl.textContent = money(costs.llmCost);
+      if (totalAiEl) totalAiEl.textContent = money(costs.totalAiCost);
+      if (cashEl) cashEl.textContent = money(costs.monthlyCash);
+      if (barterEl) barterEl.textContent = money(costs.monthlyBarter);
     }
 
     function wireFaaiUI() {
-      const priceInput = el('faaiMonthlyPrice');
+      const showsInput = el('faaiNumberOfShows');
+      const minutesInput = el('faaiMinutesPerDay');
+      const marginInput = el('faaiMargin');
 
-      if (priceInput) {
-        priceInput.addEventListener('input', () => {
-          window.faaiState.monthlyPrice = Math.max(0, parseFloat(priceInput.value) || 0);
+      if (showsInput) {
+        showsInput.addEventListener('input', () => {
+          window.faaiState.numberOfShows = Math.max(0, parseInt(showsInput.value) || 0);
+          updateFaaiSummary();
+          window.updateProductSummary();
+        });
+      }
+
+      if (minutesInput) {
+        minutesInput.addEventListener('input', () => {
+          window.faaiState.minutesPerDay = Math.max(0, parseInt(minutesInput.value) || 0);
+          updateFaaiSummary();
+          window.updateProductSummary();
+        });
+      }
+
+      if (marginInput) {
+        marginInput.addEventListener('input', () => {
+          let val = parseInt(marginInput.value) || 90;
+          if (val < 0) val = 0;
+          if (val > 99) val = 99;
+          window.faaiState.margin = val;
           updateFaaiSummary();
           window.updateProductSummary();
         });
@@ -3790,9 +3894,13 @@ document.addEventListener("click", async (e) => {
 
     function applyFaaiStateToUI() {
       const s = window.faaiState;
-      const priceInput = el('faaiMonthlyPrice');
+      const showsInput = el('faaiNumberOfShows');
+      const minutesInput = el('faaiMinutesPerDay');
+      const marginInput = el('faaiMargin');
 
-      if (priceInput) priceInput.value = s.monthlyPrice;
+      if (showsInput) showsInput.value = s.numberOfShows;
+      if (minutesInput) minutesInput.value = s.minutesPerDay;
+      if (marginInput) marginInput.value = s.margin;
 
       updateFaaiSummary();
     }
@@ -5954,6 +6062,7 @@ window.generateProposal = function generateProposal() {
   // FAAI section if selected
   if (faaiSelected && faaiCosts && faaiCosts.monthlyCost > 0) {
     const fa = faaiCosts;
+    const rateType = (pricingType === 'barter') ? 'Barter' : 'Cash';
 
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">FAAI</div>`);
@@ -5967,7 +6076,10 @@ window.generateProposal = function generateProposal() {
     </tr></thead><tbody>`);
 
     lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>FAAI</strong></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>FAAI</strong> (${rateType} Rate)<br>
+        <span style="font-size:11px;color:var(--muted);">${fa.numberOfShows} show${fa.numberOfShows !== 1 ? 's' : ''}, ${fa.minutesPerDay} min/day, ${fa.margin}% margin</span>
+      </td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fa.monthlyCost)}</td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fa.annualCost)}</strong></td>
     </tr>`);
