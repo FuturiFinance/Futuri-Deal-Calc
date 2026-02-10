@@ -1515,9 +1515,11 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
     function showGoogleLogin(){ el("googleLoginScreen").style.display = "flex"; }
     function hideGoogleLogin(){ el("googleLoginScreen").style.display = "none"; }
 
-    function isFuturiEmail(user){
+    const ALLOWED_EMAIL_DOMAINS = ["futurimedia.com", "anstandig.com"];
+
+    function isAllowedEmail(user){
       const email = (user?.email || "").toLowerCase().trim();
-      return email.endsWith("@futurimedia.com");
+      return ALLOWED_EMAIL_DOMAINS.some(domain => email.endsWith("@" + domain));
     }
 
     // Ensure Firestore user doc exists + enforce roles
@@ -2796,7 +2798,7 @@ async function renderAllUsersDeals(){
       const { auth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } = window.fb;
 
       const provider = new GoogleAuthProvider();
-      provider.setCustomParameters({ prompt: "select_account", hd: "futurimedia.com" });
+      provider.setCustomParameters({ prompt: "select_account" });
 
       el("btnGoogleLogin").onclick = async () => {
         const btn = el("btnGoogleLogin");
@@ -3009,11 +3011,11 @@ async function renderAllUsersDeals(){
           return;
         }
 
-        if (!isFuturiEmail(user)){
+        if (!isAllowedEmail(user)){
           await signOut(auth);
           showGoogleLogin();
           const err = el("googleLoginError");
-          err.textContent = "Please sign in with your Futuri Media Google account (@futurimedia.com).";
+          err.textContent = "Please sign in with an authorized Google account (@futurimedia.com or @anstandig.com).";
           err.style.display = "block";
           return;
         }
