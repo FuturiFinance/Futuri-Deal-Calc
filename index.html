@@ -3165,8 +3165,6 @@ document.addEventListener("click", async (e) => {
     window.PRODUCTS = [
       { id: 'topicpulse', name: 'TopicPulse', cash: 1500, barter: 2040 },
       { id: 'topicpulse_iv', name: 'TopicPulse w/ Instant Video', cash: 2000, barter: 2720 },
-      { id: 'topline_podcast', name: 'TopLine - Podcast', cash: 2500, barter: 3400 },
-      { id: 'topline_agency', name: 'TopLine - Agency', cash: 2500, barter: 3400 },
       { id: 'post', name: 'POST', cash: 1000, barter: 1360 },
       { id: 'mobile', name: 'Mobile', cash: 750, barter: 1020 },
       { id: 'streaming', name: 'Streaming', cash: 500, barter: 680 },
@@ -3984,7 +3982,7 @@ document.addEventListener("click", async (e) => {
         if (rateCardValue === null || rateCardValue === undefined) {
           const tbdBadge = document.createElement('span');
           tbdBadge.className = 'badge';
-          tbdBadge.textContent = 'TBD';
+          tbdBadge.textContent = 'Inputs needed';
           priceContainer.appendChild(tbdBadge);
         } else {
           const rateCardBadge = document.createElement('span');
