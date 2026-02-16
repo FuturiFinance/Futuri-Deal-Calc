@@ -1025,11 +1025,11 @@
           <div style="font-weight:700; margin-bottom:10px;">Video Quantities</div>
           <div class="modal-grid">
             <div class="field">
-              <label for="spotonVideos15">Number of :15 videos (1 credit each)</label>
+              <label for="spotonVideos15">Number of :15 videos (1 credit = $25)</label>
               <input id="spotonVideos15" type="number" min="0" value="0" />
             </div>
             <div class="field">
-              <label for="spotonVideos30">Number of :30 videos (2 credits each)</label>
+              <label for="spotonVideos30">Number of :30 videos (2 credits = $50)</label>
               <input id="spotonVideos30" type="number" min="0" value="0" />
             </div>
           </div>
@@ -1040,12 +1040,8 @@
           <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
           <div id="spotonVideoCostSummary" style="font-size:13px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span>Total Credits Needed:</span>
+              <span>Total Credits ($25/credit):</span>
               <strong id="spotonTotalCredits">0</strong>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span>Packages Required (100 credits each @ $2,500/mo):</span>
-              <strong id="spotonPackagesNeeded">0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
               <span style="font-weight:700;">Total Video Cost (Monthly):</span>
@@ -3405,10 +3401,9 @@ document.addEventListener("click", async (e) => {
 
     // SpotOn Video pricing constants
     const SPOTON_VIDEO_PRICING = {
-      credits15: 1,        // credits per :15 video
-      credits30: 2,        // credits per :30 video
-      creditsPerPackage: 100,
-      pricePerPackage: 2500  // $2,500/month per package
+      credits15: 1,        // credits per :15 video = $25
+      credits30: 2,        // credits per :30 video = $50
+      pricePerCredit: 25   // $25 per credit
     };
 
     /**********************
@@ -3681,18 +3676,15 @@ document.addEventListener("click", async (e) => {
       const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
       const totalCredits = (s.videos15Count * p.credits15) + (s.videos30Count * p.credits30);
-      const packagesNeeded = totalCredits > 0 ? Math.ceil(totalCredits / p.creditsPerPackage) : 0;
-      const totalCost = packagesNeeded * p.pricePerPackage * multiplier;
+      const monthlyCost = totalCredits * p.pricePerCredit * multiplier;
 
       return {
         videos15: s.videos15Count,
         videos30: s.videos30Count,
         totalCredits,
-        packagesNeeded,
-        monthlyCost: totalCost,
-        totalCost,  // kept for backward compatibility (monthly cost)
-        // Annual cost (monthly × 12)
-        annualCost: totalCost * 12
+        monthlyCost,
+        totalCost: monthlyCost,  // kept for backward compatibility
+        annualCost: monthlyCost * 12
       };
     }
 
@@ -3700,12 +3692,10 @@ document.addEventListener("click", async (e) => {
       const costs = calculateSpotOnVideoCosts();
 
       const creditsEl = el('spotonTotalCredits');
-      const packagesEl = el('spotonPackagesNeeded');
       const totalEl = el('spotonVideoTotalCost');
 
       if (creditsEl) creditsEl.textContent = costs.totalCredits.toLocaleString();
-      if (packagesEl) packagesEl.textContent = costs.packagesNeeded.toLocaleString();
-      if (totalEl) totalEl.textContent = '$' + costs.totalCost.toLocaleString() + '/mo';
+      if (totalEl) totalEl.textContent = '$' + costs.monthlyCost.toLocaleString() + '/mo';
     }
 
     function wireSpotOnVideoUI() {
@@ -6138,7 +6128,7 @@ window.generateProposal = function generateProposal() {
     lines.push(`<tr>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
         <strong>SpotOn Video</strong> — ${sv.videos15} :15s, ${sv.videos30} :30s<br>
-        <span style="font-size:11px;color:var(--muted);">${sv.totalCredits} credits, ${sv.packagesNeeded} package${sv.packagesNeeded !== 1 ? 's' : ''} (100 credits each @ $2,500/mo)</span>
+        <span style="font-size:11px;color:var(--muted);">${sv.totalCredits} credits @ $25/credit</span>
       </td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sv.monthlyCost)}</strong></td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sv.annualCost)}</strong></td>
