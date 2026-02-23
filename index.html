@@ -919,7 +919,7 @@
             <div class="field">
               <label for="toplineTier">Product Tier</label>
               <select id="toplineTier">
-                <option value="access">Access ($42K/yr)</option>
+                <option value="access">TopLine - Base ($42K/yr)</option>
                 <option value="enterprise">Enterprise ($30K/yr)</option>
                 <option value="both">Both ($72K/yr)</option>
               </select>
@@ -976,35 +976,46 @@
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
           <div style="font-weight:700; margin-bottom:10px;">4. Add-ons</div>
 
-          <label style="display:flex;align-items:center;gap:10px; margin-bottom:12px;">
-            <input type="checkbox" id="toplineSpotOn" />
-            <span>SpotOn Audio ($18K/yr)</span>
-            <em style="font-size:12px; color:var(--muted);">up to 750 spots / month</em>
-          </label>
-
-          <div class="modal-grid" style="margin-bottom:12px;">
-            <div class="field">
-              <label for="toplineVideos15">:15 Videos (3 credits each)</label>
-              <input id="toplineVideos15" type="number" min="0" value="0" />
-            </div>
-            <div class="field">
-              <label for="toplineVideos30">:30 Videos (6 credits each)</label>
-              <input id="toplineVideos30" type="number" min="0" value="0" />
-            </div>
-          </div>
-          <div class="muted" style="font-size:12px; margin-bottom:12px;">$500 per 300-credit package</div>
-
-          <div class="modal-grid" style="margin-bottom:12px;">
-            <div class="field">
-              <label for="toplineChuyDevices">CHUY Devices ($99 setup + $10/mo each)</label>
-              <input id="toplineChuyDevices" type="number" min="0" value="0" />
+          <!-- SpotOn Audio -->
+          <div style="margin-bottom:16px;">
+            <div style="font-weight:600; margin-bottom:8px;">SpotOn Audio</div>
+            <div class="modal-grid">
+              <div class="field">
+                <label for="toplineSpotOnSpots">Spots per Month ($1/spot/mo)</label>
+                <input id="toplineSpotOnSpots" type="number" min="0" value="0" />
+              </div>
             </div>
           </div>
 
-          <label style="display:flex;align-items:center;gap:10px;">
-            <input type="checkbox" id="toplineChuyDashboard" />
-            <span>CHUY Dashboard ($119/mo)</span>
-          </label>
+          <!-- SpotOn Video -->
+          <div style="margin-bottom:16px;">
+            <div style="font-weight:600; margin-bottom:8px;">SpotOn Video</div>
+            <div class="modal-grid">
+              <div class="field">
+                <label for="toplineVideos15">:15 Videos ($25/ea)</label>
+                <input id="toplineVideos15" type="number" min="0" value="0" />
+              </div>
+              <div class="field">
+                <label for="toplineVideos30">:30 Videos ($50/ea)</label>
+                <input id="toplineVideos30" type="number" min="0" value="0" />
+              </div>
+            </div>
+          </div>
+
+          <!-- CHUY -->
+          <div style="margin-bottom:16px;">
+            <div style="font-weight:600; margin-bottom:8px;">CHUY</div>
+            <div class="modal-grid" style="margin-bottom:12px;">
+              <div class="field">
+                <label for="toplineChuyLocations">Retail Locations ($99 setup + $10/mo each)</label>
+                <input id="toplineChuyLocations" type="number" min="0" value="0" />
+              </div>
+              <div class="field">
+                <label for="toplineChuyRetailers">Unique Retailers ($119/mo each)</label>
+                <input id="toplineChuyRetailers" type="number" min="0" value="0" />
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Cost Summary -->
@@ -3380,12 +3391,12 @@ document.addEventListener("click", async (e) => {
       crmIntegrationHours: 0,
       dataIntegrationHours: 0,
       // Add-ons
-      spotOnAudioEnabled: false,
+      spotOnAudioSpots: 0,  // Spots per month at $1/spot/mo
       videos15Count: 0,
       videos30Count: 0,
-      chuyDevices: 0,
-      chuyDashboardEnabled: false,
-      tvEnabled: false  // TV hard costs add-on
+      chuyLocations: 0,     // Retail locations ($99 setup + $10/mo)
+      chuyRetailers: 0,     // Unique retailers ($119/mo each)
+      tvEnabled: false      // TV hard costs add-on
     };
 
     /**********************
@@ -3446,15 +3457,13 @@ document.addEventListener("click", async (e) => {
       attributionAnnual: 5000,
       customServiceHourly: 300,
       customServiceMaintenance: 0.10, // 10% annual maintenance
-      spotOnAudioAnnual: 18000,
-      videoCreditsPerPackage: 300,
-      videoPackagePrice: 500,
-      video15Credits: 3,
-      video30Credits: 6,
-      chuyDeviceSetup: 99,
-      chuyDeviceMonthly: 10,
-      chuyDashboardMonthly: 119,
-      tvHardCostsAnnual: 4800  // TV hard costs
+      spotOnAudioPerSpotMonthly: 1,   // $1 per spot per month
+      video15Price: 25,               // $25 per :15 video
+      video30Price: 50,               // $50 per :30 video
+      chuyLocationSetup: 99,          // $99 setup per retail location
+      chuyLocationMonthly: 10,        // $10/mo per retail location
+      chuyRetailerMonthly: 119,       // $119/mo per unique retailer
+      tvHardCostsAnnual: 4800         // TV hard costs
     };
 
     function calculateTopLineCosts() {
@@ -3491,22 +3500,20 @@ document.addEventListener("click", async (e) => {
       // TV hard costs
       const tvAnnual = s.tvEnabled ? p.tvHardCostsAnnual * multiplier : 0;
 
-      // SpotOn Audio
-      const spotOnAnnual = s.spotOnAudioEnabled ? p.spotOnAudioAnnual * multiplier : 0;
+      // SpotOn Audio (per-spot pricing)
+      const spotOnAnnual = s.spotOnAudioSpots * p.spotOnAudioPerSpotMonthly * 12 * multiplier;
 
-      // Video credits
-      const totalCredits = (s.videos15Count * p.video15Credits) + (s.videos30Count * p.video30Credits);
-      const packagesNeeded = Math.ceil(totalCredits / p.videoCreditsPerPackage);
-      const videoAnnual = packagesNeeded * p.videoPackagePrice * multiplier;
+      // SpotOn Video (direct pricing)
+      const videoAnnual = ((s.videos15Count * p.video15Price) + (s.videos30Count * p.video30Price)) * 12 * multiplier;
 
-      // CHUY
-      const chuySetup = s.chuyDevices * p.chuyDeviceSetup * multiplier;
-      const chuyDeviceAnnual = s.chuyDevices * p.chuyDeviceMonthly * 12 * multiplier;
-      const chuyDashboardAnnual = s.chuyDashboardEnabled ? p.chuyDashboardMonthly * 12 * multiplier : 0;
+      // CHUY (Retail Locations and Unique Retailers)
+      const chuySetup = s.chuyLocations * p.chuyLocationSetup * multiplier;
+      const chuyLocationAnnual = s.chuyLocations * p.chuyLocationMonthly * 12 * multiplier;
+      const chuyRetailerAnnual = s.chuyRetailers * p.chuyRetailerMonthly * 12 * multiplier;
 
       // Totals
       const totalOneTime = customServicesOneTime + chuySetup;
-      const totalAnnual = baseSubtotal + attributionAnnual + customServicesMaintenance + tvAnnual + spotOnAnnual + videoAnnual + chuyDeviceAnnual + chuyDashboardAnnual;
+      const totalAnnual = baseSubtotal + attributionAnnual + customServicesMaintenance + tvAnnual + spotOnAnnual + videoAnnual + chuyLocationAnnual + chuyRetailerAnnual;
 
       return {
         baseAnnual,
@@ -3521,12 +3528,10 @@ document.addEventListener("click", async (e) => {
         customServicesOneTime,
         customServicesMaintenance,
         spotOnAnnual,
-        totalCredits,
-        packagesNeeded,
         videoAnnual,
         chuySetup,
-        chuyDeviceAnnual,
-        chuyDashboardAnnual,
+        chuyLocationAnnual,
+        chuyRetailerAnnual,
         totalOneTime,
         totalAnnual,
         totalMonthly: totalAnnual / 12
@@ -3536,7 +3541,7 @@ document.addEventListener("click", async (e) => {
     function getTopLineProductName() {
       const s = window.toplineState;
       let name = '';
-      if (s.tier === 'access') name = 'TopLine Access';
+      if (s.tier === 'access') name = 'TopLine - Base';
       else if (s.tier === 'enterprise') name = 'TopLine Enterprise';
       else if (s.tier === 'both') name = 'TopLine w/ Enterprise';
       if (s.attributionEnabled) name += ' w/ Attribution';
@@ -3561,7 +3566,7 @@ document.addEventListener("click", async (e) => {
         </div>
         <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(103,36,119,.18); font-size:12px; color:var(--muted);">
           <div><strong>Breakdown:</strong></div>
-          <div>Base (${window.toplineState.tier}): ${money(costs.baseSubtotal)}/yr</div>
+          <div>Base (${window.toplineState.tier === 'access' ? 'TopLine - Base' : window.toplineState.tier === 'enterprise' ? 'Enterprise' : 'Both'}): ${money(costs.baseSubtotal)}/yr</div>
       `;
 
       if (costs.attributionAnnual > 0) {
@@ -3571,16 +3576,16 @@ document.addEventListener("click", async (e) => {
         html += `<div>Custom Services: ${money(costs.customServicesOneTime)} one-time + ${money(costs.customServicesMaintenance)}/yr maint.</div>`;
       }
       if (costs.spotOnAnnual > 0) {
-        html += `<div>SpotOn Audio: ${money(costs.spotOnAnnual)}/yr</div>`;
+        html += `<div>SpotOn Audio (${window.toplineState.spotOnAudioSpots} spots/mo): ${money(costs.spotOnAnnual)}/yr</div>`;
       }
       if (costs.videoAnnual > 0) {
-        html += `<div>Video Credits (${costs.packagesNeeded} pkg): ${money(costs.videoAnnual)}/yr</div>`;
+        html += `<div>SpotOn Video: ${money(costs.videoAnnual)}/yr</div>`;
       }
-      if (costs.chuySetup > 0 || costs.chuyDeviceAnnual > 0) {
-        html += `<div>CHUY Devices: ${money(costs.chuySetup)} setup + ${money(costs.chuyDeviceAnnual)}/yr</div>`;
+      if (costs.chuySetup > 0 || costs.chuyLocationAnnual > 0) {
+        html += `<div>CHUY Locations: ${money(costs.chuySetup)} setup + ${money(costs.chuyLocationAnnual)}/yr</div>`;
       }
-      if (costs.chuyDashboardAnnual > 0) {
-        html += `<div>CHUY Dashboard: ${money(costs.chuyDashboardAnnual)}/yr</div>`;
+      if (costs.chuyRetailerAnnual > 0) {
+        html += `<div>CHUY Retailers: ${money(costs.chuyRetailerAnnual)}/yr</div>`;
       }
 
       html += '</div>';
@@ -3596,11 +3601,11 @@ document.addEventListener("click", async (e) => {
       const crmEl = el('toplineCrmHours');
       const dataIntEl = el('toplineDataIntHours');
       const tvEl = el('toplineTv');
-      const spotOnEl = el('toplineSpotOn');
+      const spotOnSpotsEl = el('toplineSpotOnSpots');
       const v15El = el('toplineVideos15');
       const v30El = el('toplineVideos30');
-      const chuyDevEl = el('toplineChuyDevices');
-      const chuyDashEl = el('toplineChuyDashboard');
+      const chuyLocEl = el('toplineChuyLocations');
+      const chuyRetEl = el('toplineChuyRetailers');
 
       if (!tierEl) return; // UI not present
 
@@ -3614,11 +3619,11 @@ document.addEventListener("click", async (e) => {
         s.crmIntegrationHours = Math.max(0, parseInt(crmEl.value) || 0);
         s.dataIntegrationHours = Math.max(0, parseInt(dataIntEl.value) || 0);
         s.tvEnabled = tvEl.checked;
-        s.spotOnAudioEnabled = spotOnEl.checked;
+        s.spotOnAudioSpots = Math.max(0, parseInt(spotOnSpotsEl.value) || 0);
         s.videos15Count = Math.max(0, parseInt(v15El.value) || 0);
         s.videos30Count = Math.max(0, parseInt(v30El.value) || 0);
-        s.chuyDevices = Math.max(0, parseInt(chuyDevEl.value) || 0);
-        s.chuyDashboardEnabled = chuyDashEl.checked;
+        s.chuyLocations = Math.max(0, parseInt(chuyLocEl.value) || 0);
+        s.chuyRetailers = Math.max(0, parseInt(chuyRetEl.value) || 0);
 
         updateTopLineSummary();
         window.updateProductSummary();
@@ -3635,19 +3640,19 @@ document.addEventListener("click", async (e) => {
         crmEl.value = s.crmIntegrationHours;
         dataIntEl.value = s.dataIntegrationHours;
         tvEl.checked = s.tvEnabled;
-        spotOnEl.checked = s.spotOnAudioEnabled;
+        spotOnSpotsEl.value = s.spotOnAudioSpots;
         v15El.value = s.videos15Count;
         v30El.value = s.videos30Count;
-        chuyDevEl.value = s.chuyDevices;
-        chuyDashEl.checked = s.chuyDashboardEnabled;
+        chuyLocEl.value = s.chuyLocations;
+        chuyRetEl.value = s.chuyRetailers;
         updateTopLineSummary();
       };
 
       // Wire up events
-      [tierEl, usersEl, accountsEl, dataSetEl, crmEl, dataIntEl, v15El, v30El, chuyDevEl].forEach(inp => {
+      [tierEl, usersEl, accountsEl, dataSetEl, crmEl, dataIntEl, spotOnSpotsEl, v15El, v30El, chuyLocEl, chuyRetEl].forEach(inp => {
         if (inp) inp.addEventListener('change', syncState);
       });
-      [attrEl, tvEl, spotOnEl, chuyDashEl].forEach(cb => {
+      [attrEl, tvEl].forEach(cb => {
         if (cb) cb.addEventListener('change', syncState);
       });
 
