@@ -897,16 +897,16 @@
       <section class="card">
         <div class="title" id="productsStepTitle">Step 5: Select Products & Pricing</div>
 
-        <div class="row" style="margin-bottom:12px;">
+        <div class="row" style="margin-bottom:12px;" id="pricingTypeRow">
           <label style="display:flex;align-items:center;gap:8px;">
             <input type="radio" name="pricingType" value="cash" checked>
             <span>Cash</span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;" id="barterPricingOption">
             <input type="radio" name="pricingType" value="barter">
             <span>Barter</span>
           </label>
-          <label style="display:flex;align-items:center;gap:8px;">
+          <label style="display:flex;align-items:center;gap:8px;" id="mixedPricingOption">
             <input type="radio" name="pricingType" value="mixed">
             <span>Mixed (Cash + Barter)</span>
           </label>
@@ -979,13 +979,28 @@
           <label style="display:flex;align-items:center;gap:10px;">
             <input type="checkbox" id="toplineAttribution" />
             <span>Attribution Add-on ($5K/yr)</span>
-            <span class="muted" style="font-size:11px;">Includes SimilarWeb, Unicast</span>
           </label>
+          <div class="muted" style="font-size:11px; margin-top:8px;">Add-on includes web, search, social, and foot traffic summaries and data. Datasets from SimilarWeb and Unicast.</div>
         </div>
 
-        <!-- Custom Services -->
+        <!-- CHUY (moved directly after Attribution) -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">3. Integration Services</div>
+          <div style="font-weight:700; margin-bottom:10px;">3. CHUY</div>
+          <div class="modal-grid">
+            <div class="field">
+              <label for="toplineChuyLocations">Retail Locations ($99 setup + $10/mo each)</label>
+              <input id="toplineChuyLocations" type="number" min="0" value="0" />
+            </div>
+            <div class="field">
+              <label for="toplineChuyRetailers">Unique Retailers ($119/mo each)</label>
+              <input id="toplineChuyRetailers" type="number" min="0" value="0" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Integration Services -->
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">4. Integration Services</div>
           <div class="modal-grid">
             <div class="field">
               <label for="toplineDataSets">Additional Data Sets ($1,000 each)</label>
@@ -1001,7 +1016,7 @@
 
         <!-- Add-ons -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">4. Add-ons</div>
+          <div style="font-weight:700; margin-bottom:10px;">5. Add-ons</div>
 
           <!-- SpotOn Audio -->
           <div style="margin-bottom:16px;">
@@ -1028,21 +1043,6 @@
               </div>
             </div>
           </div>
-
-          <!-- CHUY -->
-          <div style="margin-bottom:16px;">
-            <div style="font-weight:600; margin-bottom:8px;">CHUY</div>
-            <div class="modal-grid" style="margin-bottom:12px;">
-              <div class="field">
-                <label for="toplineChuyLocations">Retail Locations ($99 setup + $10/mo each)</label>
-                <input id="toplineChuyLocations" type="number" min="0" value="0" />
-              </div>
-              <div class="field">
-                <label for="toplineChuyRetailers">Unique Retailers ($119/mo each)</label>
-                <input id="toplineChuyRetailers" type="number" min="0" value="0" />
-              </div>
-            </div>
-          </div>
         </div>
 
         <!-- Cost Summary -->
@@ -1057,16 +1057,11 @@
       <!-- Content Automation Configuration -->
       <section class="card hidden" id="contentAutomationConfigSection">
         <div class="title">Content Automation Configuration</div>
-        <div class="muted" style="margin-bottom:12px;">Configure your Content Automation tier below.</div>
+        <div class="muted" style="margin-bottom:12px;">Select your Content Automation tier below.</div>
 
-        <!-- Enable/Tier Selection -->
+        <!-- Tier Selection (no toggle - selecting the product enables it) -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <label style="display:flex;align-items:center;gap:10px; margin-bottom:12px;">
-            <input type="checkbox" id="contentAutomationEnabled" />
-            <span style="font-weight:700;">Enable Content Automation</span>
-          </label>
-
-          <div id="contentAutomationTierSection" class="hidden">
+          <div id="contentAutomationTierSection">
             <div class="field" style="margin-bottom:12px;">
               <label for="contentAutomationTier">Select Tier</label>
               <select id="contentAutomationTier">
@@ -1354,6 +1349,12 @@
           </div>
           <div id="proposalTable" style="overflow-x:auto;"></div>
         </div>
+      </section>
+
+      <!-- Notes Field -->
+      <section class="card">
+        <div class="title">Notes</div>
+        <textarea id="dealNotes" placeholder="Add deal context, special terms, or notes here..." style="width:100%; min-height:100px; resize:vertical; padding:12px; border:1px solid var(--input-edge); border-radius:14px; background:var(--input); color:var(--text); font-family:inherit; font-size:14px;"></textarea>
       </section>
 
       <section class="card">
@@ -2156,6 +2157,8 @@ function buildDealPayload(){
     parent: window.state?.parent || "",
     markets: Array.from(window.state?.markets || []),
     stations: Array.from(window.state?.stations || []),
+    dealType: window.state?.dealType || "broadcast",
+    customerName: window.state?.customerName || "",
 
     pricingType: window.productState?.pricingType || "cash",
     products: Array.from(window.productState?.selectedProducts || []),
@@ -2180,6 +2183,9 @@ function buildDealPayload(){
     faaiConfig: { ...window.faaiState },
 
     dealMeta: { ...dealMetaState },
+
+    // Notes field
+    notes: el("dealNotes")?.value || "",
 
     // include the active Nielsen book id so saved deals can be re-linked
     nielsenBookId: (window._activeNielsenId || (getStoredNielsenBooks()._defaultId || null)),
@@ -2300,6 +2306,27 @@ function loadDeal(payload){
   window.state.parent = payload.parent || "";
   window.state.markets = new Set(payload.markets || []);
   window.state.stations = new Set(payload.stations || []);
+  window.state.dealType = payload.dealType || "broadcast";
+  window.state.customerName = payload.customerName || "";
+
+  // Restore deal type toggle
+  const dealTypeBroadcast = el("dealTypeBroadcast");
+  const dealTypeAgency = el("dealTypeAgency");
+  if (dealTypeBroadcast && dealTypeAgency) {
+    if (window.state.dealType === "agency") {
+      dealTypeAgency.checked = true;
+      dealTypeBroadcast.checked = false;
+    } else {
+      dealTypeBroadcast.checked = true;
+      dealTypeAgency.checked = false;
+    }
+    // Trigger change event to update UI
+    (window.state.dealType === "agency" ? dealTypeAgency : dealTypeBroadcast).dispatchEvent(new Event("change"));
+  }
+
+  // Restore customer name for agency deals
+  const customerNameInput = el("agencyCustomerName");
+  if (customerNameInput) customerNameInput.value = window.state.customerName;
 
   window.productState.pricingType = payload.pricingType || "cash";
   window.productState.selectedProducts = new Set(payload.products || []);
@@ -2372,6 +2399,10 @@ function loadDeal(payload){
     el("proposalOutput")?.classList.remove("hidden");
     if (el("proposalTable")) el("proposalTable").innerHTML = payload.proposalHTML;
   }
+
+  // Restore notes
+  const notesEl = el("dealNotes");
+  if (notesEl) notesEl.value = payload.notes || "";
 
   alert("Deal Loaded (Radio view).");
 }
@@ -3867,21 +3898,15 @@ document.addEventListener("click", async (e) => {
     }
 
     function wireContentAutomationUI() {
-      const enabledEl = el('contentAutomationEnabled');
       const tierEl = el('contentAutomationTier');
-      const tierSectionEl = el('contentAutomationTierSection');
 
-      if (!enabledEl) return;
+      if (!tierEl) return;
 
       const syncState = () => {
         const s = window.contentAutomationState;
-        s.enabled = enabledEl.checked;
-        s.tier = tierEl ? tierEl.value : 'xs';
-
-        // Show/hide tier section
-        if (tierSectionEl) {
-          tierSectionEl.classList.toggle('hidden', !s.enabled);
-        }
+        // Auto-enabled when product is selected (no checkbox anymore)
+        s.enabled = true;
+        s.tier = tierEl.value || 'xs';
 
         updateContentAutomationSummary();
         window.updateProductSummary();
@@ -3889,20 +3914,13 @@ document.addEventListener("click", async (e) => {
 
       const applyStateToUI = () => {
         const s = window.contentAutomationState;
-        enabledEl.checked = s.enabled;
         if (tierEl) tierEl.value = s.tier;
-        if (tierSectionEl) {
-          tierSectionEl.classList.toggle('hidden', !s.enabled);
-        }
         updateContentAutomationSummary();
       };
 
-      // Wire up events
-      enabledEl.addEventListener('change', syncState);
-      if (tierEl) {
-        tierEl.addEventListener('change', syncState);
-        tierEl.addEventListener('input', syncState);
-      }
+      // Wire up tier selection events
+      tierEl.addEventListener('change', syncState);
+      tierEl.addEventListener('input', syncState);
 
       // Initial state apply
       applyStateToUI();
@@ -3915,7 +3933,14 @@ document.addEventListener("click", async (e) => {
       const section = el('contentAutomationConfigSection');
       if (section) {
         section.classList.toggle('hidden', !show);
-        if (show) updateContentAutomationSummary();
+        if (show) {
+          // Auto-enable when showing (selecting product = enabling it)
+          window.contentAutomationState.enabled = true;
+          updateContentAutomationSummary();
+        } else {
+          // Disable when hiding (deselecting product)
+          window.contentAutomationState.enabled = false;
+        }
       }
     }
 
@@ -5078,6 +5103,8 @@ document.addEventListener("click", async (e) => {
       const agencySection = el('agencyCustomerSection');
       const customerNameInput = el('agencyCustomerName');
       const productsTitle = el('productsStepTitle');
+      const barterOption = el('barterPricingOption');
+      const mixedOption = el('mixedPricingOption');
 
       if (!broadcastRadio || !agencyRadio) return;
 
@@ -5090,11 +5117,17 @@ document.addEventListener("click", async (e) => {
           if (broadcastSections) broadcastSections.classList.remove('hidden');
           if (agencySection) agencySection.classList.add('hidden');
           if (productsTitle) productsTitle.textContent = 'Step 5: Select Products & Pricing';
+          // Show barter and mixed options for broadcast deals
+          if (barterOption) barterOption.classList.remove('hidden');
+          if (mixedOption) mixedOption.classList.remove('hidden');
         } else {
           // Hide broadcast sections, show agency section
           if (broadcastSections) broadcastSections.classList.add('hidden');
           if (agencySection) agencySection.classList.remove('hidden');
           if (productsTitle) productsTitle.textContent = 'Select Products & Pricing';
+          // Hide barter and mixed options for agency deals
+          if (barterOption) barterOption.classList.add('hidden');
+          if (mixedOption) mixedOption.classList.add('hidden');
           // Default to cash pricing for agency deals
           const cashRadio = document.querySelector('input[name="pricingType"][value="cash"]');
           if (cashRadio) {
