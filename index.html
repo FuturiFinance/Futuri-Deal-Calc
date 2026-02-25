@@ -790,8 +790,34 @@
       <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
       </div>
 
-      <section class="card">
-        <div class="title">Step 1: Select Parent Company</div>
+      <!-- Deal Type Toggle -->
+      <section class="card" style="margin-bottom:16px;">
+        <div class="title">Deal Type</div>
+        <div class="row" style="gap:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="dealType" value="broadcast" id="dealTypeBroadcast" checked />
+            <span style="font-weight:600;">Broadcast</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="dealType" value="agency" id="dealTypeAgency" />
+            <span style="font-weight:600;">Agency/Other</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Agency/Other Customer Name (hidden by default) -->
+      <section class="card hidden" id="agencyCustomerSection">
+        <div class="title">Customer Information</div>
+        <div class="field">
+          <label for="agencyCustomerName">Customer Name <span class="req">*</span></label>
+          <input id="agencyCustomerName" type="text" placeholder="Enter customer name..." />
+        </div>
+      </section>
+
+      <!-- Broadcast Sections (Parent/Market/Station) -->
+      <div id="broadcastSections">
+        <section class="card">
+          <div class="title">Step 1: Select Parent Company</div>
         <input id="parentSearch" type="text" placeholder="Search parent companies..." />
         <div class="row" style="gap:8px;align-items:center;margin-top:8px;">
           <button class="btn" id="btnAddCompany" type="button">Add Company</button>
@@ -866,9 +892,10 @@
           <div class="pill">Total ROS AQH: <span id="rosSum">0</span></div>
         </div>
       </section>
+      </div><!-- End broadcastSections -->
 
       <section class="card">
-        <div class="title">Step 5: Select Products & Pricing</div>
+        <div class="title" id="productsStepTitle">Step 5: Select Products & Pricing</div>
 
         <div class="row" style="margin-bottom:12px;">
           <label style="display:flex;align-items:center;gap:8px;">
@@ -3416,7 +3443,13 @@ document.addEventListener("click", async (e) => {
       stationsByParentMarket: new Map(),
     };
 
-    window.state = { parent: '', markets: new Set(), stations: new Set() };
+    window.state = {
+      parent: '',
+      markets: new Set(),
+      stations: new Set(),
+      dealType: 'broadcast',  // 'broadcast' or 'agency'
+      customerName: ''        // Used for agency/other deals
+    };
 
     // Fallback products if rate card fails to load (Barter = Cash × 1.4)
     window.PRODUCTS_FALLBACK = [
@@ -3425,16 +3458,17 @@ document.addEventListener("click", async (e) => {
       { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1050, industry: 'Radio/TV', note: 'up to 750 spots a month' },
       { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV' },
-      { id: 'instant_video', name: 'IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV' },
+      { id: 'instant_video', name: 'TopicPulse IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV' },
       { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1750, industry: 'Radio/TV' },
       { id: 'topicpulse_community_radar_fb', name: 'TopicPulse Community Radar (FB Groups)', cash: null, barter: null, industry: 'Radio/TV', note: '$50/group' },
       { id: 'topicpulse_community_radar_nextdoor', name: 'TopicPulse Community Radar (Next Door)', cash: 150, barter: 210, industry: 'Radio/TV' },
+      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 700, industry: 'Radio/TV' },
+      { id: 'content_automation', name: 'Content Automation', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'faai', name: 'FAAI', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'post', name: 'POST', cash: 1000, barter: 1400, industry: 'Radio/TV' },
       { id: 'streaming', name: 'Streaming', cash: 300, barter: 420, industry: 'Radio/TV' },
       { id: 'mobile', name: 'Mobile', cash: 500, barter: 700, industry: 'Radio/TV' },
-      { id: 'ldr', name: 'LDR', cash: 500, barter: 700, industry: 'Radio/TV' },
-      { id: 'prep_plus', name: 'Prep+', cash: 500, barter: 700, industry: 'Radio/TV' }
+      { id: 'ldr', name: 'LDR', cash: 500, barter: 700, industry: 'Radio/TV' }
     ];
     window.PRODUCTS = [...window.PRODUCTS_FALLBACK];
 
@@ -5035,6 +5069,56 @@ document.addEventListener("click", async (e) => {
         }
       );
     };
+
+    // Deal Type toggle wiring
+    function wireDealTypeToggle() {
+      const broadcastRadio = el('dealTypeBroadcast');
+      const agencyRadio = el('dealTypeAgency');
+      const broadcastSections = el('broadcastSections');
+      const agencySection = el('agencyCustomerSection');
+      const customerNameInput = el('agencyCustomerName');
+      const productsTitle = el('productsStepTitle');
+
+      if (!broadcastRadio || !agencyRadio) return;
+
+      const updateDealType = () => {
+        const dealType = broadcastRadio.checked ? 'broadcast' : 'agency';
+        window.state.dealType = dealType;
+
+        if (dealType === 'broadcast') {
+          // Show broadcast sections, hide agency section
+          if (broadcastSections) broadcastSections.classList.remove('hidden');
+          if (agencySection) agencySection.classList.add('hidden');
+          if (productsTitle) productsTitle.textContent = 'Step 5: Select Products & Pricing';
+        } else {
+          // Hide broadcast sections, show agency section
+          if (broadcastSections) broadcastSections.classList.add('hidden');
+          if (agencySection) agencySection.classList.remove('hidden');
+          if (productsTitle) productsTitle.textContent = 'Select Products & Pricing';
+          // Default to cash pricing for agency deals
+          const cashRadio = document.querySelector('input[name="pricingType"][value="cash"]');
+          if (cashRadio) {
+            cashRadio.checked = true;
+            window.productState.pricingType = 'cash';
+            window.updateProductSummary();
+          }
+        }
+      };
+
+      broadcastRadio.addEventListener('change', updateDealType);
+      agencyRadio.addEventListener('change', updateDealType);
+
+      // Customer name input
+      if (customerNameInput) {
+        customerNameInput.addEventListener('input', () => {
+          window.state.customerName = customerNameInput.value;
+        });
+      }
+
+      // Initial state
+      updateDealType();
+    }
+    wireDealTypeToggle();
 
     // TopLine configuration UI wiring
     wireTopLineUI();
