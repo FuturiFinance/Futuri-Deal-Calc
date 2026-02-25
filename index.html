@@ -3651,9 +3651,12 @@ document.addEventListener("click", async (e) => {
         updateTopLineSummary();
       };
 
-      // Wire up events
+      // Wire up events (both 'change' and 'input' for real-time updates)
       [tierEl, marketsEl, usersEl, accountsEl, dataSetsEl, crmEl, spotOnSpotsEl, v15El, v30El, chuyLocEl, chuyRetEl].forEach(inp => {
-        if (inp) inp.addEventListener('change', syncState);
+        if (inp) {
+          inp.addEventListener('change', syncState);
+          inp.addEventListener('input', syncState);
+        }
       });
       [attrEl, tvEl].forEach(cb => {
         if (cb) cb.addEventListener('change', syncState);
@@ -5869,6 +5872,11 @@ window.generateProposal = function generateProposal() {
     annualAllStationsProposal += faaiCosts.annualCost;
   }
 
+  // Calculate total monthly recurring cost (for Cash/Station/Month display)
+  // This is the full annual cost divided by 12, divided by number of stations
+  const totalMonthlyRecurring = annualAllStationsProposal / 12;
+  const monthlyPerStationTotal = stations.length > 0 ? totalMonthlyRecurring / stations.length : 0;
+
   // Mixed cash inputs are MONTHLY per station (UI accepts monthly values)
   let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
@@ -5954,8 +5962,8 @@ window.generateProposal = function generateProposal() {
           // Mixed: user-entered MONTHLY cash per station
           ? (window.productState.stationCashValues.get(st.key) || 0)
           : (pricingType === 'cash')
-            // Cash: monthly product value per station
-            ? monthlyPerStationProposal
+            // Cash: total monthly cost divided by stations
+            ? monthlyPerStationTotal
             : null;
 
       const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
