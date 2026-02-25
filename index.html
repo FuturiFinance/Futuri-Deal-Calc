@@ -4993,9 +4993,15 @@ document.addEventListener("click", async (e) => {
     el('productCount').textContent = String(productCount);
     el('totalValue').textContent = Math.round(totalMonthlyAllStations).toLocaleString();
 
-    // Show proposal section only if both stations & products exist
+    // Show proposal section based on deal type:
+    // - Broadcast: needs both stations AND products
+    // - Agency/Other: needs only products (no stations required)
     const proposalSection = el('proposalSection');
-    if (productCount > 0 && numStations > 0) proposalSection.classList.remove('hidden');
+    const dealType = window.state?.dealType || 'broadcast';
+    const showProposal = (dealType === 'agency')
+      ? (productCount > 0)
+      : (productCount > 0 && numStations > 0);
+    if (showProposal) proposalSection.classList.remove('hidden');
     else proposalSection.classList.add('hidden');
 
     // CPM visible for barter/mixed only
@@ -6191,13 +6197,21 @@ function computeBarterAllocation(monthlyRemainingValue) {
 window.generateProposal = function generateProposal() {
   if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
+  const dealType = window.state?.dealType || 'broadcast';
+  const isAgencyDeal = (dealType === 'agency');
   const stations = getSelectedStationsDetailed();
   const products = getSelectedProductsDetailed(); // used only for list of selected items
   const pricingType = window.productState.pricingType;
 
-  if (!window.state.parent) return alert("Select a parent company first.");
-  if (!stations.length) return alert("Select at least one station.");
-  if (!products.length) return alert("Select at least one product.");
+  // Validation based on deal type
+  if (isAgencyDeal) {
+    if (!window.state.customerName?.trim()) return alert("Enter a customer name first.");
+    if (!products.length) return alert("Select at least one product.");
+  } else {
+    if (!window.state.parent) return alert("Select a parent company first.");
+    if (!stations.length) return alert("Select at least one station.");
+    if (!products.length) return alert("Select at least one product.");
+  }
 
   // Deal terms (prevent default Nielsen display unless explicitly set)
   const termMonths = dealMetaState.termMonths || 36;
@@ -6213,8 +6227,13 @@ window.generateProposal = function generateProposal() {
   // - For barter, uses barter rates (existing behavior)
   // - For cash-only, uses cash rates
   const monthlyPerStationProposal = computeProposalMonthlyPerStation(pricingType);
-  const monthlyAllStationsProposal = monthlyPerStationProposal * stations.length;
-  let annualAllStationsProposal  = monthlyAllStationsProposal * 12;
+
+  // For Agency deals, use the monthly value directly (no station multiplication)
+  // For Broadcast deals, multiply by number of stations
+  const monthlyAllStationsProposal = isAgencyDeal
+    ? monthlyPerStationProposal
+    : monthlyPerStationProposal * stations.length;
+  let annualAllStationsProposal = monthlyAllStationsProposal * 12;
 
   // Check for TopLine selection and calculate costs
   const toplineSelected = window.productState.selectedProducts.has('topline');
@@ -6303,11 +6322,16 @@ window.generateProposal = function generateProposal() {
   // Build horizontal 1–5 table
   const lines = [];
   lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
-  lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
-  lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+  if (isAgencyDeal) {
+    lines.push(`<span class="pill">Customer: <span>${window.state.customerName || 'N/A'}</span></span>`);
+    lines.push(`<span class="pill">Deal Type: <span>Agency/Other</span></span>`);
+  } else {
+    lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
+    lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+  }
   lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
   lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStationsProposal)}</span></span>`);
-  if (pricingType === 'mixed') {
+  if (pricingType === 'mixed' && !isAgencyDeal) {
     lines.push(`<span class="pill">Cash (Monthly): <span>${money(totalCashMonthly)}</span>/mo</span>`);
     lines.push(`<span class="pill">Barter Remaining (Annual): <span>${money(remainingAnnual)}</span></span>`);
   }
@@ -6324,54 +6348,57 @@ window.generateProposal = function generateProposal() {
   lines.push(`</div>`);
   lines.push(`</div>`);
 
-  lines.push(`<div class="subtle-divider"></div>`);
-  lines.push(`<div class="title" style="margin-bottom:6px;">Proposal</div>`);
-  lines.push(`<div style="overflow-x:auto;">`);
-  lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-  lines.push(`<thead><tr>
-    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
-    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
-    <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product(s)</th>
-    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">${showCashCol ? "Cash / Station / Month" : "Cash / Station / Month"}</th>
-    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime / Day</th>
-    <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS / Day</th>
-  </tr></thead>`);
-  lines.push(`<tbody>`);
+  // Station table - only for Broadcast deals
+  if (!isAgencyDeal && stations.length > 0) {
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Station Breakdown</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product(s)</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">${showCashCol ? "Cash / Station / Month" : "Cash / Station / Month"}</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime / Day</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS / Day</th>
+    </tr></thead>`);
+    lines.push(`<tbody>`);
 
-  // One row per station (horizontal view)
-  stations
-    .slice()
-    .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
-    .forEach(st => {
-      const cashMonthlyForStation =
-        (pricingType === 'mixed')
-          // Mixed: user-entered MONTHLY cash per station
-          ? (window.productState.stationCashValues.get(st.key) || 0)
-          : (pricingType === 'cash')
-            // Cash: total monthly cost divided by stations
-            ? monthlyPerStationTotal
-            : null;
+    // One row per station (horizontal view)
+    stations
+      .slice()
+      .sort((a,b)=> (a.market||"").localeCompare(b.market||"") || (a.station||"").localeCompare(b.station||""))
+      .forEach(st => {
+        const cashMonthlyForStation =
+          (pricingType === 'mixed')
+            // Mixed: user-entered MONTHLY cash per station
+            ? (window.productState.stationCashValues.get(st.key) || 0)
+            : (pricingType === 'cash')
+              // Cash: total monthly cost divided by stations
+              ? monthlyPerStationTotal
+              : null;
 
-      const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
+        const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
 
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${productNames}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${showCashCol ? (cashMonthlyForStation != null ? (money(cashMonthlyForStation) + '/mo') : '—') : "—"}
-        </td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.primePerDay) : "—"}
-        </td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-          ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.rosPerDay) : "—"}
-        </td>
-      </tr>`);
-    });
+        lines.push(`<tr>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${productNames}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+            ${showCashCol ? (cashMonthlyForStation != null ? (money(cashMonthlyForStation) + '/mo') : '—') : "—"}
+          </td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+            ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.primePerDay) : "—"}
+          </td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
+            ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.rosPerDay) : "—"}
+          </td>
+        </tr>`);
+      });
 
-  lines.push(`</tbody></table>`);
-  lines.push(`</div>`);
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
 
   // TopLine section if selected
   if (toplineSelected && toplineCosts) {
@@ -6635,6 +6662,76 @@ window.generateProposal = function generateProposal() {
     lines.push(`</tbody></table>`);
     lines.push(`</div>`);
   }
+
+  // Standard Products section - show all other selected products with rates
+  // Products: topline_cx_war_room, spoton_audio (standalone), topicpulse, instant_video, topicpulse_iv,
+  // topicpulse_community_radar_nextdoor, prep_plus, post, streaming, mobile, ldr
+  const standardProductIds = [
+    'topline_cx_war_room', 'spoton_audio', 'topicpulse', 'instant_video', 'topicpulse_iv',
+    'topicpulse_community_radar_nextdoor', 'prep_plus', 'post', 'streaming', 'mobile', 'ldr'
+  ];
+
+  const selectedStandardProducts = products.filter(p => standardProductIds.includes(p.id));
+
+  if (selectedStandardProducts.length > 0) {
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Additional Products</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    let standardProductsTotal = 0;
+    selectedStandardProducts.forEach(p => {
+      const rate = (pricingType === 'cash' || p.cashOnly) ? p.cash : p.barter;
+      if (rate && rate > 0) {
+        const annual = rate * 12;
+        standardProductsTotal += annual;
+        lines.push(`<tr>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${p.name}</strong>${p.note ? `<br><span style="font-size:11px;color:var(--muted);">${p.note}</span>` : ''}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(rate)}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(annual)}</td>
+        </tr>`);
+      }
+    });
+
+    // Subtotal row for standard products
+    if (standardProductsTotal > 0) {
+      lines.push(`<tr style="background:rgba(103,36,119,.06);">
+        <td style="padding:8px;"><strong>Additional Products Total</strong></td>
+        <td style="padding:8px; text-align:right;"><strong>${money(standardProductsTotal / 12)}</strong></td>
+        <td style="padding:8px; text-align:right;"><strong>${money(standardProductsTotal)}</strong></td>
+      </tr>`);
+    }
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
+  // Grand Total section
+  let grandTotalOneTime = 0;
+  let grandTotalAnnual = annualAllStationsProposal;
+
+  // Add one-time fees from TopLine if applicable
+  if (toplineSelected && toplineCosts) {
+    grandTotalOneTime += toplineCosts.totalOneTime;
+  }
+
+  lines.push(`<div class="subtle-divider"></div>`);
+  lines.push(`<div style="padding:12px; background:rgba(103,36,119,.12); border:1px solid rgba(103,36,119,.25); border-radius:14px;">`);
+  lines.push(`<div class="title" style="margin-bottom:6px;">Grand Total</div>`);
+  lines.push(`<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; text-align:center;">`);
+  if (grandTotalOneTime > 0) {
+    lines.push(`<div><div class="muted" style="font-size:11px;">One-Time Fees</div><strong style="font-size:18px;">${money(grandTotalOneTime)}</strong></div>`);
+  }
+  lines.push(`<div><div class="muted" style="font-size:11px;">Annual Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
+  lines.push(`<div><div class="muted" style="font-size:11px;">Monthly Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
+  lines.push(`</div>`);
+  lines.push(`</div>`);
 
   // Proposal mode badge
   const modeBadge = el('proposalMode');
