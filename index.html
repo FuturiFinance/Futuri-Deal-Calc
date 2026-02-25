@@ -1027,6 +1027,82 @@
         </div>
       </section>
 
+      <!-- Content Automation Configuration -->
+      <section class="card hidden" id="contentAutomationConfigSection">
+        <div class="title">Content Automation Configuration</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your Content Automation tier below.</div>
+
+        <!-- Enable/Tier Selection -->
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <label style="display:flex;align-items:center;gap:10px; margin-bottom:12px;">
+            <input type="checkbox" id="contentAutomationEnabled" />
+            <span style="font-weight:700;">Enable Content Automation</span>
+          </label>
+
+          <div id="contentAutomationTierSection" class="hidden">
+            <div class="field" style="margin-bottom:12px;">
+              <label for="contentAutomationTier">Select Tier</label>
+              <select id="contentAutomationTier">
+                <option value="xs">XS — 5,000 credits/mo — $6,500/mo ($1.30/credit)</option>
+                <option value="small">Small — 10,000 credits/mo — $12,000/mo ($1.20/credit)</option>
+                <option value="medium">Medium — 15,000 credits/mo — $16,500/mo ($1.10/credit)</option>
+                <option value="large">Large — 20,000 credits/mo — $19,000/mo ($0.95/credit)</option>
+                <option value="xl">XL — 50,000 credits/mo — $40,000/mo ($0.80/credit)</option>
+              </select>
+            </div>
+
+            <!-- Selected Tier Summary -->
+            <div id="contentAutomationTierSummary" style="padding:10px; background:rgba(103,36,119,.06); border-radius:8px; margin-bottom:16px;">
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; font-size:13px;">
+                <div><strong>Credits/Month:</strong> <span id="caTierCredits">5,000</span></div>
+                <div><strong>Monthly Cost:</strong> <span id="caTierMonthly">$6,500</span></div>
+                <div><strong>Cost/Credit:</strong> <span id="caTierCostPerCredit">$1.30</span></div>
+              </div>
+            </div>
+
+            <!-- Credit Usage Reference Table -->
+            <div style="margin-top:12px;">
+              <div style="font-weight:600; margin-bottom:8px; color:var(--muted);">Credit Usage by Workflow (Reference)</div>
+              <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px; color:var(--muted);">
+                  <thead>
+                    <tr style="background:var(--surface-2);">
+                      <th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--edge);">Workflow</th>
+                      <th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--edge);">Unit</th>
+                      <th style="text-align:right; padding:6px 8px; border-bottom:1px solid var(--edge);">Credits</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><td style="padding:4px 8px;">Press Release → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                    <tr><td style="padding:4px 8px;">News Package (A/V) → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                    <tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
+                    <tr><td style="padding:4px 8px;">Press Conference → Notable Clips</td><td style="padding:4px 8px;">per source video</td><td style="padding:4px 8px; text-align:right;">10</td></tr>
+                    <tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                    <tr><td style="padding:4px 8px;">Apply Graphic Template to Video</td><td style="padding:4px 8px;">per output minute</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                    <tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">5</td></tr>
+                    <tr><td style="padding:4px 8px;">Newscast → Segment Slicing</td><td style="padding:4px 8px;">per newscast</td><td style="padding:4px 8px; text-align:right;">15</td></tr>
+                    <tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute per format</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Summary -->
+        <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div id="contentAutomationCostSummary" style="font-size:13px;">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div><strong>Monthly Cost:</strong></div>
+              <div style="text-align:right;" id="caMonthlyCost">$0</div>
+              <div><strong>Annual Cost:</strong></div>
+              <div style="text-align:right;" id="caAnnualCost">$0</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- SpotOn Video Configuration -->
       <section class="card hidden" id="spotonVideoConfigSection">
         <div class="title">SpotOn Video Configuration</div>
@@ -2064,6 +2140,9 @@ function buildDealPayload(){
     // TopLine configuration
     toplineConfig: { ...window.toplineState },
 
+    // Content Automation configuration
+    contentAutomationConfig: { ...window.contentAutomationState },
+
     // SpotOn Video configuration
     spotonVideoConfig: { ...window.spotonVideoState },
 
@@ -2208,6 +2287,14 @@ function loadDeal(payload){
   }
   setTimeout(() => {
     if (typeof window.applyTopLineStateToUI === "function") window.applyTopLineStateToUI();
+  }, 0);
+
+  // Restore Content Automation configuration
+  if (payload.contentAutomationConfig && typeof payload.contentAutomationConfig === "object") {
+    Object.assign(window.contentAutomationState, payload.contentAutomationConfig);
+  }
+  setTimeout(() => {
+    if (typeof window.applyContentAutomationStateToUI === "function") window.applyContentAutomationStateToUI();
   }, 0);
 
   // Restore SpotOn Video configuration
@@ -3447,6 +3534,25 @@ document.addEventListener("click", async (e) => {
       daysPerMonth: 30
     };
 
+    /**********************
+     * Content Automation Configuration State
+     **********************/
+    window.contentAutomationState = {
+      enabled: false,
+      tier: 'xs'  // 'xs', 'small', 'medium', 'large', 'xl'
+    };
+
+    // Content Automation pricing constants
+    const CONTENT_AUTOMATION_PRICING = {
+      tiers: {
+        xs:     { name: 'XS',     credits: 5000,  monthly: 6500,  costPerCredit: 1.30 },
+        small:  { name: 'Small',  credits: 10000, monthly: 12000, costPerCredit: 1.20 },
+        medium: { name: 'Medium', credits: 15000, monthly: 16500, costPerCredit: 1.10 },
+        large:  { name: 'Large',  credits: 20000, monthly: 19000, costPerCredit: 0.95 },
+        xl:     { name: 'XL',     credits: 50000, monthly: 40000, costPerCredit: 0.80 }
+      }
+    };
+
     // TopLine pricing constants
     const TOPLINE_PRICING = {
       tierPrices: { access: 42000, enterprise: 30000, both: 72000 },
@@ -3674,6 +3780,108 @@ document.addEventListener("click", async (e) => {
       if (section) {
         section.classList.toggle('hidden', !show);
         if (show) updateTopLineSummary();
+      }
+    }
+
+    /**********************
+     * Content Automation Configuration Functions
+     **********************/
+    function calculateContentAutomationCosts() {
+      const s = window.contentAutomationState;
+      const pricing = CONTENT_AUTOMATION_PRICING;
+      const pricingType = window.productState.pricingType;
+      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+
+      if (!s.enabled) {
+        return { enabled: false, tier: null, credits: 0, monthlyCost: 0, annualCost: 0, costPerCredit: 0 };
+      }
+
+      const tierData = pricing.tiers[s.tier] || pricing.tiers.xs;
+      const monthlyCost = tierData.monthly * multiplier;
+
+      return {
+        enabled: true,
+        tier: s.tier,
+        tierName: tierData.name,
+        credits: tierData.credits,
+        monthlyCost,
+        annualCost: monthlyCost * 12,
+        costPerCredit: tierData.costPerCredit
+      };
+    }
+
+    function updateContentAutomationSummary() {
+      const costs = calculateContentAutomationCosts();
+      const pricing = CONTENT_AUTOMATION_PRICING;
+      const tierData = pricing.tiers[window.contentAutomationState.tier] || pricing.tiers.xs;
+
+      // Update tier summary
+      const creditsEl = el('caTierCredits');
+      const monthlyEl = el('caTierMonthly');
+      const costPerCreditEl = el('caTierCostPerCredit');
+
+      if (creditsEl) creditsEl.textContent = tierData.credits.toLocaleString();
+      if (monthlyEl) monthlyEl.textContent = '$' + tierData.monthly.toLocaleString();
+      if (costPerCreditEl) costPerCreditEl.textContent = '$' + tierData.costPerCredit.toFixed(2);
+
+      // Update cost summary
+      const monthlyCostEl = el('caMonthlyCost');
+      const annualCostEl = el('caAnnualCost');
+
+      if (monthlyCostEl) monthlyCostEl.textContent = '$' + Math.round(costs.monthlyCost).toLocaleString();
+      if (annualCostEl) annualCostEl.textContent = '$' + Math.round(costs.annualCost).toLocaleString();
+    }
+
+    function wireContentAutomationUI() {
+      const enabledEl = el('contentAutomationEnabled');
+      const tierEl = el('contentAutomationTier');
+      const tierSectionEl = el('contentAutomationTierSection');
+
+      if (!enabledEl) return;
+
+      const syncState = () => {
+        const s = window.contentAutomationState;
+        s.enabled = enabledEl.checked;
+        s.tier = tierEl ? tierEl.value : 'xs';
+
+        // Show/hide tier section
+        if (tierSectionEl) {
+          tierSectionEl.classList.toggle('hidden', !s.enabled);
+        }
+
+        updateContentAutomationSummary();
+        window.updateProductSummary();
+      };
+
+      const applyStateToUI = () => {
+        const s = window.contentAutomationState;
+        enabledEl.checked = s.enabled;
+        if (tierEl) tierEl.value = s.tier;
+        if (tierSectionEl) {
+          tierSectionEl.classList.toggle('hidden', !s.enabled);
+        }
+        updateContentAutomationSummary();
+      };
+
+      // Wire up events
+      enabledEl.addEventListener('change', syncState);
+      if (tierEl) {
+        tierEl.addEventListener('change', syncState);
+        tierEl.addEventListener('input', syncState);
+      }
+
+      // Initial state apply
+      applyStateToUI();
+
+      // Make available globally for deal loading
+      window.applyContentAutomationStateToUI = applyStateToUI;
+    }
+
+    function showContentAutomationConfig(show) {
+      const section = el('contentAutomationConfigSection');
+      if (section) {
+        section.classList.toggle('hidden', !show);
+        if (show) updateContentAutomationSummary();
       }
     }
 
@@ -4584,6 +4792,7 @@ document.addEventListener("click", async (e) => {
     let totalMonthlyPerStation = 0;
     let productCount = 0;
     let toplineSelected = false;
+    let contentAutomationSelected = false;
     let spotonVideoSelected = false;
     let fbGroupsSelected = false;
     let faaiSelected = false;
@@ -4597,6 +4806,13 @@ document.addEventListener("click", async (e) => {
         toplineSelected = true;
         productCount++;
         return; // TopLine pricing handled separately
+      }
+
+      // Check if Content Automation is selected
+      if (productId === 'content_automation') {
+        contentAutomationSelected = true;
+        productCount++;
+        return; // Content Automation pricing handled separately
       }
 
       // Check if SpotOn Video is selected
@@ -4640,6 +4856,15 @@ document.addEventListener("click", async (e) => {
       totalMonthlyAllStations += toplineCosts.totalMonthly;
     }
 
+    // Add Content Automation costs if selected
+    let contentAutomationCosts = null;
+    if (contentAutomationSelected) {
+      contentAutomationCosts = calculateContentAutomationCosts();
+      if (contentAutomationCosts.enabled) {
+        totalMonthlyAllStations += contentAutomationCosts.monthlyCost;
+      }
+    }
+
     // Add SpotOn Video costs if selected (monthly recurring cost)
     let spotonVideoCosts = null;
     if (spotonVideoSelected) {
@@ -4665,6 +4890,9 @@ document.addEventListener("click", async (e) => {
 
     // Show/hide TopLine config section
     showTopLineConfig(toplineSelected);
+
+    // Show/hide Content Automation config section
+    showContentAutomationConfig(contentAutomationSelected);
 
     // Show/hide SpotOn Video config section
     showSpotOnVideoConfig(spotonVideoSelected);
@@ -4810,6 +5038,9 @@ document.addEventListener("click", async (e) => {
 
     // TopLine configuration UI wiring
     wireTopLineUI();
+
+    // Content Automation configuration UI wiring
+    wireContentAutomationUI();
 
     // SpotOn Video configuration UI wiring
     wireSpotOnVideoUI();
@@ -5848,6 +6079,16 @@ window.generateProposal = function generateProposal() {
     annualAllStationsProposal += toplineCosts.totalAnnual;
   }
 
+  // Check for Content Automation selection and calculate costs
+  const contentAutomationSelected = window.productState.selectedProducts.has('content_automation');
+  let contentAutomationCosts = null;
+  if (contentAutomationSelected) {
+    contentAutomationCosts = calculateContentAutomationCosts();
+    if (contentAutomationCosts.enabled) {
+      annualAllStationsProposal += contentAutomationCosts.annualCost;
+    }
+  }
+
   // Check for SpotOn Video selection and calculate costs (monthly recurring)
   const spotonVideoSelected = window.productState.selectedProducts.has('spoton_video');
   let spotonVideoCosts = null;
@@ -6108,6 +6349,34 @@ window.generateProposal = function generateProposal() {
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalOneTime)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalAnnual)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalMonthly)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
+  // Content Automation section if selected and enabled
+  if (contentAutomationSelected && contentAutomationCosts && contentAutomationCosts.enabled) {
+    const ca = contentAutomationCosts;
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Content Automation</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>Content Automation — ${ca.tierName}</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${ca.credits.toLocaleString()} credits/mo @ $${ca.costPerCredit.toFixed(2)}/credit</span>
+      </td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.monthlyCost)}</strong></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.annualCost)}</strong></td>
     </tr>`);
 
     lines.push(`</tbody></table>`);
