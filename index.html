@@ -1385,7 +1385,7 @@
 
         <div class="row" style="margin-bottom:12px;">
           <button class="btn primary" id="btnGenerateProposal" type="button">Generate Proposal</button>
-          <button class="btn" id="btnScreenshotProposal" type="button">Copy to Clipboard</button>
+          <button class="btn" id="btnScreenshotProposal" type="button">Copy as Image</button>
         </div>
 
         <div id="proposalOutput" class="hidden" style="border-radius:10px;padding:16px;margin-top:12px;">
@@ -5497,7 +5497,7 @@ document.addEventListener("click", async (e) => {
 
         // Capture the full proposal output as canvas
         const canvas = await html2canvas(proposalOutput, {
-          backgroundColor: '#0b121a',
+          backgroundColor: '#f8f2fb', // Match light theme surface color
           scale: 2, // Higher resolution for better quality
           logging: false,
           useCORS: true,
@@ -5520,7 +5520,7 @@ document.addEventListener("click", async (e) => {
           new ClipboardItem({ 'image/png': blob })
         ]);
 
-        btn.textContent = "✓ Copied!";
+        btn.textContent = "✓ Image copied!";
         setTimeout(() => {
           btn.textContent = originalText;
           btn.disabled = false;
