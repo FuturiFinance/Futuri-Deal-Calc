@@ -496,6 +496,7 @@
       gap: 10px;
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 </head>
 
 <body>
@@ -1385,6 +1386,7 @@
         <div class="row" style="margin-bottom:12px;">
           <button class="btn primary" id="btnGenerateProposal" type="button">Generate Proposal</button>
           <button class="btn" id="btnCopyProposal" type="button">Copy to Clipboard</button>
+          <button class="btn" id="btnScreenshotProposal" type="button">Copy as Image</button>
         </div>
 
         <div id="proposalOutput" class="hidden" style="border-radius:10px;padding:16px;margin-top:12px;">
@@ -5483,6 +5485,47 @@ document.addEventListener("click", async (e) => {
         setTimeout(()=>b.textContent=t, 1200);
       }catch{
         alert("Could not copy proposal. Try again or use manual select/copy.");
+      }
+    };
+
+    el('btnScreenshotProposal').onclick = async () => {
+      const proposalOutput = el('proposalOutput');
+      if (!proposalOutput || proposalOutput.classList.contains('hidden')) {
+        return alert("Generate the proposal first.");
+      }
+
+      const btn = el('btnScreenshotProposal');
+      const originalText = btn.textContent;
+      btn.textContent = "Capturing...";
+      btn.disabled = true;
+
+      try {
+        // Capture the proposal output as canvas
+        const canvas = await html2canvas(proposalOutput, {
+          backgroundColor: '#0b121a',
+          scale: 2, // Higher resolution for better quality
+          logging: false,
+          useCORS: true
+        });
+
+        // Convert canvas to blob
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+
+        // Copy to clipboard as image
+        await navigator.clipboard.write([
+          new ClipboardItem({ 'image/png': blob })
+        ]);
+
+        btn.textContent = "✓ Copied";
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 1200);
+      } catch (err) {
+        console.error('Screenshot error:', err);
+        btn.textContent = originalText;
+        btn.disabled = false;
+        alert("Could not copy image. Your browser may not support clipboard image copying, or try again.");
       }
     };
   }
