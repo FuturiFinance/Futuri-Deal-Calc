@@ -1128,6 +1128,42 @@
         </div>
       </section>
 
+      <!-- SpotOn Audio Configuration -->
+      <section class="card hidden" id="spotonAudioConfigSection">
+        <div class="title">SpotOn Audio Configuration</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your audio spots package below. Spots are sold in increments of 100 at $1/spot per month.</div>
+
+        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Spot Quantity</div>
+          <div class="modal-grid">
+            <div class="field">
+              <label for="spotonAudioSpots">Spots per Month ($1/spot)</label>
+              <input id="spotonAudioSpots" type="number" min="0" step="100" value="0" />
+              <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 100</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cost Summary -->
+        <div style="padding:12px; background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.18); border-radius:14px;">
+          <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
+          <div id="spotonAudioCostSummary" style="font-size:13px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+              <span>Total Spots:</span>
+              <strong id="spotonAudioTotalSpots">0</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
+              <span style="font-weight:700;">Total Audio Cost (Monthly):</span>
+              <strong id="spotonAudioTotalCost" style="color:var(--primary);">$0/mo</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:6px;">
+              <span>Annual Cost:</span>
+              <strong id="spotonAudioAnnualCost">$0/yr</strong>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- SpotOn Video Configuration -->
       <section class="card hidden" id="spotonVideoConfigSection">
         <div class="title">SpotOn Video Configuration</div>
@@ -2178,6 +2214,9 @@ function buildDealPayload(){
     // Content Automation configuration
     contentAutomationConfig: { ...window.contentAutomationState },
 
+    // SpotOn Audio configuration (standalone)
+    spotonAudioConfig: { ...window.spotonAudioState },
+
     // SpotOn Video configuration
     spotonVideoConfig: { ...window.spotonVideoState },
 
@@ -2354,6 +2393,14 @@ function loadDeal(payload){
   }
   setTimeout(() => {
     if (typeof window.applyContentAutomationStateToUI === "function") window.applyContentAutomationStateToUI();
+  }, 0);
+
+  // Restore SpotOn Audio configuration
+  if (payload.spotonAudioConfig && typeof payload.spotonAudioConfig === "object") {
+    Object.assign(window.spotonAudioState, payload.spotonAudioConfig);
+  }
+  setTimeout(() => {
+    if (typeof window.applySpotOnAudioStateToUI === "function") window.applySpotOnAudioStateToUI();
   }, 0);
 
   // Restore SpotOn Video configuration
@@ -3491,7 +3538,7 @@ document.addEventListener("click", async (e) => {
     window.PRODUCTS_FALLBACK = [
       { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'topline_cx_war_room', name: 'TopLine CX War Room', cash: 1000, barter: null, industry: 'Radio/TV', cashOnly: true },
-      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: 750, barter: 1050, industry: 'Radio/TV', note: 'up to 750 spots a month' },
+      { id: 'spoton_audio', name: 'SpotOn - Audio', cash: null, barter: null, industry: 'Radio/TV', note: '$1/spot, increments of 100' },
       { id: 'spoton_video', name: 'SpotOn Video', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV' },
       { id: 'instant_video', name: 'TopicPulse IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV' },
@@ -3554,6 +3601,18 @@ document.addEventListener("click", async (e) => {
       chuyLocations: 0,     // Retail locations ($99 setup + $10/mo)
       chuyRetailers: 0,     // Unique retailers ($119/mo each)
       tvEnabled: false      // TV hard costs add-on
+    };
+
+    /**********************
+     * SpotOn Audio Configuration State (Standalone)
+     **********************/
+    window.spotonAudioState = {
+      spotsPerMonth: 0  // Spots at $1/spot/mo, increments of 100
+    };
+
+    // SpotOn Audio pricing constants
+    const SPOTON_AUDIO_PRICING = {
+      pricePerSpot: 1  // $1 per spot per month
     };
 
     /**********************
@@ -3961,6 +4020,71 @@ document.addEventListener("click", async (e) => {
           // Disable when hiding (deselecting product)
           window.contentAutomationState.enabled = false;
         }
+      }
+    }
+
+    /**********************
+     * SpotOn Video Configuration Functions
+     **********************/
+    /**********************
+     * SpotOn Audio Configuration Functions (Standalone)
+     **********************/
+    function calculateSpotOnAudioCosts() {
+      const s = window.spotonAudioState;
+      const p = SPOTON_AUDIO_PRICING;
+      // SpotOn Audio is cash-only (no barter multiplier)
+      const monthlyCost = s.spotsPerMonth * p.pricePerSpot;
+
+      return {
+        spotsPerMonth: s.spotsPerMonth,
+        monthlyCost,
+        annualCost: monthlyCost * 12
+      };
+    }
+
+    function updateSpotOnAudioSummary() {
+      const costs = calculateSpotOnAudioCosts();
+
+      const spotsEl = el('spotonAudioTotalSpots');
+      const monthlyEl = el('spotonAudioTotalCost');
+      const annualEl = el('spotonAudioAnnualCost');
+
+      if (spotsEl) spotsEl.textContent = costs.spotsPerMonth.toLocaleString();
+      if (monthlyEl) monthlyEl.textContent = '$' + costs.monthlyCost.toLocaleString() + '/mo';
+      if (annualEl) annualEl.textContent = '$' + costs.annualCost.toLocaleString() + '/yr';
+    }
+
+    function wireSpotOnAudioUI() {
+      const spotsInput = el('spotonAudioSpots');
+
+      if (spotsInput) {
+        spotsInput.addEventListener('input', () => {
+          // Round to nearest 100
+          let spots = Math.max(0, parseInt(spotsInput.value) || 0);
+          spots = Math.round(spots / 100) * 100;
+          window.spotonAudioState.spotsPerMonth = spots;
+          if (parseInt(spotsInput.value) !== spots) spotsInput.value = spots;
+          updateSpotOnAudioSummary();
+          window.updateProductSummary();
+        });
+      }
+    }
+
+    function applySpotOnAudioStateToUI() {
+      const s = window.spotonAudioState;
+      const spotsInput = el('spotonAudioSpots');
+
+      if (spotsInput) spotsInput.value = s.spotsPerMonth;
+
+      updateSpotOnAudioSummary();
+    }
+    window.applySpotOnAudioStateToUI = applySpotOnAudioStateToUI;
+
+    function showSpotOnAudioConfig(show) {
+      const section = el('spotonAudioConfigSection');
+      if (section) {
+        section.classList.toggle('hidden', !show);
+        if (show) updateSpotOnAudioSummary();
       }
     }
 
@@ -4880,6 +5004,7 @@ document.addEventListener("click", async (e) => {
     let productCount = 0;
     let toplineSelected = false;
     let contentAutomationSelected = false;
+    let spotonAudioSelected = false;
     let spotonVideoSelected = false;
     let fbGroupsSelected = false;
     let faaiSelected = false;
@@ -4900,6 +5025,13 @@ document.addEventListener("click", async (e) => {
         contentAutomationSelected = true;
         productCount++;
         return; // Content Automation pricing handled separately
+      }
+
+      // Check if SpotOn Audio is selected (standalone)
+      if (productId === 'spoton_audio') {
+        spotonAudioSelected = true;
+        productCount++;
+        return; // SpotOn Audio pricing handled separately
       }
 
       // Check if SpotOn Video is selected
@@ -4952,6 +5084,15 @@ document.addEventListener("click", async (e) => {
       }
     }
 
+    // Add SpotOn Audio costs if selected (standalone)
+    let spotonAudioCosts = null;
+    if (spotonAudioSelected) {
+      spotonAudioCosts = calculateSpotOnAudioCosts();
+      if (spotonAudioCosts.monthlyCost > 0) {
+        totalMonthlyAllStations += spotonAudioCosts.monthlyCost;
+      }
+    }
+
     // Add SpotOn Video costs if selected (monthly recurring cost)
     let spotonVideoCosts = null;
     if (spotonVideoSelected) {
@@ -4980,6 +5121,9 @@ document.addEventListener("click", async (e) => {
 
     // Show/hide Content Automation config section
     showContentAutomationConfig(contentAutomationSelected);
+
+    // Show/hide SpotOn Audio config section
+    showSpotOnAudioConfig(spotonAudioSelected);
 
     // Show/hide SpotOn Video config section
     showSpotOnVideoConfig(spotonVideoSelected);
@@ -5192,6 +5336,9 @@ document.addEventListener("click", async (e) => {
 
     // Content Automation configuration UI wiring
     wireContentAutomationUI();
+
+    // SpotOn Audio configuration UI wiring
+    wireSpotOnAudioUI();
 
     // SpotOn Video configuration UI wiring
     wireSpotOnVideoUI();
@@ -6253,6 +6400,14 @@ window.generateProposal = function generateProposal() {
     }
   }
 
+  // Check for SpotOn Audio selection and calculate costs (standalone)
+  const spotonAudioSelected = window.productState.selectedProducts.has('spoton_audio');
+  let spotonAudioCosts = null;
+  if (spotonAudioSelected) {
+    spotonAudioCosts = calculateSpotOnAudioCosts();
+    annualAllStationsProposal += spotonAudioCosts.annualCost;
+  }
+
   // Check for SpotOn Video selection and calculate costs (monthly recurring)
   const spotonVideoSelected = window.productState.selectedProducts.has('spoton_video');
   let spotonVideoCosts = null;
@@ -6578,6 +6733,34 @@ window.generateProposal = function generateProposal() {
     lines.push(`</div>`);
   }
 
+  // SpotOn Audio section if selected (standalone)
+  if (spotonAudioSelected && spotonAudioCosts && spotonAudioCosts.monthlyCost > 0) {
+    const sa = spotonAudioCosts;
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">SpotOn Audio</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>SpotOn Audio</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${sa.spotsPerMonth.toLocaleString()} spots/mo @ $1/spot</span>
+      </td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sa.monthlyCost)}</strong></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sa.annualCost)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
   // SpotOn Video section if selected (standalone, not through TopLine)
   if (spotonVideoSelected && spotonVideoCosts && spotonVideoCosts.monthlyCost > 0) {
     const sv = spotonVideoCosts;
@@ -6664,10 +6847,11 @@ window.generateProposal = function generateProposal() {
   }
 
   // Standard Products section - show all other selected products with rates
-  // Products: topline_cx_war_room, spoton_audio (standalone), topicpulse, instant_video, topicpulse_iv,
+  // Products: topline_cx_war_room, topicpulse, instant_video, topicpulse_iv,
   // topicpulse_community_radar_nextdoor, prep_plus, post, streaming, mobile, ldr
+  // Note: spoton_audio is now a configurable product with its own section
   const standardProductIds = [
-    'topline_cx_war_room', 'spoton_audio', 'topicpulse', 'instant_video', 'topicpulse_iv',
+    'topline_cx_war_room', 'topicpulse', 'instant_video', 'topicpulse_iv',
     'topicpulse_community_radar_nextdoor', 'prep_plus', 'post', 'streaming', 'mobile', 'ldr'
   ];
 
