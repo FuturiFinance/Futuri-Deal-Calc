@@ -6530,7 +6530,9 @@ window.generateProposal = function generateProposal() {
   lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
   lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
   lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
-  lines.push(`<span class="badge">Nielsen: ${nielsenDisplay}</span>`);
+  if (nielsenDisplay !== "—") {
+    lines.push(`<span class="badge">Nielsen: ${nielsenDisplay}</span>`);
+  }
   lines.push(`</div>`);
   lines.push(`</div>`);
 
