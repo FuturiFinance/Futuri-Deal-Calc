@@ -910,18 +910,18 @@
       <!-- TopLine Configuration Section -->
       <section class="card hidden" id="toplineConfigSection">
         <div class="title">TopLine Configuration</div>
-        <div class="muted" style="margin-bottom:12px;">Configure your TopLine deal options below.</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your TopLine deal options below. Pricing is per market.</div>
 
         <!-- Base Product -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">1. Base Product</div>
+          <div style="font-weight:700; margin-bottom:10px;">1. Base Product (per market)</div>
           <div class="modal-grid">
             <div class="field">
               <label for="toplineTier">Product Tier</label>
               <select id="toplineTier">
-                <option value="access">TopLine - Base ($42K/yr)</option>
-                <option value="enterprise">Enterprise ($30K/yr)</option>
-                <option value="both">Both ($72K/yr)</option>
+                <option value="access">TopLine - Base ($42K/yr per market)</option>
+                <option value="enterprise">Enterprise ($30K/yr per market)</option>
+                <option value="both">Both ($72K/yr per market)</option>
               </select>
             </div>
             <div class="field">
@@ -954,20 +954,16 @@
 
         <!-- Custom Services -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">3. Custom Data & Integration Services</div>
-          <div class="muted" style="font-size:12px; margin-bottom:10px;">$300/hr + 10% annual maintenance fee</div>
+          <div style="font-weight:700; margin-bottom:10px;">3. Integration Services</div>
           <div class="modal-grid">
             <div class="field">
-              <label for="toplineDataSetHours">Data Sets (hours)</label>
-              <input id="toplineDataSetHours" type="number" min="0" value="0" />
+              <label for="toplineDataSets">Additional Data Sets ($1,000 each)</label>
+              <input id="toplineDataSets" type="number" min="0" value="0" />
+              <div class="muted" style="font-size:11px; margin-top:4px;">Free if client integrates themselves</div>
             </div>
             <div class="field">
-              <label for="toplineCrmHours">CRM Integration (hours)</label>
+              <label for="toplineCrmHours">CRM Integration ($300/hr + 10% maint.)</label>
               <input id="toplineCrmHours" type="number" min="0" value="0" />
-            </div>
-            <div class="field">
-              <label for="toplineDataIntHours">Data Integration (hours)</label>
-              <input id="toplineDataIntHours" type="number" min="0" value="0" />
             </div>
           </div>
         </div>
@@ -3386,10 +3382,9 @@ document.addEventListener("click", async (e) => {
       usersNeeded: 5,
       accountsNeeded: 220,
       attributionEnabled: false,
-      // Custom services (hours)
-      dataSetHours: 0,
-      crmIntegrationHours: 0,
-      dataIntegrationHours: 0,
+      // Integration services
+      dataSets: 0,            // Additional data sets at $1,000 each (one-time)
+      crmIntegrationHours: 0, // CRM integration at $300/hr + 10% maintenance
       // Add-ons
       spotOnAudioSpots: 0,  // Spots per month at $1/spot/mo
       videos15Count: 0,
@@ -3455,8 +3450,9 @@ document.addEventListener("click", async (e) => {
       accountsIncluded: 220,
       additionalAccountBlockMonthly: 25, // per 5 accounts
       attributionAnnual: 5000,
-      customServiceHourly: 300,
-      customServiceMaintenance: 0.10, // 10% annual maintenance
+      dataSetPrice: 1000,             // $1,000 per data set (one-time, no maintenance)
+      crmHourly: 300,                 // $300/hr for CRM integration
+      crmMaintenance: 0.10,           // 10% annual maintenance on CRM
       spotOnAudioPerSpotMonthly: 1,   // $1 per spot per month
       video15Price: 25,               // $25 per :15 video
       video30Price: 50,               // $50 per :30 video
@@ -3490,12 +3486,11 @@ document.addEventListener("click", async (e) => {
       // Attribution
       const attributionAnnual = s.attributionEnabled ? p.attributionAnnual * multiplier : 0;
 
-      // Custom services
-      const dataSetOneTime = s.dataSetHours * p.customServiceHourly * multiplier;
-      const crmOneTime = s.crmIntegrationHours * p.customServiceHourly * multiplier;
-      const dataIntegrationOneTime = s.dataIntegrationHours * p.customServiceHourly * multiplier;
-      const customServicesOneTime = dataSetOneTime + crmOneTime + dataIntegrationOneTime;
-      const customServicesMaintenance = customServicesOneTime * p.customServiceMaintenance;
+      // Integration services
+      const dataSetOneTime = s.dataSets * p.dataSetPrice * multiplier;  // No maintenance on data sets
+      const crmOneTime = s.crmIntegrationHours * p.crmHourly * multiplier;
+      const crmMaintenance = crmOneTime * p.crmMaintenance;  // Only CRM has maintenance
+      const integrationOneTime = dataSetOneTime + crmOneTime;
 
       // TV hard costs
       const tvAnnual = s.tvEnabled ? p.tvHardCostsAnnual * multiplier : 0;
@@ -3512,8 +3507,8 @@ document.addEventListener("click", async (e) => {
       const chuyRetailerAnnual = s.chuyRetailers * p.chuyRetailerMonthly * 12 * multiplier;
 
       // Totals
-      const totalOneTime = customServicesOneTime + chuySetup;
-      const totalAnnual = baseSubtotal + attributionAnnual + customServicesMaintenance + tvAnnual + spotOnAnnual + videoAnnual + chuyLocationAnnual + chuyRetailerAnnual;
+      const totalOneTime = integrationOneTime + chuySetup;
+      const totalAnnual = baseSubtotal + attributionAnnual + crmMaintenance + tvAnnual + spotOnAnnual + videoAnnual + chuyLocationAnnual + chuyRetailerAnnual;
 
       return {
         baseAnnual,
@@ -3524,9 +3519,8 @@ document.addEventListener("click", async (e) => {
         tvAnnual,
         dataSetOneTime,
         crmOneTime,
-        dataIntegrationOneTime,
-        customServicesOneTime,
-        customServicesMaintenance,
+        crmMaintenance,
+        integrationOneTime,
         spotOnAnnual,
         videoAnnual,
         chuySetup,
@@ -3566,14 +3560,17 @@ document.addEventListener("click", async (e) => {
         </div>
         <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(103,36,119,.18); font-size:12px; color:var(--muted);">
           <div><strong>Breakdown:</strong></div>
-          <div>Base (${window.toplineState.tier === 'access' ? 'TopLine - Base' : window.toplineState.tier === 'enterprise' ? 'Enterprise' : 'Both'}): ${money(costs.baseSubtotal)}/yr</div>
+          <div>Base per market (${window.toplineState.tier === 'access' ? 'TopLine - Base' : window.toplineState.tier === 'enterprise' ? 'Enterprise' : 'Both'}): ${money(costs.baseSubtotal)}/yr</div>
       `;
 
       if (costs.attributionAnnual > 0) {
         html += `<div>Attribution: ${money(costs.attributionAnnual)}/yr</div>`;
       }
-      if (costs.customServicesOneTime > 0) {
-        html += `<div>Custom Services: ${money(costs.customServicesOneTime)} one-time + ${money(costs.customServicesMaintenance)}/yr maint.</div>`;
+      if (costs.dataSetOneTime > 0) {
+        html += `<div>Data Sets (${window.toplineState.dataSets}): ${money(costs.dataSetOneTime)} one-time</div>`;
+      }
+      if (costs.crmOneTime > 0) {
+        html += `<div>CRM Integration: ${money(costs.crmOneTime)} one-time + ${money(costs.crmMaintenance)}/yr maint.</div>`;
       }
       if (costs.spotOnAnnual > 0) {
         html += `<div>SpotOn Audio (${window.toplineState.spotOnAudioSpots} spots/mo): ${money(costs.spotOnAnnual)}/yr</div>`;
@@ -3597,9 +3594,8 @@ document.addEventListener("click", async (e) => {
       const usersEl = el('toplineUsers');
       const accountsEl = el('toplineAccounts');
       const attrEl = el('toplineAttribution');
-      const dataSetEl = el('toplineDataSetHours');
+      const dataSetsEl = el('toplineDataSets');
       const crmEl = el('toplineCrmHours');
-      const dataIntEl = el('toplineDataIntHours');
       const tvEl = el('toplineTv');
       const spotOnSpotsEl = el('toplineSpotOnSpots');
       const v15El = el('toplineVideos15');
@@ -3615,9 +3611,8 @@ document.addEventListener("click", async (e) => {
         s.usersNeeded = Math.max(1, parseInt(usersEl.value) || 5);
         s.accountsNeeded = Math.max(1, parseInt(accountsEl.value) || 220);
         s.attributionEnabled = attrEl.checked;
-        s.dataSetHours = Math.max(0, parseInt(dataSetEl.value) || 0);
+        s.dataSets = Math.max(0, parseInt(dataSetsEl.value) || 0);
         s.crmIntegrationHours = Math.max(0, parseInt(crmEl.value) || 0);
-        s.dataIntegrationHours = Math.max(0, parseInt(dataIntEl.value) || 0);
         s.tvEnabled = tvEl.checked;
         s.spotOnAudioSpots = Math.max(0, parseInt(spotOnSpotsEl.value) || 0);
         s.videos15Count = Math.max(0, parseInt(v15El.value) || 0);
@@ -3636,9 +3631,8 @@ document.addEventListener("click", async (e) => {
         usersEl.value = s.usersNeeded;
         accountsEl.value = s.accountsNeeded;
         attrEl.checked = s.attributionEnabled;
-        dataSetEl.value = s.dataSetHours;
+        dataSetsEl.value = s.dataSets;
         crmEl.value = s.crmIntegrationHours;
-        dataIntEl.value = s.dataIntegrationHours;
         tvEl.checked = s.tvEnabled;
         spotOnSpotsEl.value = s.spotOnAudioSpots;
         v15El.value = s.videos15Count;
@@ -3649,7 +3643,7 @@ document.addEventListener("click", async (e) => {
       };
 
       // Wire up events
-      [tierEl, usersEl, accountsEl, dataSetEl, crmEl, dataIntEl, spotOnSpotsEl, v15El, v30El, chuyLocEl, chuyRetEl].forEach(inp => {
+      [tierEl, usersEl, accountsEl, dataSetsEl, crmEl, spotOnSpotsEl, v15El, v30El, chuyLocEl, chuyRetEl].forEach(inp => {
         if (inp) inp.addEventListener('change', syncState);
       });
       [attrEl, tvEl].forEach(cb => {
