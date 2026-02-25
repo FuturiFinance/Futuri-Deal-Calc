@@ -925,6 +925,10 @@
               </select>
             </div>
             <div class="field">
+              <label for="toplineMarkets">Number of Markets</label>
+              <input id="toplineMarkets" type="number" min="1" value="1" />
+            </div>
+            <div class="field">
               <label for="toplineUsers">Total Users Needed (5 included)</label>
               <input id="toplineUsers" type="number" min="1" value="5" />
             </div>
@@ -3379,8 +3383,9 @@ document.addEventListener("click", async (e) => {
      **********************/
     window.toplineState = {
       tier: 'access', // 'access', 'enterprise', 'both'
-      usersNeeded: 5,
-      accountsNeeded: 220,
+      numberOfMarkets: 1,   // Base price multiplied by this
+      usersNeeded: 5,       // Per deal, not per market
+      accountsNeeded: 220,  // Per deal, not per market
       attributionEnabled: false,
       // Integration services
       dataSets: 0,            // Additional data sets at $1,000 each (one-time)
@@ -3468,14 +3473,15 @@ document.addEventListener("click", async (e) => {
       const pricingType = window.productState.pricingType;
       const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
-      // Base product
-      const baseAnnual = (p.tierPrices[s.tier] || 0) * multiplier;
+      // Base product (multiplied by number of markets)
+      const numMarkets = Math.max(1, s.numberOfMarkets || 1);
+      const baseAnnual = (p.tierPrices[s.tier] || 0) * numMarkets * multiplier;
 
-      // Additional users
+      // Additional users (per deal, not per market)
       const additionalUsers = Math.max(0, s.usersNeeded - p.usersIncluded);
       const usersAnnual = additionalUsers * p.additionalUserMonthly * 12 * multiplier;
 
-      // Additional accounts (blocks of 5)
+      // Additional accounts (per deal, not per market)
       const additionalAccounts = Math.max(0, s.accountsNeeded - p.accountsIncluded);
       const accountBlocks = Math.ceil(additionalAccounts / 5);
       const accountsAnnual = accountBlocks * p.additionalAccountBlockMonthly * 12 * multiplier;
@@ -3560,7 +3566,7 @@ document.addEventListener("click", async (e) => {
         </div>
         <div style="margin-top:10px; padding-top:10px; border-top:1px solid rgba(103,36,119,.18); font-size:12px; color:var(--muted);">
           <div><strong>Breakdown:</strong></div>
-          <div>Base per market (${window.toplineState.tier === 'access' ? 'TopLine - Base' : window.toplineState.tier === 'enterprise' ? 'Enterprise' : 'Both'}): ${money(costs.baseSubtotal)}/yr</div>
+          <div>Base (${window.toplineState.tier === 'access' ? 'TopLine - Base' : window.toplineState.tier === 'enterprise' ? 'Enterprise' : 'Both'} × ${window.toplineState.numberOfMarkets || 1} market${(window.toplineState.numberOfMarkets || 1) > 1 ? 's' : ''}): ${money(costs.baseAnnual)}/yr</div>
       `;
 
       if (costs.attributionAnnual > 0) {
@@ -3591,6 +3597,7 @@ document.addEventListener("click", async (e) => {
 
     function wireTopLineUI() {
       const tierEl = el('toplineTier');
+      const marketsEl = el('toplineMarkets');
       const usersEl = el('toplineUsers');
       const accountsEl = el('toplineAccounts');
       const attrEl = el('toplineAttribution');
@@ -3608,6 +3615,7 @@ document.addEventListener("click", async (e) => {
       const syncState = () => {
         const s = window.toplineState;
         s.tier = tierEl.value;
+        s.numberOfMarkets = Math.max(1, parseInt(marketsEl.value) || 1);
         s.usersNeeded = Math.max(1, parseInt(usersEl.value) || 5);
         s.accountsNeeded = Math.max(1, parseInt(accountsEl.value) || 220);
         s.attributionEnabled = attrEl.checked;
@@ -3628,6 +3636,7 @@ document.addEventListener("click", async (e) => {
       const applyStateToUI = () => {
         const s = window.toplineState;
         tierEl.value = s.tier;
+        marketsEl.value = s.numberOfMarkets;
         usersEl.value = s.usersNeeded;
         accountsEl.value = s.accountsNeeded;
         attrEl.checked = s.attributionEnabled;
@@ -3643,7 +3652,7 @@ document.addEventListener("click", async (e) => {
       };
 
       // Wire up events
-      [tierEl, usersEl, accountsEl, dataSetsEl, crmEl, spotOnSpotsEl, v15El, v30El, chuyLocEl, chuyRetEl].forEach(inp => {
+      [tierEl, marketsEl, usersEl, accountsEl, dataSetsEl, crmEl, spotOnSpotsEl, v15El, v30El, chuyLocEl, chuyRetEl].forEach(inp => {
         if (inp) inp.addEventListener('change', syncState);
       });
       [attrEl, tvEl].forEach(cb => {
@@ -5997,8 +6006,9 @@ window.generateProposal = function generateProposal() {
     </tr></thead><tbody>`);
 
     // Base product with user/account add-ons rolled in
+    const numMarkets = window.toplineState.numberOfMarkets || 1;
     lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${tlName}</strong><br><span style="font-size:11px;color:var(--muted);">${window.toplineState.usersNeeded} users, ${window.toplineState.accountsNeeded} accounts</span></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${tlName}</strong><br><span style="font-size:11px;color:var(--muted);">${numMarkets} market${numMarkets > 1 ? 's' : ''}, ${window.toplineState.usersNeeded} users, ${window.toplineState.accountsNeeded} accounts</span></td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal)}</td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal / 12)}</td>
@@ -6024,76 +6034,63 @@ window.generateProposal = function generateProposal() {
       </tr>`);
     }
 
-    // Custom services - Data Sets
-    if (window.toplineState.dataSetHours > 0) {
-      const maint = tl.dataSetOneTime * 0.10;
+    // Integration Services - Data Sets
+    if (window.toplineState.dataSets > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Custom: Data Sets (${window.toplineState.dataSetHours} hrs)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Data Sets (${window.toplineState.dataSets})</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.dataSetOneTime)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
       </tr>`);
     }
 
-    // Custom services - CRM Integration
+    // Integration Services - CRM Integration
     if (window.toplineState.crmIntegrationHours > 0) {
-      const maint = tl.crmOneTime * 0.10;
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Custom: CRM Integration (${window.toplineState.crmIntegrationHours} hrs)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CRM Integration (${window.toplineState.crmIntegrationHours} hrs)</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmOneTime)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint / 12)}</td>
-      </tr>`);
-    }
-
-    // Custom services - Data Integration
-    if (window.toplineState.dataIntegrationHours > 0) {
-      const maint = tl.dataIntegrationOneTime * 0.10;
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Custom: Data Integration (${window.toplineState.dataIntegrationHours} hrs)</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.dataIntegrationOneTime)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(maint / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmMaintenance)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmMaintenance / 12)}</td>
       </tr>`);
     }
 
     // SpotOn Audio
-    if (window.toplineState.spotOnAudioEnabled) {
+    if (window.toplineState.spotOnAudioSpots > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn Audio <em style="font-size:11px; color:var(--muted);">up to 750 spots / month</em></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn Audio <em style="font-size:11px; color:var(--muted);">${window.toplineState.spotOnAudioSpots} spots/mo @ $1/spot</em></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotOnAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotOnAnnual / 12)}</td>
       </tr>`);
     }
 
-    // Video Credits
+    // SpotOn Video
     if (tl.videoAnnual > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Video Credits (${tl.packagesNeeded} pkg × 300 credits)<br><span style="font-size:11px;color:var(--muted);">${window.toplineState.videos15Count} :15s, ${window.toplineState.videos30Count} :30s = ${tl.totalCredits} credits</span></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn Video<br><span style="font-size:11px;color:var(--muted);">${window.toplineState.videos15Count} :15s ($25/ea), ${window.toplineState.videos30Count} :30s ($50/ea)</span></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.videoAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.videoAnnual / 12)}</td>
       </tr>`);
     }
 
-    // CHUY Devices
-    if (window.toplineState.chuyDevices > 0) {
+    // CHUY Retail Locations
+    if (window.toplineState.chuyLocations > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Devices (${window.toplineState.chuyDevices} units)</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Retail Locations (${window.toplineState.chuyLocations})</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuySetup)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDeviceAnnual)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDeviceAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyLocationAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyLocationAnnual / 12)}</td>
       </tr>`);
     }
 
-    // CHUY Dashboard
-    if (window.toplineState.chuyDashboardEnabled) {
+    // CHUY Unique Retailers
+    if (window.toplineState.chuyRetailers > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Dashboard</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Unique Retailers (${window.toplineState.chuyRetailers})</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDashboardAnnual)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyDashboardAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyRetailerAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyRetailerAnnual / 12)}</td>
       </tr>`);
     }
 
