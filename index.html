@@ -812,6 +812,10 @@
           <label for="agencyCustomerName">Customer Name <span class="req">*</span></label>
           <input id="agencyCustomerName" type="text" placeholder="Enter customer name..." />
         </div>
+        <div class="field">
+          <label for="agencyCustomerLocation">Location</label>
+          <input id="agencyCustomerLocation" type="text" placeholder="Enter location..." />
+        </div>
       </section>
 
       <!-- Broadcast Sections (Parent/Market/Station) -->
@@ -2200,6 +2204,7 @@ function buildDealPayload(){
     stations: Array.from(window.state?.stations || []),
     dealType: window.state?.dealType || "broadcast",
     customerName: window.state?.customerName || "",
+    customerLocation: window.state?.customerLocation || "",
 
     pricingType: window.productState?.pricingType || "cash",
     products: Array.from(window.productState?.selectedProducts || []),
@@ -2352,6 +2357,7 @@ function loadDeal(payload){
   window.state.stations = new Set(payload.stations || []);
   window.state.dealType = payload.dealType || "broadcast";
   window.state.customerName = payload.customerName || "";
+  window.state.customerLocation = payload.customerLocation || "";
 
   // Restore deal type toggle
   const dealTypeBroadcast = el("dealTypeBroadcast");
@@ -2368,9 +2374,11 @@ function loadDeal(payload){
     (window.state.dealType === "agency" ? dealTypeAgency : dealTypeBroadcast).dispatchEvent(new Event("change"));
   }
 
-  // Restore customer name for agency deals
+  // Restore customer name and location for agency deals
   const customerNameInput = el("agencyCustomerName");
   if (customerNameInput) customerNameInput.value = window.state.customerName;
+  const customerLocationInput = el("agencyCustomerLocation");
+  if (customerLocationInput) customerLocationInput.value = window.state.customerLocation;
 
   window.productState.pricingType = payload.pricingType || "cash";
   window.productState.selectedProducts = new Set(payload.products || []);
@@ -3531,7 +3539,8 @@ document.addEventListener("click", async (e) => {
       markets: new Set(),
       stations: new Set(),
       dealType: 'broadcast',  // 'broadcast' or 'agency'
-      customerName: ''        // Used for agency/other deals
+      customerName: '',       // Used for agency/other deals
+      customerLocation: ''    // Used for agency/other deals
     };
 
     // Fallback products if rate card fails to load (Barter = Cash × 1.4)
@@ -5326,6 +5335,14 @@ document.addEventListener("click", async (e) => {
         });
       }
 
+      // Customer location input
+      const customerLocationInput = el('agencyCustomerLocation');
+      if (customerLocationInput) {
+        customerLocationInput.addEventListener('input', () => {
+          window.state.customerLocation = customerLocationInput.value;
+        });
+      }
+
       // Initial state
       updateDealType();
     }
@@ -6490,6 +6507,9 @@ window.generateProposal = function generateProposal() {
   lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
   if (isAgencyDeal) {
     lines.push(`<span class="pill">Customer: <span>${window.state.customerName || 'N/A'}</span></span>`);
+    if (window.state.customerLocation?.trim()) {
+      lines.push(`<span class="pill">Location: <span>${window.state.customerLocation}</span></span>`);
+    }
     lines.push(`<span class="pill">Deal Type: <span>Agency/Other</span></span>`);
   } else {
     lines.push(`<span class="pill">Parent: <span>${window.state.parent}</span></span>`);
