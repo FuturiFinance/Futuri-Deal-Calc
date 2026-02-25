@@ -5418,7 +5418,14 @@ document.addEventListener("click", async (e) => {
       // Check selections and inform via UI hint instead of only alert
       const stationsCount = getSelectedStationsDetailed().length;
       const productsCount = getSelectedProductsDetailed().length;
-      if (!stationsCount || !productsCount) {
+      const currentDealType = window.state?.dealType || 'broadcast';
+      const isAgency = (currentDealType === 'agency');
+
+      // Agency deals only require products; Broadcast deals require both stations and products
+      const needsStations = !isAgency && !stationsCount;
+      const needsProducts = !productsCount;
+
+      if (needsStations || needsProducts) {
         const hintId = 'genProposalHint';
         let hint = document.getElementById(hintId);
         if (!hint) {
@@ -5432,9 +5439,13 @@ document.addEventListener("click", async (e) => {
           hint.style.color = 'var(--danger)';
           hint.style.fontSize = '13px';
         }
-        hint.textContent = (!stationsCount && !productsCount)
-          ? 'Select at least one station and one product before generating.'
-          : (!stationsCount) ? 'Select at least one station before generating.' : 'Select at least one product before generating.';
+        if (isAgency) {
+          hint.textContent = 'Select at least one product before generating.';
+        } else {
+          hint.textContent = (needsStations && needsProducts)
+            ? 'Select at least one station and one product before generating.'
+            : needsStations ? 'Select at least one station before generating.' : 'Select at least one product before generating.';
+        }
         const parent = el('proposalSection') || document.body;
         parent.insertBefore(hint, parent.firstChild);
         setTimeout(() => { try { hint.remove(); } catch {} }, 4000);
@@ -6504,6 +6515,9 @@ window.generateProposal = function generateProposal() {
   lines.push(`</div>`);
 
   // Station table - only for Broadcast deals
+  // Only show barter columns (Prime/Day, ROS/Day) for barter or mixed payment types
+  const showBarterCols = (pricingType === 'mixed' || pricingType === 'barter');
+
   if (!isAgencyDeal && stations.length > 0) {
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">Station Breakdown</div>`);
@@ -6513,9 +6527,9 @@ window.generateProposal = function generateProposal() {
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product(s)</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">${showCashCol ? "Cash / Station / Month" : "Cash / Station / Month"}</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime / Day</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS / Day</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Cash / Station / Month</th>
+      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime / Day</th>` : ''}
+      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS / Day</th>` : ''}
     </tr></thead>`);
     lines.push(`<tbody>`);
 
@@ -6542,12 +6556,8 @@ window.generateProposal = function generateProposal() {
           <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
             ${showCashCol ? (cashMonthlyForStation != null ? (money(cashMonthlyForStation) + '/mo') : '—') : "—"}
           </td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-            ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.primePerDay) : "—"}
-          </td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-            ${(pricingType === 'mixed' || pricingType === 'barter') ? String(daily.rosPerDay) : "—"}
-          </td>
+          ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(daily.primePerDay)}</td>` : ''}
+          ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(daily.rosPerDay)}</td>` : ''}
         </tr>`);
       });
 
