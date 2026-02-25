@@ -1040,12 +1040,12 @@
             <div style="font-weight:600; margin-bottom:8px;">SpotOn Video</div>
             <div class="modal-grid">
               <div class="field">
-                <label for="toplineVideos15">:15 Videos/month ($25/ea)</label>
+                <label for="toplineVideos15">:15 Videos/month ($15/ea)</label>
                 <input id="toplineVideos15" type="number" min="0" step="25" value="0" />
                 <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 25</div>
               </div>
               <div class="field">
-                <label for="toplineVideos30">:30 Videos/month ($50/ea)</label>
+                <label for="toplineVideos30">:30 Videos/month ($30/ea)</label>
                 <input id="toplineVideos30" type="number" min="0" step="25" value="0" />
                 <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 25</div>
               </div>
@@ -1172,18 +1172,18 @@
       <!-- SpotOn Video Configuration -->
       <section class="card hidden" id="spotonVideoConfigSection">
         <div class="title">SpotOn Video Configuration</div>
-        <div class="muted" style="margin-bottom:12px;">Configure your video package below. Credits are sold in 300-credit packages at $500 each.</div>
+        <div class="muted" style="margin-bottom:12px;">Configure your video package below. :15 videos are $15/ea, :30 videos are $30/ea.</div>
 
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
           <div style="font-weight:700; margin-bottom:10px;">Video Quantities</div>
           <div class="modal-grid">
             <div class="field">
-              <label for="spotonVideos15">Number of :15 videos/month (1 credit = $25)</label>
+              <label for="spotonVideos15">Number of :15 videos/month ($15/ea)</label>
               <input id="spotonVideos15" type="number" min="0" step="25" value="0" />
               <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 25</div>
             </div>
             <div class="field">
-              <label for="spotonVideos30">Number of :30 videos/month (2 credits = $50)</label>
+              <label for="spotonVideos30">Number of :30 videos/month ($30/ea)</label>
               <input id="spotonVideos30" type="number" min="0" step="25" value="0" />
               <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 25</div>
             </div>
@@ -1195,9 +1195,10 @@
           <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
           <div id="spotonVideoCostSummary" style="font-size:13px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span>Total Credits ($25/credit):</span>
-              <strong id="spotonTotalCredits">0</strong>
+              <span>Total Videos:</span>
+              <strong id="spotonTotalVideos">0</strong>
             </div>
+            <div class="muted" style="font-size:11px; margin-bottom:8px;">:15 videos @ $15/ea · :30 videos @ $30/ea</div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
               <span style="font-weight:700;">Total Video Cost (Monthly):</span>
               <strong id="spotonVideoTotalCost" style="color:var(--primary);">$0/mo</strong>
@@ -3638,9 +3639,8 @@ document.addEventListener("click", async (e) => {
 
     // SpotOn Video pricing constants
     const SPOTON_VIDEO_PRICING = {
-      credits15: 1,        // credits per :15 video = $25
-      credits30: 2,        // credits per :30 video = $50
-      pricePerCredit: 25   // $25 per credit
+      price15: 15,   // $15 per :15 video
+      price30: 30    // $30 per :30 video
     };
 
     /**********************
@@ -3704,8 +3704,8 @@ document.addEventListener("click", async (e) => {
       crmHourly: 300,                 // $300/hr for CRM integration
       crmMaintenance: 0.10,           // 10% annual maintenance on CRM
       spotOnAudioPerSpotMonthly: 1,   // $1 per spot per month
-      video15Price: 25,               // $25 per :15 video
-      video30Price: 50,               // $50 per :30 video
+      video15Price: 15,               // $15 per :15 video
+      video30Price: 30,               // $30 per :30 video
       chuyLocationSetup: 99,          // $99 setup per retail location
       chuyLocationMonthly: 10,        // $10/mo per retail location
       chuyRetailerMonthly: 119,       // $119/mo per unique retailer
@@ -4107,13 +4107,11 @@ document.addEventListener("click", async (e) => {
       const pricingType = window.productState.pricingType;
       const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
-      const totalCredits = (s.videos15Count * p.credits15) + (s.videos30Count * p.credits30);
-      const monthlyCost = totalCredits * p.pricePerCredit * multiplier;
+      const monthlyCost = ((s.videos15Count * p.price15) + (s.videos30Count * p.price30)) * multiplier;
 
       return {
         videos15: s.videos15Count,
         videos30: s.videos30Count,
-        totalCredits,
         monthlyCost,
         totalCost: monthlyCost,  // kept for backward compatibility
         annualCost: monthlyCost * 12
@@ -4123,10 +4121,10 @@ document.addEventListener("click", async (e) => {
     function updateSpotOnVideoSummary() {
       const costs = calculateSpotOnVideoCosts();
 
-      const creditsEl = el('spotonTotalCredits');
+      const videosEl = el('spotonTotalVideos');
       const totalEl = el('spotonVideoTotalCost');
 
-      if (creditsEl) creditsEl.textContent = costs.totalCredits.toLocaleString();
+      if (videosEl) videosEl.textContent = (costs.videos15 + costs.videos30).toLocaleString();
       if (totalEl) totalEl.textContent = '$' + costs.monthlyCost.toLocaleString() + '/mo';
     }
 
@@ -6722,7 +6720,7 @@ window.generateProposal = function generateProposal() {
     // SpotOn Video
     if (tl.videoAnnual > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn Video<br><span style="font-size:11px;color:var(--muted);">${window.toplineState.videos15Count} :15s ($25/ea), ${window.toplineState.videos30Count} :30s ($50/ea)</span></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn Video<br><span style="font-size:11px;color:var(--muted);">${window.toplineState.videos15Count} :15s ($15/ea), ${window.toplineState.videos30Count} :30s ($30/ea)</span></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.videoAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.videoAnnual / 12)}</td>
@@ -6858,7 +6856,7 @@ window.generateProposal = function generateProposal() {
     lines.push(`<tr>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
         <strong>SpotOn Video</strong> — ${sv.videos15} :15s, ${sv.videos30} :30s<br>
-        <span style="font-size:11px;color:var(--muted);">${sv.totalCredits} credits @ $25/credit</span>
+        <span style="font-size:11px;color:var(--muted);">:15 @ $15/ea · :30 @ $30/ea</span>
       </td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sv.monthlyCost)}</strong></td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sv.annualCost)}</strong></td>
