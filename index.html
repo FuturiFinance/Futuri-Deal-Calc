@@ -1385,8 +1385,7 @@
 
         <div class="row" style="margin-bottom:12px;">
           <button class="btn primary" id="btnGenerateProposal" type="button">Generate Proposal</button>
-          <button class="btn" id="btnCopyProposal" type="button">Copy to Clipboard</button>
-          <button class="btn" id="btnScreenshotProposal" type="button">Copy as Image</button>
+          <button class="btn" id="btnScreenshotProposal" type="button">Copy to Clipboard</button>
         </div>
 
         <div id="proposalOutput" class="hidden" style="border-radius:10px;padding:16px;margin-top:12px;">
@@ -5474,20 +5473,6 @@ document.addEventListener("click", async (e) => {
       generateProposal();
     };
 
-    el('btnCopyProposal').onclick = async () => {
-      if (!el('proposalTable')?.innerHTML) return alert("Generate the proposal first.");
-      try{
-        const text = window.buildProposalText();
-        await navigator.clipboard.writeText(text);
-        const b = el('btnCopyProposal');
-        const t = b.textContent;
-        b.textContent = "✓ Copied";
-        setTimeout(()=>b.textContent=t, 1200);
-      }catch{
-        alert("Could not copy proposal. Try again or use manual select/copy.");
-      }
-    };
-
     el('btnScreenshotProposal').onclick = async () => {
       const proposalOutput = el('proposalOutput');
       if (!proposalOutput || proposalOutput.classList.contains('hidden')) {
@@ -5500,13 +5485,32 @@ document.addEventListener("click", async (e) => {
       btn.disabled = true;
 
       try {
-        // Capture the proposal output as canvas
+        // Store original styles to restore later
+        const originalOverflow = proposalOutput.style.overflow;
+        const originalMaxHeight = proposalOutput.style.maxHeight;
+        const originalHeight = proposalOutput.style.height;
+
+        // Temporarily expand to full content height to capture everything
+        proposalOutput.style.overflow = 'visible';
+        proposalOutput.style.maxHeight = 'none';
+        proposalOutput.style.height = 'auto';
+
+        // Capture the full proposal output as canvas
         const canvas = await html2canvas(proposalOutput, {
           backgroundColor: '#0b121a',
           scale: 2, // Higher resolution for better quality
           logging: false,
-          useCORS: true
+          useCORS: true,
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: proposalOutput.scrollWidth,
+          windowHeight: proposalOutput.scrollHeight
         });
+
+        // Restore original styles
+        proposalOutput.style.overflow = originalOverflow;
+        proposalOutput.style.maxHeight = originalMaxHeight;
+        proposalOutput.style.height = originalHeight;
 
         // Convert canvas to blob
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
@@ -5516,11 +5520,11 @@ document.addEventListener("click", async (e) => {
           new ClipboardItem({ 'image/png': blob })
         ]);
 
-        btn.textContent = "✓ Copied";
+        btn.textContent = "✓ Copied!";
         setTimeout(() => {
           btn.textContent = originalText;
           btn.disabled = false;
-        }, 1200);
+        }, 1500);
       } catch (err) {
         console.error('Screenshot error:', err);
         btn.textContent = originalText;
