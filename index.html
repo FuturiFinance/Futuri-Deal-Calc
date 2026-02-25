@@ -1024,7 +1024,8 @@
             <div class="modal-grid">
               <div class="field">
                 <label for="toplineSpotOnSpots">Spots per Month ($1/spot/mo)</label>
-                <input id="toplineSpotOnSpots" type="number" min="0" value="0" />
+                <input id="toplineSpotOnSpots" type="number" min="0" step="100" value="0" />
+                <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 100</div>
               </div>
             </div>
           </div>
@@ -1034,12 +1035,14 @@
             <div style="font-weight:600; margin-bottom:8px;">SpotOn Video</div>
             <div class="modal-grid">
               <div class="field">
-                <label for="toplineVideos15">:15 Videos ($25/ea)</label>
-                <input id="toplineVideos15" type="number" min="0" value="0" />
+                <label for="toplineVideos15">:15 Videos/month ($25/ea)</label>
+                <input id="toplineVideos15" type="number" min="0" step="25" value="0" />
+                <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 25</div>
               </div>
               <div class="field">
-                <label for="toplineVideos30">:30 Videos ($50/ea)</label>
-                <input id="toplineVideos30" type="number" min="0" value="0" />
+                <label for="toplineVideos30">:30 Videos/month ($50/ea)</label>
+                <input id="toplineVideos30" type="number" min="0" step="25" value="0" />
+                <div class="muted" style="font-size:11px; margin-top:4px;">In increments of 25</div>
               </div>
             </div>
           </div>
@@ -3793,9 +3796,24 @@ document.addEventListener("click", async (e) => {
         s.dataSets = Math.max(0, parseInt(dataSetsEl.value) || 0);
         s.crmIntegrationHours = Math.max(0, parseInt(crmEl.value) || 0);
         s.tvEnabled = tvEl.checked;
-        s.spotOnAudioSpots = Math.max(0, parseInt(spotOnSpotsEl.value) || 0);
-        s.videos15Count = Math.max(0, parseInt(v15El.value) || 0);
-        s.videos30Count = Math.max(0, parseInt(v30El.value) || 0);
+
+        // SpotOn Audio: round to nearest 100
+        let spots = Math.max(0, parseInt(spotOnSpotsEl.value) || 0);
+        spots = Math.round(spots / 100) * 100;
+        s.spotOnAudioSpots = spots;
+        if (parseInt(spotOnSpotsEl.value) !== spots) spotOnSpotsEl.value = spots;
+
+        // SpotOn Video: round to nearest 25
+        let v15 = Math.max(0, parseInt(v15El.value) || 0);
+        v15 = Math.round(v15 / 25) * 25;
+        s.videos15Count = v15;
+        if (parseInt(v15El.value) !== v15) v15El.value = v15;
+
+        let v30 = Math.max(0, parseInt(v30El.value) || 0);
+        v30 = Math.round(v30 / 25) * 25;
+        s.videos30Count = v30;
+        if (parseInt(v30El.value) !== v30) v30El.value = v30;
+
         s.chuyLocations = Math.max(0, parseInt(chuyLocEl.value) || 0);
         s.chuyRetailers = Math.max(0, parseInt(chuyRetEl.value) || 0);
 
@@ -6497,6 +6515,29 @@ window.generateProposal = function generateProposal() {
     </tr>`);
 
     lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+
+    // Credit Usage by Workflow reference table
+    lines.push(`<div style="margin-top:12px;">`);
+    lines.push(`<div style="font-weight:600; margin-bottom:8px; color:var(--muted);">Credit Usage by Workflow (Reference)</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:12px; color:var(--muted);">`);
+    lines.push(`<thead><tr style="background:var(--surface-2);">
+      <th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--edge);">Workflow</th>
+      <th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--edge);">Unit</th>
+      <th style="text-align:right; padding:6px 8px; border-bottom:1px solid var(--edge);">Credits</th>
+    </tr></thead><tbody>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Press Release → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">News Package (A/V) → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Press Conference → Notable Clips</td><td style="padding:4px 8px;">per source video</td><td style="padding:4px 8px; text-align:right;">10</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Apply Graphic Template to Video</td><td style="padding:4px 8px;">per output minute</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">5</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Newscast → Segment Slicing</td><td style="padding:4px 8px;">per newscast</td><td style="padding:4px 8px; text-align:right;">15</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute per format</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
     lines.push(`</div>`);
   }
 
