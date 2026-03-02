@@ -6296,8 +6296,12 @@ document.addEventListener("click", async (e) => {
     });
     const barterMonthly = barterAnnual / 12;
 
+    // Calculate total value (cash + barter)
+    const totalValueAnnual = cashAnnual + barterAnnual;
+    const totalValueMonthly = totalValueAnnual / 12;
+
     // Calculate gap
-    const gap = totalAnnualValue - cashAnnual - barterAnnual;
+    const gap = totalAnnualValue - totalValueAnnual;
     const gapMonthly = gap / 12;
 
     // Determine status
@@ -6322,6 +6326,11 @@ document.addEventListener("click", async (e) => {
         <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(103, 36, 119, 0.08); border-color: rgba(103, 36, 119, 0.2);">
           <span><strong>Barter Component</strong> (from allocated minutes)</span>
           <span style="font-weight: 700; color: var(--brand);">${money(barterMonthly)}/mo • ${money(barterAnnual)}/yr</span>
+        </div>
+
+        <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(0, 100, 200, 0.08); border-color: rgba(0, 100, 200, 0.2);">
+          <span><strong>Total Value</strong> (${pricingType === 'mixed' ? 'Cash + Barter' : 'Barter'})</span>
+          <span style="font-weight: 700; color: #0064c8;">${money(totalValueMonthly)}/mo • ${money(totalValueAnnual)}/yr</span>
         </div>
 
         <div class="el" style="justify-content: space-between; padding: 10px 12px; border: 2px solid ${isShortfall ? 'var(--danger)' : 'var(--success)'}; background: ${isShortfall ? 'rgba(180, 35, 24, 0.08)' : 'rgba(22, 121, 76, 0.08)'};">
