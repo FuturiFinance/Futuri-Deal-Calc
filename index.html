@@ -1319,6 +1319,13 @@
         </div>
       </section>
 
+      <!-- Gap to Value Display (Barter/Mixed deals only) -->
+      <section class="card hidden" id="gapToValueSection">
+        <div class="title">Gap to Value Analysis</div>
+        <div class="muted" style="margin-bottom:12px;">Shows the breakdown between deal value, cash, and barter components.</div>
+        <div id="gapToValueContent"></div>
+      </section>
+
       <section class="card hidden" id="proposalSection">
         <div class="title">Step 6: Generate Proposal</div>
 
@@ -2213,6 +2220,10 @@ function buildDealPayload(){
     customPrices: Object.fromEntries(window.productState?.customPrices || []),
     manualMinutes: Object.fromEntries(window.productState?.manualMinutes || []),
     stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
+    // Per-product station/market assignments (convert Map<string, Set> to Object<string, Array>)
+    productAssignments: Object.fromEntries(
+      Array.from(window.productState?.productAssignments || []).map(([k, v]) => [k, Array.from(v)])
+    ),
     cpm: window.productState?.cpm ?? 2.0,
 
     // TopLine configuration
@@ -2388,6 +2399,14 @@ function loadDeal(payload){
   window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
   window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
   window.productState.cpm = payload.cpm ?? 2.0;
+
+  // Restore per-product station/market assignments
+  window.productState.productAssignments = new Map();
+  if (payload.productAssignments && typeof payload.productAssignments === "object") {
+    Object.entries(payload.productAssignments).forEach(([productId, assignments]) => {
+      window.productState.productAssignments.set(productId, new Set(assignments || []));
+    });
+  }
 
   // Restore TopLine configuration
   if (payload.toplineConfig && typeof payload.toplineConfig === "object") {
@@ -3590,8 +3609,82 @@ document.addEventListener("click", async (e) => {
       customPrices: new Map(),
       cpm: 2.00,
       manualMinutes: new Map(),
-      stationCashValues: new Map()
+      stationCashValues: new Map(),
+      // Per-product station/market assignments (for Broadcast deals)
+      productAssignments: new Map()  // Map<productId, Set<stationKey|marketName>>
     };
+
+    /**********************
+     * Per-Product Assignment Helpers
+     **********************/
+    // Market-level products (priced per market)
+    const MARKET_LEVEL_PRODUCTS = ['topline', 'spoton_audio', 'spoton_video'];
+
+    // Check if product is market-level (vs station-level)
+    function isMarketLevelProduct(productId) {
+      return MARKET_LEVEL_PRODUCTS.includes(productId);
+    }
+
+    // Get unique markets from selected stations
+    function getUniqueMarketsFromStations() {
+      const markets = new Set();
+      const stations = getSelectedStationsDetailed();
+      stations.forEach(s => markets.add(s.market));
+      return Array.from(markets).sort();
+    }
+
+    // Get assigned stations/markets for a product (defaults to all if not set)
+    function getProductAssignments(productId) {
+      const assignments = window.productState.productAssignments.get(productId);
+      if (!assignments || assignments.size === 0) {
+        // Default: all stations/markets
+        if (isMarketLevelProduct(productId)) {
+          return new Set(getUniqueMarketsFromStations());
+        } else {
+          return new Set(Array.from(window.state.stations));
+        }
+      }
+      return assignments;
+    }
+
+    // Get effective count (stations or markets) for a product's pricing
+    function getEffectiveCountForProduct(productId) {
+      const dealType = window.state?.dealType || 'broadcast';
+      if (dealType === 'agency') return 1; // Agency deals: flat pricing
+
+      const assignments = getProductAssignments(productId);
+      return Math.max(1, assignments.size);
+    }
+
+    // Clean up product assignments to remove invalid stations/markets
+    function cleanupProductAssignments() {
+      const validStations = new Set(window.state.stations);
+      const validMarkets = new Set(getUniqueMarketsFromStations());
+
+      window.productState.productAssignments.forEach((assignments, productId) => {
+        const isMarketLevel = isMarketLevelProduct(productId);
+        const validSet = isMarketLevel ? validMarkets : validStations;
+
+        // Remove any assignments that are no longer valid
+        const toRemove = [];
+        assignments.forEach(assignment => {
+          if (!validSet.has(assignment)) {
+            toRemove.push(assignment);
+          }
+        });
+        toRemove.forEach(item => assignments.delete(item));
+
+        // If no assignments left, remove the product entry (will default to all)
+        if (assignments.size === 0) {
+          window.productState.productAssignments.delete(productId);
+        }
+      });
+    }
+
+    // Reset all product assignments (clear everything)
+    function resetProductAssignments() {
+      window.productState.productAssignments.clear();
+    }
 
     /**********************
      * TopLine Configuration State
@@ -4848,6 +4941,9 @@ document.addEventListener("click", async (e) => {
       el('primeSum').textContent = String(Math.round(prime));
       el('rosSum').textContent = String(Math.round(ros));
 
+      // Clean up product assignments to remove invalid stations/markets
+      cleanupProductAssignments();
+
       updateProductCalculations();
     };
 
@@ -5002,13 +5098,139 @@ document.addEventListener("click", async (e) => {
           row.appendChild(overrideRow);
         }
 
+        // Per-product station/market assignment UI (Broadcast deals only)
+        if (
+          window.productState.selectedProducts.has(product.id) &&
+          (window.state?.dealType || 'broadcast') === 'broadcast' &&
+          window.state.stations.size > 0
+        ) {
+          const assignmentUI = renderProductAssignmentUI(product.id);
+          if (assignmentUI) row.appendChild(assignmentUI);
+        }
+
         list.appendChild(row);
       });
   };
 
+  // Render per-product station/market assignment checkboxes
+  function renderProductAssignmentUI(productId) {
+    const isMarketLevel = isMarketLevelProduct(productId);
+    const assignments = getProductAssignments(productId);
+
+    const wrapper = document.createElement('div');
+    wrapper.className = 'product-assignments';
+    wrapper.style.cssText = 'margin: 4px 0 4px 28px; padding: 10px; background: var(--surface-2); border-radius: 12px; border: 1px solid var(--edge);';
+
+    const header = document.createElement('div');
+    header.style.cssText = 'display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;';
+
+    const title = document.createElement('div');
+    title.style.cssText = 'font-size: 11px; color: var(--muted); font-weight: 600;';
+    title.textContent = isMarketLevel ? 'Apply to Markets:' : 'Apply to Stations:';
+
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.className = 'btn';
+    selectAllBtn.style.cssText = 'padding: 4px 8px; font-size: 10px;';
+    selectAllBtn.textContent = 'Select All';
+    selectAllBtn.onclick = (e) => {
+      e.preventDefault();
+      if (isMarketLevel) {
+        window.productState.productAssignments.set(productId, new Set(getUniqueMarketsFromStations()));
+      } else {
+        window.productState.productAssignments.set(productId, new Set(Array.from(window.state.stations)));
+      }
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    header.appendChild(title);
+    header.appendChild(selectAllBtn);
+    wrapper.appendChild(header);
+
+    const checkboxes = document.createElement('div');
+    checkboxes.style.cssText = 'display: flex; flex-wrap: wrap; gap: 8px;';
+
+    if (isMarketLevel) {
+      // Show market checkboxes
+      const markets = getUniqueMarketsFromStations();
+      if (markets.length === 0) {
+        const note = document.createElement('span');
+        note.className = 'muted';
+        note.style.fontSize = '11px';
+        note.textContent = 'Select stations first to assign markets';
+        checkboxes.appendChild(note);
+      } else {
+        markets.forEach(market => {
+          const label = createAssignmentCheckbox(productId, market, assignments.has(market), market);
+          checkboxes.appendChild(label);
+        });
+      }
+    } else {
+      // Show station checkboxes
+      const stations = getSelectedStationsDetailed();
+      if (stations.length === 0) {
+        const note = document.createElement('span');
+        note.className = 'muted';
+        note.style.fontSize = '11px';
+        note.textContent = 'Select stations first';
+        checkboxes.appendChild(note);
+      } else {
+        stations.forEach(station => {
+          const label = createAssignmentCheckbox(productId, station.key, assignments.has(station.key), station.station);
+          checkboxes.appendChild(label);
+        });
+      }
+    }
+
+    wrapper.appendChild(checkboxes);
+
+    // Show count summary
+    const summary = document.createElement('div');
+    summary.style.cssText = 'margin-top: 8px; font-size: 11px; color: var(--brand); font-weight: 600;';
+    const count = assignments.size;
+    const total = isMarketLevel ? getUniqueMarketsFromStations().length : window.state.stations.size;
+    summary.textContent = isMarketLevel
+      ? `${count} of ${total} market${total !== 1 ? 's' : ''} selected`
+      : `${count} of ${total} station${total !== 1 ? 's' : ''} selected`;
+    wrapper.appendChild(summary);
+
+    return wrapper;
+  }
+
+  // Create a single assignment checkbox
+  function createAssignmentCheckbox(productId, value, checked, displayName) {
+    const label = document.createElement('label');
+    label.style.cssText = 'display: flex; align-items: center; gap: 4px; font-size: 12px; cursor: pointer; padding: 4px 8px; background: var(--surface); border: 1px solid var(--edge); border-radius: 8px;';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.checked = checked;
+    checkbox.style.cssText = 'width: 14px; height: 14px;';
+    checkbox.onchange = () => {
+      let assignments = window.productState.productAssignments.get(productId);
+      if (!assignments) {
+        // Initialize with current defaults
+        assignments = new Set(getProductAssignments(productId));
+        window.productState.productAssignments.set(productId, assignments);
+      }
+      if (checkbox.checked) {
+        assignments.add(value);
+      } else {
+        assignments.delete(value);
+      }
+      window.renderProducts();
+      window.updateProductSummary();
+    };
+
+    label.appendChild(checkbox);
+    label.appendChild(document.createTextNode(displayName || value));
+    return label;
+  }
+
   window.updateProductSummary = function updateProductSummary() {
     const pricingType = window.productState.pricingType;
     let totalMonthlyPerStation = 0;
+    let totalMonthlyPerProduct = 0; // For per-product station/market assignments
     let productCount = 0;
     let toplineSelected = false;
     let contentAutomationSelected = false;
@@ -5069,12 +5291,18 @@ document.addEventListener("click", async (e) => {
       if (rateCardValue === null || rateCardValue === undefined) return;
 
       const value = window.productState.customPrices.get(productId) ?? rateCardValue;
-      totalMonthlyPerStation += Number(value || 0);
+      // Store per-product value for per-product calculation
+      const perStationValue = Number(value || 0);
+      // Calculate total for this product based on its assignments
+      const effectiveCount = getEffectiveCountForProduct(productId);
+      totalMonthlyPerStation += perStationValue; // Keep for reference
+      totalMonthlyPerProduct += perStationValue * effectiveCount; // Use per-product count
       productCount++;
     });
 
     const numStations = window.state.stations.size;
-    let totalMonthlyAllStations = totalMonthlyPerStation * numStations;
+    // Use per-product calculation for total (replaces simple multiplication)
+    let totalMonthlyAllStations = totalMonthlyPerProduct;
 
     // Add TopLine costs if selected
     let toplineCosts = null;
@@ -5192,6 +5420,12 @@ document.addEventListener("click", async (e) => {
       el('cashValuesSection').classList.add('hidden');
       showCashSummary(totalMonthlyAllStations);
     }
+
+    // Store total for Gap to Value calculations
+    window.productState.lastTotalMonthlyAllStations = totalMonthlyAllStations;
+
+    // Update Gap to Value analysis (for barter/mixed deals)
+    updateGapToValue(totalMonthlyAllStations);
   };
 
   function updateProductCalculations(){
@@ -6011,6 +6245,106 @@ document.addEventListener("click", async (e) => {
     return (annualValue * 1000) / (aqh * cpm * BARTER_FORMULA.ANNUAL_MULTIPLIER);
   }
 
+  /**********************
+   * Gap to Value Analysis
+   * Shows breakdown of deal value vs cash vs barter for Barter/Mixed deals
+   **********************/
+  function updateGapToValue(totalMonthlyAllStations) {
+    const section = el('gapToValueSection');
+    const content = el('gapToValueContent');
+    const pricingType = window.productState.pricingType;
+
+    // Hide for cash-only deals
+    if (pricingType === 'cash') {
+      section.classList.add('hidden');
+      return;
+    }
+
+    const stations = getSelectedStationsDetailed();
+    const products = Array.from(window.productState.selectedProducts);
+
+    if (!stations.length || !products.length || !totalMonthlyAllStations) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+
+    // Calculate total deal value at list price
+    const totalAnnualValue = totalMonthlyAllStations * 12;
+
+    // Calculate cash component (for mixed deals)
+    let cashMonthly = 0;
+    if (pricingType === 'mixed') {
+      stations.forEach(st => {
+        cashMonthly += (window.productState.stationCashValues.get(st.key) || 0);
+      });
+    }
+    const cashAnnual = cashMonthly * 12;
+
+    // Calculate barter component (value from allocated minutes)
+    let barterAnnual = 0;
+    const cpm = Number(window.productState.cpm || 2.0);
+
+    stations.forEach(st => {
+      const manualMins = window.productState.manualMinutes.get(st.key);
+      if (manualMins) {
+        const primeValue = calculateValueFromMinutes(manualMins.prime || 0, st.primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(manualMins.ros || 0, st.rosAQH, cpm);
+        barterAnnual += primeValue + rosValue;
+      }
+    });
+    const barterMonthly = barterAnnual / 12;
+
+    // Calculate gap
+    const gap = totalAnnualValue - cashAnnual - barterAnnual;
+    const gapMonthly = gap / 12;
+
+    // Determine status
+    const isShortfall = gap > 100; // Allow small rounding tolerance
+    const isCovered = gap <= 100;
+
+    // Render
+    content.innerHTML = `
+      <div style="display: grid; gap: 10px;">
+        <div class="el" style="justify-content: space-between; padding: 10px 12px;">
+          <span><strong>Total Deal Value</strong> (List Price)</span>
+          <span style="font-weight: 700;">${money(totalMonthlyAllStations)}/mo • ${money(totalAnnualValue)}/yr</span>
+        </div>
+
+        ${pricingType === 'mixed' ? `
+        <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(22, 121, 76, 0.08); border-color: rgba(22, 121, 76, 0.2);">
+          <span><strong>Cash Component</strong></span>
+          <span style="font-weight: 700; color: var(--success);">${money(cashMonthly)}/mo • ${money(cashAnnual)}/yr</span>
+        </div>
+        ` : ''}
+
+        <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(103, 36, 119, 0.08); border-color: rgba(103, 36, 119, 0.2);">
+          <span><strong>Barter Component</strong> (from allocated minutes)</span>
+          <span style="font-weight: 700; color: var(--brand);">${money(barterMonthly)}/mo • ${money(barterAnnual)}/yr</span>
+        </div>
+
+        <div class="el" style="justify-content: space-between; padding: 10px 12px; border: 2px solid ${isShortfall ? 'var(--danger)' : 'var(--success)'}; background: ${isShortfall ? 'rgba(180, 35, 24, 0.08)' : 'rgba(22, 121, 76, 0.08)'};">
+          <span><strong>${isShortfall ? '⚠️' : '✓'} Gap to Value</strong></span>
+          <span style="font-weight: 700; color: ${isShortfall ? 'var(--danger)' : 'var(--success)'};">
+            ${isShortfall ? '-' : '+'}${money(Math.abs(gapMonthly))}/mo • ${isShortfall ? '-' : '+'}${money(Math.abs(gap))}/yr
+          </span>
+        </div>
+
+        ${isShortfall ? `
+        <div class="muted" style="font-size: 12px; padding: 10px; background: rgba(180, 35, 24, 0.06); border-radius: 10px; border: 1px solid rgba(180, 35, 24, 0.15);">
+          <strong>Shortfall:</strong> This deal has a ${money(gap)}/yr gap.
+          Consider increasing barter minutes${pricingType === 'mixed' ? ' or cash component' : ''} to cover the full value.
+        </div>
+        ` : `
+        <div class="muted" style="font-size: 12px; padding: 10px; background: rgba(22, 121, 76, 0.06); border-radius: 10px; border: 1px solid rgba(22, 121, 76, 0.15);">
+          <strong>Covered:</strong> ${pricingType === 'mixed' ? 'Cash + Barter' : 'Barter'} fully covers the deal value.
+        </div>
+        `}
+      </div>
+    `;
+  }
+
   function calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue) {
     const section = el('barterMinutesSection');
     const breakdown = el('barterBreakdown');
@@ -6287,6 +6621,10 @@ document.addEventListener("click", async (e) => {
       </div>
     `;
     breakdown.appendChild(footer);
+
+    // Update Gap to Value when barter minutes change
+    const storedTotal = window.productState.lastTotalMonthlyAllStations;
+    if (storedTotal) updateGapToValue(storedTotal);
   }
 
   /**********************
@@ -6616,10 +6954,20 @@ window.generateProposal = function generateProposal() {
 
         const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
 
+        // Get products assigned to this station
+        const assignedProductNames = products.filter(p => {
+          const assignments = getProductAssignments(p.id);
+          if (isMarketLevelProduct(p.id)) {
+            return assignments.has(st.market);
+          } else {
+            return assignments.has(st.key);
+          }
+        }).map(p => p.name).join(", ");
+
         lines.push(`<tr>
           <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
           <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${productNames}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${assignedProductNames || '<span class="muted">—</span>'}</td>
           <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
             ${showCashCol ? (cashMonthlyForStation != null ? (money(cashMonthlyForStation) + '/mo') : '—') : "—"}
           </td>
@@ -6627,6 +6975,59 @@ window.generateProposal = function generateProposal() {
           ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(daily.rosPerDay)}</td>` : ''}
         </tr>`);
       });
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+
+    // Product Assignment Summary (shows which stations/markets each product applies to)
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Product Assignments</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Type</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Applies To</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Rate</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Total</th>
+    </tr></thead><tbody>`);
+
+    // Standard products with assignments
+    products.forEach(p => {
+      // Skip special products that have their own sections
+      if (['topline', 'content_automation', 'spoton_audio', 'spoton_video', 'topicpulse_community_radar_fb', 'faai'].includes(p.id)) {
+        return;
+      }
+
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
+      const effectiveCount = assignments.size;
+
+      let appliesTo = '';
+      if (isMarketLevel) {
+        const marketList = Array.from(assignments).sort();
+        appliesTo = marketList.length === getUniqueMarketsFromStations().length
+          ? `All ${marketList.length} market${marketList.length !== 1 ? 's' : ''}`
+          : marketList.join(', ');
+      } else {
+        const stationNames = stations.filter(s => assignments.has(s.key)).map(s => s.station);
+        appliesTo = stationNames.length === stations.length
+          ? `All ${stationNames.length} station${stationNames.length !== 1 ? 's' : ''}`
+          : stationNames.join(', ');
+      }
+
+      const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
+      const perUnitValue = window.productState.customPrices.get(p.id) ?? rateCardValue;
+      const totalValue = perUnitValue ? (perUnitValue * effectiveCount) : null;
+
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${p.name}</strong></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${isMarketLevel ? 'Per Market' : 'Per Station'}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${appliesTo}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${perUnitValue ? money(perUnitValue) + '/mo' : '—'}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${totalValue ? money(totalValue) + '/mo' : '—'}</td>
+      </tr>`);
+    });
 
     lines.push(`</tbody></table>`);
     lines.push(`</div>`);
