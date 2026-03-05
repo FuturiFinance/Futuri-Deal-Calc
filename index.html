@@ -968,6 +968,13 @@
               <label for="toplineAccounts">Total Accounts Needed (220 included)</label>
               <input id="toplineAccounts" type="number" min="1" value="220" />
             </div>
+            <div class="field" id="toplineTvField" style="display:flex;align-items:flex-end;">
+              <label style="display:flex;align-items:center;gap:8px;padding-bottom:8px;">
+                <input type="checkbox" id="toplineTv" />
+                <span>TV</span>
+                <em style="font-size:11px; color:var(--muted);">$400/mo for TV hard costs</em>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -3955,6 +3962,8 @@ document.addEventListener("click", async (e) => {
       const attrEl = el('toplineAttribution');
       const dataSetsEl = el('toplineDataSets');
       const crmEl = el('toplineCrmHours');
+      const tvEl = el('toplineTv');
+      const tvFieldEl = el('toplineTvField');
       // SpotOn credits and allocation inputs
       const spotonCreditsEl = el('toplineSpotonCredits');
       const spotonAudioAllocEl = el('toplineSpotonAudioAlloc');
@@ -3993,6 +4002,7 @@ document.addEventListener("click", async (e) => {
         s.attributionEnabled = attrEl.checked;
         s.dataSets = Math.max(0, parseInt(dataSetsEl.value) || 0);
         s.crmIntegrationHours = Math.max(0, parseInt(crmEl.value) || 0);
+        if (tvEl) s.tvEnabled = tvEl.checked;
 
         // SpotOn single credits input (round to nearest 50)
         let credits = Math.max(0, parseInt(spotonCreditsEl?.value) || 0);
@@ -4039,6 +4049,11 @@ document.addEventListener("click", async (e) => {
         attrEl.checked = s.attributionEnabled;
         dataSetsEl.value = s.dataSets;
         crmEl.value = s.crmIntegrationHours;
+        if (tvEl) tvEl.checked = s.tvEnabled;
+        // Show/hide TV field based on deal type (only for Broadcast)
+        if (tvFieldEl) {
+          tvFieldEl.style.display = (window.state.dealType === 'broadcast') ? 'flex' : 'none';
+        }
         if (spotonCreditsEl) spotonCreditsEl.value = s.spotonCredits || 0;
         if (spotonAudioAllocEl) spotonAudioAllocEl.value = s.spotonAudioAlloc || 70;
         if (spotonVideoAllocEl) spotonVideoAllocEl.value = s.spotonVideoAlloc || 30;
@@ -4056,6 +4071,7 @@ document.addEventListener("click", async (e) => {
         }
       });
       if (attrEl) attrEl.addEventListener('change', syncState);
+      if (tvEl) tvEl.addEventListener('change', syncState);
 
       // SpotOn allocation inputs
       if (spotonAudioAllocEl) {
@@ -7136,7 +7152,16 @@ window.generateProposal = function generateProposal() {
       </tr>`);
     }
 
-    // TV Hard Costs
+    // TV Hard Costs (Broadcast only)
+    if (window.toplineState.tvEnabled && window.state.dealType === 'broadcast') {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">TV <em style="font-size:11px; color:var(--muted);">hard costs</em></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.tvAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.tvAnnual / 12)}</td>
+      </tr>`);
+    }
+
     // Integration Services - Data Sets
     if (window.toplineState.dataSets > 0) {
       lines.push(`<tr>
