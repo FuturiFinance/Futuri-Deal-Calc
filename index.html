@@ -1025,7 +1025,7 @@
 
           <!-- SpotOn (Credit-based) -->
           <div style="margin-bottom:16px;">
-            <div style="font-weight:600; margin-bottom:8px;">SpotOn ($1/credit)</div>
+            <div style="font-weight:600; margin-bottom:8px;">SpotOn ($4/credit)</div>
             <div class="muted" style="font-size:11px; margin-bottom:8px;">Audio=1 credit · Video :15=4 credits · Video :30=8 credits · Clip Regen=1 credit</div>
             <div class="field" style="margin-bottom:8px;">
               <label for="toplineSpotonCredits">SpotOn Credits/mo (in increments of 50)</label>
@@ -1133,7 +1133,7 @@
 
         <!-- Credit Reference Table -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">Credit Reference ($1/credit)</div>
+          <div style="font-weight:700; margin-bottom:10px;">Credit Reference ($4/credit)</div>
           <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
               <tr style="background:rgba(103,36,119,.06);">
@@ -3593,7 +3593,7 @@ document.addEventListener("click", async (e) => {
     window.PRODUCTS_FALLBACK = [
       { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'topline_cx_war_room', name: 'TopLine CX War Room', cash: 1000, barter: null, industry: 'Radio/TV', cashOnly: true },
-      { id: 'spoton', name: 'SpotOn', cash: null, barter: null, industry: 'Radio/TV', note: 'Credit-based audio/video ads' },
+      { id: 'spoton', name: 'SpotOn', cash: null, barter: null, industry: 'Radio/TV', note: '$4/credit, increments of 50' },
       { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV' },
       { id: 'instant_video', name: 'TopicPulse IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV' },
       { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1750, industry: 'Radio/TV' },
@@ -3742,7 +3742,7 @@ document.addEventListener("click", async (e) => {
 
     // SpotOn credit pricing constants
     const SPOTON_PRICING = {
-      pricePerCredit: 1,       // $1 per credit
+      pricePerCredit: 4,       // $4 per credit
       creditIncrement: 50,     // Credits must be in increments of 50
       defaultAudioAlloc: 70,   // Default 70% audio
       defaultVideoAlloc: 30,   // Default 30% video
@@ -3815,7 +3815,7 @@ document.addEventListener("click", async (e) => {
       crmHourly: 300,                 // $300/hr for CRM integration
       crmMaintenance: 0.10,           // 10% annual maintenance on CRM
       // SpotOn credit pricing
-      spotonPricePerCredit: 1,        // $1 per credit
+      spotonPricePerCredit: 4,        // $4 per credit
       chuyLocationSetup: 99,          // $99 setup per retail location
       chuyLocationMonthly: 10,        // $10/mo per retail location
       chuyRetailerMonthly: 119,       // $119/mo per unique retailer
@@ -7291,7 +7291,7 @@ window.generateProposal = function generateProposal() {
 
     // Credit reference table
     lines.push(`<div style="margin-bottom:12px; padding:10px; background:var(--surface-2); border-radius:10px;">`);
-    lines.push(`<div style="font-weight:600; margin-bottom:8px; font-size:12px;">Credit Reference ($1/credit)</div>`);
+    lines.push(`<div style="font-weight:600; margin-bottom:8px; font-size:12px;">Credit Reference ($4/credit)</div>`);
     lines.push(`<table style="width:100%; border-collapse:collapse; font-size:11px; color:var(--muted);">`);
     lines.push(`<tr><td style="padding:2px 0;">Audio Spot</td><td style="text-align:right; padding:2px 8px;">1 credit</td></tr>`);
     lines.push(`<tr><td style="padding:2px 0;">Video :15</td><td style="text-align:right; padding:2px 8px;">4 credits</td></tr>`);
