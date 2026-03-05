@@ -2,8 +2,7 @@
   "products": [
     { "id": "topline", "name": "TopLine", "cash": null, "barter": null, "industry": "Radio/TV" },
     { "id": "topline_cx_war_room", "name": "TopLine CX War Room", "cash": 1000, "barter": null, "industry": "Radio/TV", "cashOnly": true },
-    { "id": "spoton_audio", "name": "SpotOn - Audio", "cash": null, "barter": null, "industry": "Radio/TV", "note": "$1/spot, increments of 100" },
-    { "id": "spoton_video", "name": "SpotOn Video", "cash": null, "barter": null, "industry": "Radio/TV" },
+    { "id": "spoton", "name": "SpotOn", "cash": null, "barter": null, "industry": "Radio/TV", "note": "$1/credit, increments of 50" },
     { "id": "topicpulse", "name": "TopicPulse", "cash": 750, "barter": 1050, "industry": "Radio/TV" },
     { "id": "instant_video", "name": "TopicPulse IV Add-on", "cash": 500, "barter": 700, "industry": "Radio/TV" },
     { "id": "topicpulse_iv", "name": "TopicPulse IV", "cash": 1250, "barter": 1750, "industry": "Radio/TV" },
