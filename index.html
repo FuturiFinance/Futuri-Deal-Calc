@@ -1025,26 +1025,13 @@
 
           <!-- SpotOn (Credit-based) -->
           <div style="margin-bottom:16px;">
-            <div style="font-weight:600; margin-bottom:8px;">SpotOn (Credit-based: $1/credit)</div>
-            <div class="muted" style="font-size:11px; margin-bottom:8px;">Audio=1 credit · :15 Video=4 credits (4 clips) · :30 Video=8 credits (8 clips) · Clip Regen=1 credit</div>
-            <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
-              <div class="field">
-                <label for="toplineSpotonAudio">Audio Spots/mo</label>
-                <input id="toplineSpotonAudio" type="number" min="0" value="0" />
-              </div>
-              <div class="field">
-                <label for="toplineSpotonVideos15">:15 Videos/mo</label>
-                <input id="toplineSpotonVideos15" type="number" min="0" value="0" />
-              </div>
-              <div class="field">
-                <label for="toplineSpotonVideos30">:30 Videos/mo</label>
-                <input id="toplineSpotonVideos30" type="number" min="0" value="0" />
-              </div>
-              <div class="field">
-                <label for="toplineSpotonClipRegen">Clip Regens/mo</label>
-                <input id="toplineSpotonClipRegen" type="number" min="0" value="0" />
-              </div>
+            <div style="font-weight:600; margin-bottom:8px;">SpotOn ($1/credit)</div>
+            <div class="muted" style="font-size:11px; margin-bottom:8px;">70% Audio (1 credit each) · 30% Video (:15=4 credits, :30=8 credits)</div>
+            <div class="field">
+              <label for="toplineSpotonCredits">SpotOn Credits/mo (in increments of 50)</label>
+              <input id="toplineSpotonCredits" type="number" min="0" step="50" value="0" style="max-width:180px;" />
             </div>
+            <div id="toplineSpotonAllocation" style="margin-top:8px; padding:8px 10px; background:rgba(103,36,119,.06); border-radius:8px; font-size:12px;"></div>
           </div>
         </div>
 
@@ -1131,7 +1118,7 @@
       <!-- Unified SpotOn Configuration (Credit-based) -->
       <section class="card hidden" id="spotonConfigSection">
         <div class="title">SpotOn Configuration</div>
-        <div class="muted" style="margin-bottom:12px;">Configure your SpotOn package using the credit-based system. Enter a budget or specify quantities — both will stay in sync.</div>
+        <div class="muted" style="margin-bottom:12px;">Enter your monthly SpotOn credits. Credits are auto-allocated: 70% Audio, 30% Video.</div>
 
         <!-- Credit Reference Table -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
@@ -1145,46 +1132,23 @@
               </tr>
             </thead>
             <tbody>
-              <tr><td style="padding:4px 8px;">Audio Spot</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; color:var(--muted);">—</td></tr>
+              <tr><td style="padding:4px 8px;">Audio Spot</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; color:var(--muted);">70% allocation</td></tr>
               <tr><td style="padding:4px 8px;">Video :15</td><td style="padding:4px 8px; text-align:right;">4</td><td style="padding:4px 8px; color:var(--muted);">Includes 4 clips</td></tr>
               <tr><td style="padding:4px 8px;">Video :30</td><td style="padding:4px 8px; text-align:right;">8</td><td style="padding:4px 8px; color:var(--muted);">Includes 8 clips</td></tr>
-              <tr><td style="padding:4px 8px;">Clip Regen</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; color:var(--muted);">per clip</td></tr>
             </tbody>
           </table>
         </div>
 
-        <!-- Budget-first Input -->
+        <!-- Single Credits Input -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">Option A: Set Monthly Budget</div>
+          <div style="font-weight:700; margin-bottom:10px;">SpotOn Credits</div>
           <div class="field">
-            <label for="spotonBudget">Monthly Budget ($)</label>
-            <input id="spotonBudget" type="number" min="0" step="1" value="0" style="max-width:200px;" />
-            <div class="muted" style="font-size:11px; margin-top:4px;">
-              Available Credits: <strong id="spotonAvailableCredits">0</strong>
-            </div>
+            <label for="spotonCreditsInput">Credits per Month (in increments of 50)</label>
+            <input id="spotonCreditsInput" type="number" min="0" step="50" value="0" style="max-width:200px;" />
           </div>
-        </div>
-
-        <!-- Usage-first Inputs -->
-        <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">Option B: Specify Quantities (per month)</div>
-          <div style="display:grid; grid-template-columns:repeat(2, 1fr); gap:12px;">
-            <div class="field">
-              <label for="spotonAudioInput">Audio Spots (1 credit each)</label>
-              <input id="spotonAudioInput" type="number" min="0" value="0" />
-            </div>
-            <div class="field">
-              <label for="spotonVideos15Input">:15 Videos (4 credits each)</label>
-              <input id="spotonVideos15Input" type="number" min="0" value="0" />
-            </div>
-            <div class="field">
-              <label for="spotonVideos30Input">:30 Videos (8 credits each)</label>
-              <input id="spotonVideos30Input" type="number" min="0" value="0" />
-            </div>
-            <div class="field">
-              <label for="spotonClipRegenInput">Clip Regens (1 credit each)</label>
-              <input id="spotonClipRegenInput" type="number" min="0" value="0" />
-            </div>
+          <!-- Allocation Display -->
+          <div id="spotonAllocationDisplay" style="margin-top:12px; padding:10px; background:rgba(103,36,119,.06); border-radius:8px;">
+            <div style="font-size:12px; color:var(--muted);">Enter credits to see allocation breakdown</div>
           </div>
         </div>
 
@@ -1193,11 +1157,7 @@
           <div style="font-weight:700; margin-bottom:10px;">Cost Summary</div>
           <div style="font-size:13px;">
             <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span>Total Credits Used:</span>
-              <strong id="spotonUsedCredits">0</strong>
-            </div>
-            <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
-              <span>Total Credits (Monthly):</span>
+              <span>Total Credits:</span>
               <strong id="spotonTotalCredits">0</strong>
             </div>
             <div style="display:flex; justify-content:space-between; border-top:1px solid rgba(103,36,119,.18); padding-top:8px; margin-top:8px;">
@@ -2426,17 +2386,44 @@ function loadDeal(payload){
     if (typeof window.applyContentAutomationStateToUI === "function") window.applyContentAutomationStateToUI();
   }, 0);
 
-  // Restore SpotOn configuration (unified credit-based)
+  // Restore SpotOn configuration (single credit input with 70/30 allocation)
   if (payload.spotonConfig && typeof payload.spotonConfig === "object") {
-    Object.assign(window.spotonState, payload.spotonConfig);
+    // New format: just creditsPerMonth
+    if (typeof payload.spotonConfig.creditsPerMonth === 'number') {
+      window.spotonState.creditsPerMonth = payload.spotonConfig.creditsPerMonth;
+    } else {
+      // Old format: had separate audioSpots, videos15Count, etc. - convert to credits
+      const oldAudio = payload.spotonConfig.audioSpots || 0;
+      const oldV15 = payload.spotonConfig.videos15Count || 0;
+      const oldV30 = payload.spotonConfig.videos30Count || 0;
+      const oldRegens = payload.spotonConfig.clipRegens || 0;
+      const oldBudget = payload.spotonConfig.monthlyBudget || 0;
+      // Calculate old total credits
+      const oldCredits = oldAudio * 1 + oldV15 * 4 + oldV30 * 8 + oldRegens * 1;
+      // Use whichever gives more credits (old usage or old budget)
+      const creditIncrement = SPOTON_PRICING.creditIncrement || 50;
+      window.spotonState.creditsPerMonth = Math.max(
+        Math.round(oldCredits / creditIncrement) * creditIncrement,
+        Math.round(oldBudget / creditIncrement) * creditIncrement
+      );
+    }
   }
   // Backwards compatibility: migrate old spotonAudioConfig and spotonVideoConfig
   if (payload.spotonAudioConfig && typeof payload.spotonAudioConfig === "object") {
-    window.spotonState.audioSpots = payload.spotonAudioConfig.spotsPerMonth || 0;
+    const audioSpots = payload.spotonAudioConfig.spotsPerMonth || 0;
+    const creditIncrement = SPOTON_PRICING.creditIncrement || 50;
+    // Add to existing credits, round up to nearest increment
+    const newTotal = (window.spotonState.creditsPerMonth || 0) + audioSpots;
+    window.spotonState.creditsPerMonth = Math.ceil(newTotal / creditIncrement) * creditIncrement;
   }
   if (payload.spotonVideoConfig && typeof payload.spotonVideoConfig === "object") {
-    window.spotonState.videos15Count = payload.spotonVideoConfig.videos15Count || 0;
-    window.spotonState.videos30Count = payload.spotonVideoConfig.videos30Count || 0;
+    const v15 = payload.spotonVideoConfig.videos15Count || 0;
+    const v30 = payload.spotonVideoConfig.videos30Count || 0;
+    const videoCredits = v15 * 4 + v30 * 8;
+    const creditIncrement = SPOTON_PRICING.creditIncrement || 50;
+    // Add to existing credits, round up to nearest increment
+    const newTotal = (window.spotonState.creditsPerMonth || 0) + videoCredits;
+    window.spotonState.creditsPerMonth = Math.ceil(newTotal / creditIncrement) * creditIncrement;
   }
   setTimeout(() => {
     if (typeof window.applySpotOnStateToUI === "function") window.applySpotOnStateToUI();
@@ -3700,11 +3687,7 @@ document.addEventListener("click", async (e) => {
       dataSets: 0,            // Additional data sets at $1,000 each (one-time)
       crmIntegrationHours: 0, // CRM integration at $300/hr + 10% maintenance
       // Add-ons
-      // SpotOn credits (unified system)
-      spotonAudioSpots: 0,      // Audio spots (1 credit each)
-      spotonVideos15Count: 0,   // :15 videos (4 credits each)
-      spotonVideos30Count: 0,   // :30 videos (8 credits each)
-      spotonClipRegens: 0,      // Clip regens (1 credit each)
+      spotonCredits: 0,     // SpotOn credits per month (in increments of 50)
       chuyLocations: 0,     // Retail locations ($99 setup + $10/mo)
       chuyRetailers: 0,     // Unique retailers ($119/mo each)
       tvEnabled: false      // TV hard costs add-on
@@ -3714,24 +3697,18 @@ document.addEventListener("click", async (e) => {
      * Unified SpotOn Configuration State (Credit-based)
      **********************/
     window.spotonState = {
-      // Input mode: 'budget' or 'usage'
-      inputMode: 'usage',
-      // Budget-first input
-      monthlyBudget: 0,
-      // Usage-first inputs
-      audioSpots: 0,      // Audio spots per month (1 credit each)
-      videos15Count: 0,   // :15 videos per month (4 credits each, includes 4 clips)
-      videos30Count: 0,   // :30 videos per month (8 credits each, includes 8 clips)
-      clipRegens: 0       // Clip regenerations per month (1 credit each)
+      creditsPerMonth: 0    // Total credits per month (in increments of 50)
     };
 
     // SpotOn credit pricing constants
     const SPOTON_PRICING = {
       pricePerCredit: 1,    // $1 per credit
+      creditIncrement: 50,  // Credits must be in increments of 50
+      audioAllocation: 0.70, // 70% of credits go to audio
+      videoAllocation: 0.30, // 30% of credits go to video
       audioCredits: 1,      // Audio spot = 1 credit
       video15Credits: 4,    // :15 video = 4 credits (includes 4 clips)
-      video30Credits: 8,    // :30 video = 8 credits (includes 8 clips)
-      clipRegenCredits: 1   // Clip regen = 1 credit per clip
+      video30Credits: 8     // :30 video = 8 credits (includes 8 clips)
     };
 
     // Global barter multiplier (barter = cash × this value)
@@ -3797,12 +3774,8 @@ document.addEventListener("click", async (e) => {
       dataSetPrice: 1000,             // $1,000 per data set (one-time, no maintenance)
       crmHourly: 300,                 // $300/hr for CRM integration
       crmMaintenance: 0.10,           // 10% annual maintenance on CRM
-      // SpotOn credit-based pricing (same as SPOTON_PRICING)
+      // SpotOn credit pricing
       spotonPricePerCredit: 1,        // $1 per credit
-      spotonAudioCredits: 1,          // Audio spot = 1 credit
-      spotonVideo15Credits: 4,        // :15 video = 4 credits
-      spotonVideo30Credits: 8,        // :30 video = 8 credits
-      spotonClipRegenCredits: 1,      // Clip regen = 1 credit
       chuyLocationSetup: 99,          // $99 setup per retail location
       chuyLocationMonthly: 10,        // $10/mo per retail location
       chuyRetailerMonthly: 119,       // $119/mo per unique retailer
@@ -3843,13 +3816,9 @@ document.addEventListener("click", async (e) => {
       // TV hard costs
       const tvAnnual = s.tvEnabled ? p.tvHardCostsAnnual * multiplier : 0;
 
-      // SpotOn (unified credit-based pricing)
-      const spotonAudioCredits = (s.spotonAudioSpots || 0) * p.spotonAudioCredits;
-      const spotonVideo15Credits = (s.spotonVideos15Count || 0) * p.spotonVideo15Credits;
-      const spotonVideo30Credits = (s.spotonVideos30Count || 0) * p.spotonVideo30Credits;
-      const spotonClipRegenCredits = (s.spotonClipRegens || 0) * p.spotonClipRegenCredits;
-      const spotonTotalCredits = spotonAudioCredits + spotonVideo15Credits + spotonVideo30Credits + spotonClipRegenCredits;
-      const spotonAnnual = spotonTotalCredits * p.spotonPricePerCredit * 12 * multiplier;
+      // SpotOn (single credit input)
+      const spotonCredits = s.spotonCredits || 0;
+      const spotonAnnual = spotonCredits * p.spotonPricePerCredit * 12 * multiplier;
 
       // CHUY (Retail Locations and Unique Retailers)
       const chuySetup = s.chuyLocations * p.chuyLocationSetup * multiplier;
@@ -3872,7 +3841,7 @@ document.addEventListener("click", async (e) => {
         crmMaintenance,
         integrationOneTime,
         spotonAnnual,
-        spotonTotalCredits,
+        spotonCredits,
         chuySetup,
         chuyLocationAnnual,
         chuyRetailerAnnual,
@@ -3923,7 +3892,13 @@ document.addEventListener("click", async (e) => {
         html += `<div>CRM Integration: ${money(costs.crmOneTime)} one-time + ${money(costs.crmMaintenance)}/yr maint.</div>`;
       }
       if (costs.spotonAnnual > 0) {
-        html += `<div>SpotOn (${costs.spotonTotalCredits} credits/mo): ${money(costs.spotonAnnual)}/yr</div>`;
+        const audioCredits = Math.floor(costs.spotonCredits * 0.70);
+        const videoCredits = costs.spotonCredits - audioCredits;
+        const audioSpots = audioCredits;
+        const video15s = Math.floor(videoCredits / 4);
+        const video30s = Math.floor(videoCredits / 8);
+        html += `<div>SpotOn (${costs.spotonCredits} credits/mo): ${money(costs.spotonAnnual)}/yr</div>`;
+        html += `<div style="font-size:11px;color:var(--muted);margin-left:12px;">→ ${audioSpots} audio spots + ${video15s} :15s OR ${video30s} :30s</div>`;
       }
       if (costs.chuySetup > 0 || costs.chuyLocationAnnual > 0) {
         html += `<div>CHUY Locations: ${money(costs.chuySetup)} setup + ${money(costs.chuyLocationAnnual)}/yr</div>`;
@@ -3945,15 +3920,28 @@ document.addEventListener("click", async (e) => {
       const dataSetsEl = el('toplineDataSets');
       const crmEl = el('toplineCrmHours');
       const tvEl = el('toplineTv');
-      // Unified SpotOn inputs
-      const spotonAudioEl = el('toplineSpotonAudio');
-      const spotonV15El = el('toplineSpotonVideos15');
-      const spotonV30El = el('toplineSpotonVideos30');
-      const spotonClipRegenEl = el('toplineSpotonClipRegen');
+      // Single SpotOn credits input
+      const spotonCreditsEl = el('toplineSpotonCredits');
       const chuyLocEl = el('toplineChuyLocations');
       const chuyRetEl = el('toplineChuyRetailers');
 
       if (!tierEl) return; // UI not present
+
+      // Helper to update SpotOn allocation display
+      const updateSpotonAllocation = (credits) => {
+        const allocDiv = el('toplineSpotonAllocation');
+        if (!allocDiv) return;
+        if (credits <= 0) {
+          allocDiv.innerHTML = '';
+          return;
+        }
+        const audioCredits = Math.floor(credits * 0.70);
+        const videoCredits = credits - audioCredits;
+        const audioSpots = audioCredits;
+        const video15s = Math.floor(videoCredits / 4);
+        const video30s = Math.floor(videoCredits / 8);
+        allocDiv.innerHTML = `<strong>Audio:</strong> ${audioSpots} spots/mo &nbsp;|&nbsp; <strong>Video:</strong> ${video15s} :15s OR ${video30s} :30s/mo`;
+      };
 
       const syncState = () => {
         const s = window.toplineState;
@@ -3966,11 +3954,12 @@ document.addEventListener("click", async (e) => {
         s.crmIntegrationHours = Math.max(0, parseInt(crmEl.value) || 0);
         s.tvEnabled = tvEl.checked;
 
-        // SpotOn unified inputs (no rounding needed for credit-based system)
-        s.spotonAudioSpots = Math.max(0, parseInt(spotonAudioEl?.value) || 0);
-        s.spotonVideos15Count = Math.max(0, parseInt(spotonV15El?.value) || 0);
-        s.spotonVideos30Count = Math.max(0, parseInt(spotonV30El?.value) || 0);
-        s.spotonClipRegens = Math.max(0, parseInt(spotonClipRegenEl?.value) || 0);
+        // SpotOn single credits input (round to nearest 50)
+        let credits = Math.max(0, parseInt(spotonCreditsEl?.value) || 0);
+        credits = Math.round(credits / 50) * 50;
+        s.spotonCredits = credits;
+        if (spotonCreditsEl && parseInt(spotonCreditsEl.value) !== credits) spotonCreditsEl.value = credits;
+        updateSpotonAllocation(credits);
 
         s.chuyLocations = Math.max(0, parseInt(chuyLocEl.value) || 0);
         s.chuyRetailers = Math.max(0, parseInt(chuyRetEl.value) || 0);
@@ -3990,17 +3979,15 @@ document.addEventListener("click", async (e) => {
         dataSetsEl.value = s.dataSets;
         crmEl.value = s.crmIntegrationHours;
         tvEl.checked = s.tvEnabled;
-        if (spotonAudioEl) spotonAudioEl.value = s.spotonAudioSpots || 0;
-        if (spotonV15El) spotonV15El.value = s.spotonVideos15Count || 0;
-        if (spotonV30El) spotonV30El.value = s.spotonVideos30Count || 0;
-        if (spotonClipRegenEl) spotonClipRegenEl.value = s.spotonClipRegens || 0;
+        if (spotonCreditsEl) spotonCreditsEl.value = s.spotonCredits || 0;
+        updateSpotonAllocation(s.spotonCredits || 0);
         chuyLocEl.value = s.chuyLocations;
         chuyRetEl.value = s.chuyRetailers;
         updateTopLineSummary();
       };
 
       // Wire up events (both 'change' and 'input' for real-time updates)
-      [tierEl, marketsEl, usersEl, accountsEl, dataSetsEl, crmEl, spotonAudioEl, spotonV15El, spotonV30El, spotonClipRegenEl, chuyLocEl, chuyRetEl].forEach(inp => {
+      [tierEl, marketsEl, usersEl, accountsEl, dataSetsEl, crmEl, spotonCreditsEl, chuyLocEl, chuyRetEl].forEach(inp => {
         if (inp) {
           inp.addEventListener('change', syncState);
           inp.addEventListener('input', syncState);
@@ -4122,10 +4109,8 @@ document.addEventListener("click", async (e) => {
     }
 
     /**********************
-     * SpotOn Video Configuration Functions
-     **********************/
-    /**********************
      * Unified SpotOn Configuration Functions (Credit-based)
+     * Single credit input with 70/30 auto-allocation
      **********************/
     function calculateSpotOnCosts() {
       const s = window.spotonState;
@@ -4133,49 +4118,48 @@ document.addEventListener("click", async (e) => {
       const pricingType = window.productState.pricingType;
       const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
-      // Calculate credits for each item type
-      const audioCredits = (s.audioSpots || 0) * p.audioCredits;
-      const video15Credits = (s.videos15Count || 0) * p.video15Credits;
-      const video30Credits = (s.videos30Count || 0) * p.video30Credits;
-      const clipRegenCredits = (s.clipRegens || 0) * p.clipRegenCredits;
-      const totalCredits = audioCredits + video15Credits + video30Credits + clipRegenCredits;
+      // Total credits from single input
+      const totalCredits = s.creditsPerMonth || 0;
+
+      // 70/30 allocation
+      const audioCredits = Math.floor(totalCredits * p.audioAllocation);
+      const videoCredits = totalCredits - audioCredits;
+
+      // Calculate deliverables from allocation
+      const audioSpots = audioCredits; // 1 credit = 1 audio spot
+      const video15s = Math.floor(videoCredits / p.video15Credits);
+      const video30s = Math.floor(videoCredits / p.video30Credits);
 
       // Calculate costs
       const monthlyCost = totalCredits * p.pricePerCredit * multiplier;
 
       return {
-        audioSpots: s.audioSpots || 0,
-        videos15: s.videos15Count || 0,
-        videos30: s.videos30Count || 0,
-        clipRegens: s.clipRegens || 0,
-        audioCredits,
-        video15Credits,
-        video30Credits,
-        clipRegenCredits,
         totalCredits,
+        audioCredits,
+        videoCredits,
+        audioSpots,
+        video15s,
+        video30s,
         monthlyCost,
         annualCost: monthlyCost * 12
       };
     }
 
-    // Calculate credits from budget
-    function calculateCreditsFromBudget(monthlyBudget) {
+    // Helper to calculate allocation breakdown for display
+    function getSpotOnAllocationDisplay(credits) {
+      if (credits <= 0) return '';
       const p = SPOTON_PRICING;
-      const pricingType = window.productState.pricingType;
-      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
-      return Math.floor(monthlyBudget / (p.pricePerCredit * multiplier));
-    }
-
-    // Calculate budget from usage
-    function calculateBudgetFromUsage(state) {
-      const costs = calculateSpotOnCosts();
-      return costs.monthlyCost;
+      const audioCredits = Math.floor(credits * p.audioAllocation);
+      const videoCredits = credits - audioCredits;
+      const audioSpots = audioCredits;
+      const video15s = Math.floor(videoCredits / p.video15Credits);
+      const video30s = Math.floor(videoCredits / p.video30Credits);
+      return `<strong>Audio:</strong> ${audioSpots} spots/mo &nbsp;|&nbsp; <strong>Video:</strong> ${video15s} :15s OR ${video30s} :30s/mo`;
     }
 
     function updateSpotOnSummary() {
       const costs = calculateSpotOnCosts();
       const s = window.spotonState;
-      const p = SPOTON_PRICING;
 
       // Update total credits display
       const creditsEl = el('spotonTotalCredits');
@@ -4189,99 +4173,49 @@ document.addEventListener("click", async (e) => {
       const annualEl = el('spotonAnnualCost');
       if (annualEl) annualEl.textContent = '$' + Math.round(costs.annualCost).toLocaleString() + '/yr';
 
-      // Update available credits (for budget-first mode)
-      const availCreditsEl = el('spotonAvailableCredits');
-      if (availCreditsEl) {
-        const availableCredits = calculateCreditsFromBudget(s.monthlyBudget || 0);
-        availCreditsEl.textContent = availableCredits.toLocaleString();
-      }
-
-      // Update used credits display
-      const usedCreditsEl = el('spotonUsedCredits');
-      if (usedCreditsEl) usedCreditsEl.textContent = costs.totalCredits.toLocaleString();
-
-      // Update remaining credits (budget mode)
-      const remainingEl = el('spotonRemainingCredits');
-      if (remainingEl) {
-        const availableCredits = calculateCreditsFromBudget(s.monthlyBudget || 0);
-        const remaining = availableCredits - costs.totalCredits;
-        remainingEl.textContent = remaining.toLocaleString();
-        remainingEl.style.color = remaining < 0 ? 'var(--danger)' : 'inherit';
+      // Update allocation display
+      const allocDisplay = el('spotonAllocationDisplay');
+      if (allocDisplay) {
+        if (costs.totalCredits > 0) {
+          allocDisplay.innerHTML = getSpotOnAllocationDisplay(costs.totalCredits);
+        } else {
+          allocDisplay.innerHTML = '<div style="font-size:12px; color:var(--muted);">Enter credits to see allocation breakdown</div>';
+        }
       }
     }
 
     function wireSpotOnUI() {
-      // Budget-first inputs
-      const budgetInput = el('spotonBudget');
-      // Usage-first inputs
-      const audioInput = el('spotonAudioInput');
-      const v15Input = el('spotonVideos15Input');
-      const v30Input = el('spotonVideos30Input');
-      const clipRegenInput = el('spotonClipRegenInput');
+      const creditsInput = el('spotonCreditsInput');
+      const p = SPOTON_PRICING;
 
-      let syncingFromBudget = false;
-      let syncingFromUsage = false;
+      if (creditsInput) {
+        const updateCredits = () => {
+          let val = Math.max(0, parseInt(creditsInput.value) || 0);
+          // Round to nearest increment of 50
+          val = Math.round(val / p.creditIncrement) * p.creditIncrement;
+          window.spotonState.creditsPerMonth = val;
+          updateSpotOnSummary();
+          window.updateProductSummary();
+        };
 
-      // Sync usage from budget
-      const syncFromBudget = () => {
-        if (syncingFromUsage) return;
-        syncingFromBudget = true;
-        const s = window.spotonState;
-        s.monthlyBudget = Math.max(0, parseFloat(budgetInput?.value) || 0);
-        // Don't auto-allocate credits, just show available
-        updateSpotOnSummary();
-        window.updateProductSummary();
-        syncingFromBudget = false;
-      };
-
-      // Sync budget from usage
-      const syncFromUsage = () => {
-        if (syncingFromBudget) return;
-        syncingFromUsage = true;
-        const s = window.spotonState;
-        s.audioSpots = Math.max(0, parseInt(audioInput?.value) || 0);
-        s.videos15Count = Math.max(0, parseInt(v15Input?.value) || 0);
-        s.videos30Count = Math.max(0, parseInt(v30Input?.value) || 0);
-        s.clipRegens = Math.max(0, parseInt(clipRegenInput?.value) || 0);
-
-        // Update budget to match usage
-        const costs = calculateSpotOnCosts();
-        s.monthlyBudget = costs.monthlyCost;
-        if (budgetInput) budgetInput.value = Math.round(costs.monthlyCost);
-
-        updateSpotOnSummary();
-        window.updateProductSummary();
-        syncingFromUsage = false;
-      };
-
-      // Wire budget input
-      if (budgetInput) {
-        budgetInput.addEventListener('input', syncFromBudget);
-        budgetInput.addEventListener('change', syncFromBudget);
+        creditsInput.addEventListener('input', updateCredits);
+        creditsInput.addEventListener('change', () => {
+          // On blur/change, snap to nearest 50 and update the input display
+          let val = Math.max(0, parseInt(creditsInput.value) || 0);
+          val = Math.round(val / p.creditIncrement) * p.creditIncrement;
+          creditsInput.value = val;
+          window.spotonState.creditsPerMonth = val;
+          updateSpotOnSummary();
+          window.updateProductSummary();
+        });
       }
-
-      // Wire usage inputs
-      [audioInput, v15Input, v30Input, clipRegenInput].forEach(inp => {
-        if (inp) {
-          inp.addEventListener('input', syncFromUsage);
-          inp.addEventListener('change', syncFromUsage);
-        }
-      });
     }
 
     function applySpotOnStateToUI() {
       const s = window.spotonState;
-      const budgetInput = el('spotonBudget');
-      const audioInput = el('spotonAudioInput');
-      const v15Input = el('spotonVideos15Input');
-      const v30Input = el('spotonVideos30Input');
-      const clipRegenInput = el('spotonClipRegenInput');
+      const creditsInput = el('spotonCreditsInput');
 
-      if (budgetInput) budgetInput.value = s.monthlyBudget || 0;
-      if (audioInput) audioInput.value = s.audioSpots || 0;
-      if (v15Input) v15Input.value = s.videos15Count || 0;
-      if (v30Input) v30Input.value = s.videos30Count || 0;
-      if (clipRegenInput) clipRegenInput.value = s.clipRegens || 0;
+      if (creditsInput) creditsInput.value = s.creditsPerMonth || 0;
 
       updateSpotOnSummary();
     }
@@ -7211,71 +7145,46 @@ window.generateProposal = function generateProposal() {
     lines.push(`</div>`);
   }
 
-  // SpotOn section if selected (unified credit-based)
+  // SpotOn section if selected (unified credit-based with 70/30 allocation)
   if (spotonSelected && spotonCosts && spotonCosts.monthlyCost > 0) {
     const sc = spotonCosts;
 
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">SpotOn</div>`);
 
-    // Credit reference table
+    // Credit info with allocation note
     lines.push(`<div style="margin-bottom:12px; padding:10px; background:var(--surface-2); border-radius:10px;">`);
-    lines.push(`<div style="font-weight:600; margin-bottom:6px; font-size:12px; color:var(--muted);">Credit Reference ($1/credit)</div>`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:11px; color:var(--muted);">`);
-    lines.push(`<tr><td>Audio Spot = 1 credit</td><td>Video :15 = 4 credits (4 clips)</td></tr>`);
-    lines.push(`<tr><td>Video :30 = 8 credits (8 clips)</td><td>Clip Regen = 1 credit/clip</td></tr>`);
-    lines.push(`</table>`);
+    lines.push(`<div style="font-weight:600; margin-bottom:6px; font-size:12px; color:var(--muted);">$1/credit · 70% Audio / 30% Video Allocation</div>`);
+    lines.push(`<div style="font-size:11px; color:var(--muted);">Audio Spot = 1 credit &nbsp;|&nbsp; Video :15 = 4 credits &nbsp;|&nbsp; Video :30 = 8 credits</div>`);
     lines.push(`</div>`);
 
     lines.push(`<div style="overflow-x:auto;">`);
     lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
     lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Allocation</th>
       <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Credits</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Deliverables</th>
     </tr></thead><tbody>`);
 
-    // Detail rows for each item type
-    if (sc.audioSpots > 0) {
-      lines.push(`<tr>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">Audio Spots (${sc.audioSpots}/mo)</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.audioCredits}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.audioCredits)}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.audioCredits * 12)}</td>
-      </tr>`);
-    }
-    if (sc.videos15 > 0) {
-      lines.push(`<tr>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">:15 Videos (${sc.videos15}/mo)</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video15Credits}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.video15Credits)}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.video15Credits * 12)}</td>
-      </tr>`);
-    }
-    if (sc.videos30 > 0) {
-      lines.push(`<tr>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">:30 Videos (${sc.videos30}/mo)</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video30Credits}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.video30Credits)}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.video30Credits * 12)}</td>
-      </tr>`);
-    }
-    if (sc.clipRegens > 0) {
-      lines.push(`<tr>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">Clip Regens (${sc.clipRegens}/mo)</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.clipRegenCredits}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.clipRegenCredits)}</td>
-        <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${money(sc.clipRegenCredits * 12)}</td>
-      </tr>`);
-    }
+    // Audio allocation row (70%)
+    lines.push(`<tr>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">Audio (70%)</td>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.audioCredits}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.audioSpots} spots/mo</td>
+    </tr>`);
+
+    // Video allocation row (30%)
+    lines.push(`<tr>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">Video (30%)</td>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.videoCredits}</td>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video15s} :15s OR ${sc.video30s} :30s/mo</td>
+    </tr>`);
 
     // Total row
     lines.push(`<tr style="background:rgba(103,36,119,.06);">
       <td style="padding:8px;"><strong>SpotOn Total</strong></td>
-      <td style="padding:8px; text-align:right;"><strong>${sc.totalCredits}</strong></td>
-      <td style="padding:8px; text-align:right;"><strong>${money(sc.monthlyCost)}</strong></td>
-      <td style="padding:8px; text-align:right;"><strong>${money(sc.annualCost)}</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${sc.totalCredits} credits</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${money(sc.monthlyCost)}/mo · ${money(sc.annualCost)}/yr</strong></td>
     </tr>`);
 
     lines.push(`</tbody></table>`);
