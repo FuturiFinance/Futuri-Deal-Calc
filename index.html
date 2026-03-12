@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Futuri Media Deal Calculator v2.4</title>
+  <title>Futuri Media Deal Calculator v2.5</title>
 
   <style>
     :root{
@@ -6678,24 +6678,40 @@ document.addEventListener("click", async (e) => {
       `;
       breakdown.appendChild(productHeader);
 
-      // Split product's barter value between Prime and ROS proportionally by AQH
-      const primeValueShare = hasPrimeAQH ? (totalPrimeAQH / totalAQH) : 0;
-      const rosValueShare = hasRosAQH ? (totalRosAQH / totalAQH) : 0;
+      // Get stations assigned to this product
+      const assignedStations = isMarketLevel
+        ? stations.filter(s => assignments.has(s.market))
+        : stations.filter(s => assignments.has(s.key));
+
+      // Calculate AQH totals for assigned stations only
+      let assignedPrimeAQH = 0;
+      let assignedRosAQH = 0;
+      assignedStations.forEach(s => {
+        assignedPrimeAQH += (Number(s.primeAQH) || 0);
+        assignedRosAQH += (Number(s.rosAQH) || 0);
+      });
+      const assignedTotalAQH = assignedPrimeAQH + assignedRosAQH;
+      const hasAssignedPrimeAQH = assignedPrimeAQH > 0;
+      const hasAssignedRosAQH = assignedRosAQH > 0;
+
+      // Split product's barter value between Prime and ROS proportionally by assigned station AQH
+      const primeValueShare = hasAssignedPrimeAQH ? (assignedPrimeAQH / assignedTotalAQH) : 0;
+      const rosValueShare = hasAssignedRosAQH ? (assignedRosAQH / assignedTotalAQH) : 0;
       const productPrimeAnnual = productBarterAnnual * primeValueShare;
       const productRosAnnual = productBarterAnnual * rosValueShare;
 
-      // Calculate minutes for each station for this product
+      // Calculate minutes for each assigned station for this product
       let productPrimeMinutesTotal = 0;
       let productRosMinutesTotal = 0;
       let productAllocatedValue = 0;
 
-      stations.forEach(st => {
+      assignedStations.forEach(st => {
         const primeAQH = Number(st.primeAQH) || 0;
         const rosAQH = Number(st.rosAQH) || 0;
 
-        // This station's share of the product's barter value
-        const stationPrimeShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / totalPrimeAQH) : 0;
-        const stationRosShare = hasRosAQH && rosAQH > 0 ? (rosAQH / totalRosAQH) : 0;
+        // This station's share of the product's barter value (among assigned stations)
+        const stationPrimeShare = hasAssignedPrimeAQH && primeAQH > 0 ? (primeAQH / assignedPrimeAQH) : 0;
+        const stationRosShare = hasAssignedRosAQH && rosAQH > 0 ? (rosAQH / assignedRosAQH) : 0;
 
         const stationPrimeTargetValue = productPrimeAnnual * stationPrimeShare;
         const stationRosTargetValue = productRosAnnual * stationRosShare;
