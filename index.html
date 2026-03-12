@@ -1273,8 +1273,8 @@
       </section>
 
       <section class="card hidden" id="cashValuesSection">
-        <div class="title">Cash Values by Station (All Selected Stations)</div>
-        <div class="muted" style="margin-bottom:12px;">Enter monthly cash payment for each station below. Barter will automatically cover remaining value.</div>
+        <div class="title">Cash Values by Product</div>
+        <div class="muted" style="margin-bottom:12px;">Enter monthly cash payment for each product below. Barter will automatically cover remaining value.</div>
         <div id="cashValuesList" class="list"></div>
         <div class="row" style="margin-top:12px;">
           <div class="pill">Total Cash (Monthly): $<span id="totalCashInput">0</span></div>
@@ -2195,7 +2195,7 @@ function buildDealPayload(){
     products: Array.from(window.productState?.selectedProducts || []),
     customPrices: Object.fromEntries(window.productState?.customPrices || []),
     manualMinutes: Object.fromEntries(window.productState?.manualMinutes || []),
-    stationCashValues: Object.fromEntries(window.productState?.stationCashValues || []),
+    productCashValues: Object.fromEntries(window.productState?.productCashValues || []),
     // Per-product station/market assignments (convert Map<string, Set> to Object<string, Array>)
     productAssignments: Object.fromEntries(
       Array.from(window.productState?.productAssignments || []).map(([k, v]) => [k, Array.from(v)])
@@ -2370,7 +2370,7 @@ function loadDeal(payload){
   window.productState.selectedProducts = new Set(payload.products || []);
   window.productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
   window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
-  window.productState.stationCashValues = new Map(Object.entries(payload.stationCashValues || {}));
+  window.productState.productCashValues = new Map(Object.entries(payload.productCashValues || {}));
   window.productState.cpm = payload.cpm ?? 2.0;
 
   // Restore per-product station/market assignments
@@ -3617,7 +3617,7 @@ document.addEventListener("click", async (e) => {
       customPrices: new Map(),
       cpm: 2.00,
       manualMinutes: new Map(),
-      stationCashValues: new Map(),
+      productCashValues: new Map(),  // Map<productId, cashAmount> - cash per product for mixed deals
       // Per-product station/market assignments (for Broadcast deals)
       productAssignments: new Map()  // Map<productId, Set<stationKey|marketName>>
     };
@@ -5422,7 +5422,7 @@ document.addEventListener("click", async (e) => {
         window.productState.pricingType = r.value;
 
         if (window.productState.pricingType !== 'mixed') {
-          window.productState.stationCashValues.clear();
+          window.productState.productCashValues.clear();
         }
 
         if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
@@ -6118,13 +6118,48 @@ document.addEventListener("click", async (e) => {
   }
 
   /**********************
-   * Mixed cash allocation UI
+   * Mixed cash allocation UI - Per Product
    **********************/
+  // Products that are handled specially and excluded from per-product cash input
+  const SPECIAL_PRODUCTS = ['topline', 'topline_cx_war_room', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'];
+
+  // Get products eligible for per-product cash input
+  function getProductsForCashInput() {
+    const products = getSelectedProductsDetailed();
+    return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
+  }
+
+  // Get monthly list price for a product (barter rate card value × count)
+  function getProductMonthlyListPrice(product) {
+    const dealType = window.state?.dealType || 'broadcast';
+    const rateCardValue = product.barter || 0;
+    const customPrice = window.productState.customPrices.get(product.id);
+    const pricePerUnit = customPrice ?? rateCardValue;
+
+    if (dealType === 'agency') {
+      return pricePerUnit; // Flat pricing for agency
+    }
+
+    // Broadcast: multiply by effective count (stations or markets)
+    const count = getEffectiveCountForProduct(product.id);
+    return pricePerUnit * count;
+  }
+
   function renderCashValues(monthlyProductValueAllStations){
     const root = el('cashValuesList');
     root.innerHTML = '';
 
+    const products = getProductsForCashInput();
     const stations = getSelectedStationsDetailed();
+
+    if (!products.length) {
+      root.innerHTML = `<div class="placeholder">No products selected for cash/barter allocation.</div>`;
+      el('totalCashInput').textContent = "0";
+      el('remainingForBarter').textContent = Math.round(monthlyProductValueAllStations).toLocaleString();
+      el('barterMinutesSection').classList.add('hidden');
+      return;
+    }
+
     if (!stations.length) {
       root.innerHTML = `<div class="placeholder">Select stations first.</div>`;
       el('totalCashInput').textContent = "0";
@@ -6133,48 +6168,118 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
-    stations.forEach(st => {
+    // Header row
+    const header = document.createElement('div');
+    header.className = 'el';
+    header.style.cssText = 'font-weight:600; font-size:12px; background:var(--surface-2); padding:8px 12px;';
+    header.innerHTML = `
+      <div style="flex:2;">Product</div>
+      <div style="flex:1; text-align:right;">List Price</div>
+      <div style="flex:1; text-align:center;">Cash/mo</div>
+      <div style="flex:1; text-align:right;">Remaining for Barter</div>
+    `;
+    root.appendChild(header);
+
+    products.forEach(p => {
+      const listPrice = getProductMonthlyListPrice(p);
+      const currentCash = window.productState.productCashValues.get(p.id) || 0;
+      const remaining = Math.max(0, listPrice - currentCash);
+
       const row = document.createElement('div');
       row.className = 'el';
-      row.style.justifyContent = 'space-between';
-      row.style.alignItems = 'center';
+      row.style.cssText = 'align-items:center; padding:8px 12px;';
 
-      const left = document.createElement('div');
-      left.innerHTML = `<strong>${st.station}</strong> <span class="muted">— ${st.market}</span>`;
+      const nameCell = document.createElement('div');
+      nameCell.style.flex = '2';
+      nameCell.innerHTML = `<strong>${escapeHtml(p.name)}</strong>`;
 
+      const listPriceCell = document.createElement('div');
+      listPriceCell.style.cssText = 'flex:1; text-align:right; color:var(--text-muted);';
+      listPriceCell.textContent = money(listPrice) + '/mo';
+
+      const inputCell = document.createElement('div');
+      inputCell.style.cssText = 'flex:1; text-align:center;';
       const input = document.createElement('input');
       input.type = 'number';
       input.min = '0';
+      input.max = String(listPrice);
       input.step = '1';
-      input.value = String(Math.round(window.productState.stationCashValues.get(st.key) || 0));
-      input.style.width = '140px';
-
+      input.value = String(Math.round(currentCash));
+      input.style.cssText = 'width:100px; text-align:right;';
+      input.dataset.productId = p.id;
       input.oninput = () => {
         const v = parseFloat(input.value);
-        window.productState.stationCashValues.set(st.key, Number.isFinite(v) && v >= 0 ? Math.round(v) : 0);
-        updateMixedPricing(monthlyProductValueAllStations);
+        const maxVal = getProductMonthlyListPrice(p);
+        const clamped = Math.min(maxVal, Math.max(0, Number.isFinite(v) ? Math.round(v) : 0));
+        window.productState.productCashValues.set(p.id, clamped);
+        updateMixedPricing();
       };
+      inputCell.appendChild(input);
 
-      row.appendChild(left);
-      row.appendChild(input);
+      const remainingCell = document.createElement('div');
+      remainingCell.style.cssText = 'flex:1; text-align:right; font-weight:600; color:var(--brand);';
+      remainingCell.className = 'remaining-cell';
+      remainingCell.dataset.productId = p.id;
+      remainingCell.textContent = money(remaining) + '/mo';
+
+      row.appendChild(nameCell);
+      row.appendChild(listPriceCell);
+      row.appendChild(inputCell);
+      row.appendChild(remainingCell);
       root.appendChild(row);
     });
 
-    updateMixedPricing(monthlyProductValueAllStations);
+    // Totals row
+    const totalsRow = document.createElement('div');
+    totalsRow.className = 'el';
+    totalsRow.style.cssText = 'font-weight:700; background:var(--surface-2); padding:8px 12px; margin-top:8px;';
+    totalsRow.innerHTML = `
+      <div style="flex:2;">Total</div>
+      <div style="flex:1; text-align:right;" id="cashTotalListPrice"></div>
+      <div style="flex:1; text-align:center;" id="cashTotalCash"></div>
+      <div style="flex:1; text-align:right; color:var(--brand);" id="cashTotalRemaining"></div>
+    `;
+    root.appendChild(totalsRow);
+
+    updateMixedPricing();
   }
 
-  function updateMixedPricing(monthlyProductValueAllStations) {
+  function updateMixedPricing() {
+    const products = getProductsForCashInput();
     const stations = getSelectedStationsDetailed();
+
+    let totalListPrice = 0;
     let totalCash = 0;
-    stations.forEach(st => totalCash += (window.productState.stationCashValues.get(st.key) || 0));
+
+    products.forEach(p => {
+      const listPrice = getProductMonthlyListPrice(p);
+      const cash = window.productState.productCashValues.get(p.id) || 0;
+      totalListPrice += listPrice;
+      totalCash += cash;
+
+      // Update the remaining cell for this product
+      const remainingCell = document.querySelector(`.remaining-cell[data-product-id="${p.id}"]`);
+      if (remainingCell) {
+        const remaining = Math.max(0, listPrice - cash);
+        remainingCell.textContent = money(remaining) + '/mo';
+      }
+    });
+
+    const totalRemaining = Math.max(0, totalListPrice - totalCash);
+
+    // Update totals row
+    const listPriceEl = el('cashTotalListPrice');
+    const cashEl = el('cashTotalCash');
+    const remainingEl = el('cashTotalRemaining');
+    if (listPriceEl) listPriceEl.textContent = money(totalListPrice) + '/mo';
+    if (cashEl) cashEl.textContent = money(totalCash) + '/mo';
+    if (remainingEl) remainingEl.textContent = money(totalRemaining) + '/mo';
 
     el('totalCashInput').textContent = Math.round(totalCash).toLocaleString();
+    el('remainingForBarter').textContent = Math.round(totalRemaining).toLocaleString();
 
-    const remainingMonthly = Math.max(0, monthlyProductValueAllStations - totalCash);
-    el('remainingForBarter').textContent = Math.round(remainingMonthly).toLocaleString();
-
-    if (remainingMonthly > 0 && stations.length > 0) {
-      calculateBarterMinutes(remainingMonthly * 12, remainingMonthly);
+    if (totalRemaining > 0 && stations.length > 0) {
+      calculateBarterMinutes(totalRemaining * 12, totalRemaining);
     } else {
       el('barterMinutesSection').classList.add('hidden');
     }
@@ -6228,6 +6333,7 @@ document.addEventListener("click", async (e) => {
   /**********************
    * Gap to Value Analysis
    * Shows breakdown of deal value vs cash vs barter for Barter/Mixed deals
+   * Now shows per-product breakdown
    **********************/
   function updateGapToValue(totalMonthlyAllStations) {
     const section = el('gapToValueSection');
@@ -6241,7 +6347,7 @@ document.addEventListener("click", async (e) => {
     }
 
     const stations = getSelectedStationsDetailed();
-    const products = Array.from(window.productState.selectedProducts);
+    const products = getProductsForCashInput();
 
     if (!stations.length || !products.length || !totalMonthlyAllStations) {
       section.classList.add('hidden');
@@ -6253,17 +6359,35 @@ document.addEventListener("click", async (e) => {
     // Calculate total deal value at list price
     const totalAnnualValue = totalMonthlyAllStations * 12;
 
-    // Calculate cash component (for mixed deals)
-    let cashMonthly = 0;
-    if (pricingType === 'mixed') {
-      stations.forEach(st => {
-        cashMonthly += (window.productState.stationCashValues.get(st.key) || 0);
+    // Calculate per-product breakdown
+    let totalCashMonthly = 0;
+    let totalBarterMonthly = 0;
+    const productBreakdown = [];
+
+    products.forEach(p => {
+      const listPrice = getProductMonthlyListPrice(p);
+      const cashAmount = pricingType === 'mixed' ? (window.productState.productCashValues.get(p.id) || 0) : 0;
+      const barterAmount = listPrice - cashAmount;
+
+      totalCashMonthly += cashAmount;
+      totalBarterMonthly += barterAmount;
+
+      productBreakdown.push({
+        id: p.id,
+        name: p.name,
+        listPrice,
+        cashAmount,
+        barterAmount,
+        totalValue: cashAmount + barterAmount,
+        gap: listPrice - (cashAmount + barterAmount)
       });
-    }
-    const cashAnnual = cashMonthly * 12;
+    });
+
+    const totalCashAnnual = totalCashMonthly * 12;
+    const totalBarterAnnual = totalBarterMonthly * 12;
 
     // Calculate barter component (value from allocated minutes)
-    let barterAnnual = 0;
+    let allocatedBarterAnnual = 0;
     const cpm = Number(window.productState.cpm || 2.0);
 
     stations.forEach(st => {
@@ -6271,13 +6395,13 @@ document.addEventListener("click", async (e) => {
       if (manualMins) {
         const primeValue = calculateValueFromMinutes(manualMins.prime || 0, st.primeAQH, cpm);
         const rosValue = calculateValueFromMinutes(manualMins.ros || 0, st.rosAQH, cpm);
-        barterAnnual += primeValue + rosValue;
+        allocatedBarterAnnual += primeValue + rosValue;
       }
     });
-    const barterMonthly = barterAnnual / 12;
+    const allocatedBarterMonthly = allocatedBarterAnnual / 12;
 
-    // Calculate total value (cash + barter)
-    const totalValueAnnual = cashAnnual + barterAnnual;
+    // Calculate total value (cash + allocated barter)
+    const totalValueAnnual = totalCashAnnual + allocatedBarterAnnual;
     const totalValueMonthly = totalValueAnnual / 12;
 
     // Calculate gap
@@ -6286,7 +6410,24 @@ document.addEventListener("click", async (e) => {
 
     // Determine status
     const isShortfall = gap > 100; // Allow small rounding tolerance
-    const isCovered = gap <= 100;
+
+    // Build per-product breakdown rows
+    let productRows = '';
+    if (pricingType === 'mixed' && productBreakdown.length > 1) {
+      productRows = `
+        <div style="font-weight:600; font-size:12px; margin-top:10px; margin-bottom:6px; color:var(--text-muted);">Per-Product Breakdown</div>
+        <div style="display:grid; gap:6px;">
+          ${productBreakdown.map(p => `
+            <div class="el" style="padding:8px 12px; font-size:13px;">
+              <div style="flex:2;"><strong>${escapeHtml(p.name)}</strong></div>
+              <div style="flex:1; text-align:right; color:var(--text-muted);">List: ${money(p.listPrice)}</div>
+              <div style="flex:1; text-align:right; color:var(--success);">Cash: ${money(p.cashAmount)}</div>
+              <div style="flex:1; text-align:right; color:var(--brand);">Barter: ${money(p.barterAmount)}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
 
     // Render
     content.innerHTML = `
@@ -6299,13 +6440,13 @@ document.addEventListener("click", async (e) => {
         ${pricingType === 'mixed' ? `
         <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(22, 121, 76, 0.08); border-color: rgba(22, 121, 76, 0.2);">
           <span><strong>Cash Component</strong></span>
-          <span style="font-weight: 700; color: var(--success);">${money(cashMonthly)}/mo • ${money(cashAnnual)}/yr</span>
+          <span style="font-weight: 700; color: var(--success);">${money(totalCashMonthly)}/mo • ${money(totalCashAnnual)}/yr</span>
         </div>
         ` : ''}
 
         <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(103, 36, 119, 0.08); border-color: rgba(103, 36, 119, 0.2);">
           <span><strong>Barter Component</strong> (from allocated minutes)</span>
-          <span style="font-weight: 700; color: var(--brand);">${money(barterMonthly)}/mo • ${money(barterAnnual)}/yr</span>
+          <span style="font-weight: 700; color: var(--brand);">${money(allocatedBarterMonthly)}/mo • ${money(allocatedBarterAnnual)}/yr</span>
         </div>
 
         <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(0, 100, 200, 0.08); border-color: rgba(0, 100, 200, 0.2);">
@@ -6319,6 +6460,8 @@ document.addEventListener("click", async (e) => {
             ${isShortfall ? '-' : '+'}${money(Math.abs(gapMonthly))}/mo • ${isShortfall ? '-' : '+'}${money(Math.abs(gap))}/yr
           </span>
         </div>
+
+        ${productRows}
 
         ${isShortfall ? `
         <div class="muted" style="font-size: 12px; padding: 10px; background: rgba(180, 35, 24, 0.06); border-radius: 10px; border: 1px solid rgba(180, 35, 24, 0.15);">
@@ -6355,6 +6498,49 @@ document.addEventListener("click", async (e) => {
 
     const cpm = Number(window.productState.cpm || 2.0);
     const targetAnnualValue = annualRemainingValue;
+
+    // Show per-product barter breakdown for mixed deals
+    const pricingType = window.productState.pricingType;
+    if (pricingType === 'mixed') {
+      const products = getProductsForCashInput();
+      if (products.length > 0) {
+        const productBreakdownDiv = document.createElement('div');
+        productBreakdownDiv.className = 'el';
+        productBreakdownDiv.style.cssText = 'flex-direction:column; align-items:stretch; margin-bottom:12px; background:rgba(103,36,119,.06); border:1px solid rgba(103,36,119,.15);';
+
+        let productHtml = '<div style="font-weight:600; font-size:12px; margin-bottom:8px;">Barter Value by Product</div>';
+        productHtml += '<div style="display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:4px; font-size:12px;">';
+        productHtml += '<div style="font-weight:600; color:var(--text-muted);">Product</div>';
+        productHtml += '<div style="font-weight:600; color:var(--text-muted); text-align:right;">List Price</div>';
+        productHtml += '<div style="font-weight:600; color:var(--text-muted); text-align:right;">Cash</div>';
+        productHtml += '<div style="font-weight:600; color:var(--text-muted); text-align:right;">Barter</div>';
+
+        let totalList = 0, totalCash = 0, totalBarter = 0;
+        products.forEach(p => {
+          const listPrice = getProductMonthlyListPrice(p);
+          const cashAmount = window.productState.productCashValues.get(p.id) || 0;
+          const barterAmount = Math.max(0, listPrice - cashAmount);
+          totalList += listPrice;
+          totalCash += cashAmount;
+          totalBarter += barterAmount;
+
+          productHtml += `<div>${escapeHtml(p.name)}</div>`;
+          productHtml += `<div style="text-align:right;">${money(listPrice)}</div>`;
+          productHtml += `<div style="text-align:right; color:var(--success);">${cashAmount > 0 ? money(cashAmount) : '—'}</div>`;
+          productHtml += `<div style="text-align:right; color:var(--brand);">${money(barterAmount)}</div>`;
+        });
+
+        // Totals row
+        productHtml += `<div style="font-weight:700; border-top:1px solid rgba(103,36,119,.2); padding-top:4px;">Total</div>`;
+        productHtml += `<div style="font-weight:700; border-top:1px solid rgba(103,36,119,.2); padding-top:4px; text-align:right;">${money(totalList)}/mo</div>`;
+        productHtml += `<div style="font-weight:700; border-top:1px solid rgba(103,36,119,.2); padding-top:4px; text-align:right; color:var(--success);">${money(totalCash)}/mo</div>`;
+        productHtml += `<div style="font-weight:700; border-top:1px solid rgba(103,36,119,.2); padding-top:4px; text-align:right; color:var(--brand);">${money(totalBarter)}/mo</div>`;
+        productHtml += '</div>';
+
+        productBreakdownDiv.innerHTML = productHtml;
+        breakdown.appendChild(productBreakdownDiv);
+      }
+    }
 
     // Calculate total AQH for Prime and ROS separately
     let totalPrimeAQH = 0;
@@ -6829,10 +7015,12 @@ window.generateProposal = function generateProposal() {
   const totalMonthlyRecurring = annualAllStationsProposal / 12;
   const monthlyPerStationTotal = stations.length > 0 ? totalMonthlyRecurring / stations.length : 0;
 
-  // Mixed cash inputs are MONTHLY per station (UI accepts monthly values)
+  // Mixed cash inputs are MONTHLY per product (UI accepts monthly values per product)
   let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
-    stations.forEach(st => totalCashMonthly += (window.productState.stationCashValues.get(st.key) || 0));
+    // Sum up cash per product
+    const productsForCash = getProductsForCashInput();
+    productsForCash.forEach(p => totalCashMonthly += (window.productState.productCashValues.get(p.id) || 0));
   }
   const totalCashAnnual = totalCashMonthly * 12;
 
@@ -6950,10 +7138,32 @@ window.generateProposal = function generateProposal() {
         // One row per product
         assignedProducts.forEach(p => {
           const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
-          const productValue = window.productState.customPrices.get(p.id) ?? rateCardValue;
+          const listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
 
-          // Calculate this product's share of barter (proportional to its price)
-          const barterShare = totalBarterValue > 0 ? ((p.barter || 0) / totalBarterValue) : (1 / Math.max(1, assignedProducts.length));
+          // For mixed deals, show the actual cash entered for this product
+          // For cash deals, show the list price
+          // For barter deals, show "—"
+          let cashDisplay = '—';
+          if (pricingType === 'cash') {
+            cashDisplay = listPrice ? (money(listPrice) + '/mo') : '—';
+          } else if (pricingType === 'mixed') {
+            const productCash = window.productState.productCashValues.get(p.id) || 0;
+            cashDisplay = productCash > 0 ? (money(productCash) + '/mo') : '—';
+          }
+
+          // Calculate this product's remaining barter (list price - cash)
+          const productCash = window.productState.productCashValues.get(p.id) || 0;
+          const productRemaining = Math.max(0, (listPrice || 0) - productCash);
+
+          // Calculate this product's share of barter based on its remaining value
+          let totalRemainingValue = 0;
+          assignedProducts.forEach(ap => {
+            const apList = window.productState.customPrices.get(ap.id) ?? (ap.barter || 0);
+            const apCash = window.productState.productCashValues.get(ap.id) || 0;
+            totalRemainingValue += Math.max(0, apList - apCash);
+          });
+
+          const barterShare = totalRemainingValue > 0 ? (productRemaining / totalRemainingValue) : (1 / Math.max(1, assignedProducts.length));
           const productPrime = Math.round(daily.primePerDay * barterShare);
           const productRos = Math.round(daily.rosPerDay * barterShare);
 
@@ -6962,7 +7172,7 @@ window.generateProposal = function generateProposal() {
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${p.name}</td>
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-              ${productValue ? (money(productValue) + '/mo') : '—'}
+              ${cashDisplay}
             </td>
             ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(productPrime)}</td>` : ''}
             ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(productRos)}</td>` : ''}
@@ -6993,8 +7203,9 @@ window.generateProposal = function generateProposal() {
     lines.push(`<thead><tr>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Applies To</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Rate</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">List Price</th>
+      ${pricingType === 'mixed' ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Cash/mo</th>` : ''}
+      ${pricingType === 'mixed' ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Barter/mo</th>` : ''}
       <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
       ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime/Day</th>` : ''}
       ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS/Day</th>` : ''}
@@ -7028,14 +7239,18 @@ window.generateProposal = function generateProposal() {
       }
 
       const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
-      const perUnitValue = window.productState.customPrices.get(p.id) ?? rateCardValue;
-      const totalMonthly = perUnitValue ? (perUnitValue * effectiveCount) : null;
-      const totalAnnual = totalMonthly ? (totalMonthly * 12) : null;
+      const listPricePerUnit = window.productState.customPrices.get(p.id) ?? rateCardValue;
+      const totalListMonthly = listPricePerUnit ? listPricePerUnit : null;
+      const totalAnnual = totalListMonthly ? (totalListMonthly * 12) : null;
+
+      // For mixed deals, get cash and barter breakdown
+      const productCash = pricingType === 'mixed' ? (window.productState.productCashValues.get(p.id) || 0) : 0;
+      const productBarter = pricingType === 'mixed' ? Math.max(0, (listPricePerUnit || 0) - productCash) : 0;
 
       // Calculate total barter minutes for this product across all assigned stations
       let productPrimeTotal = 0;
       let productRosTotal = 0;
-      if (showBarterCols && p.barter) {
+      if (showBarterCols && (p.barter || productBarter > 0)) {
         assignedStations.forEach(st => {
           const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
           // Get all products assigned to this station to calculate share
@@ -7044,8 +7259,15 @@ window.generateProposal = function generateProposal() {
             const spAssign = getProductAssignments(sp.id);
             return isMarketLevelProduct(sp.id) ? spAssign.has(st.market) : spAssign.has(st.key);
           });
-          const totalBarterValue = stationProducts.reduce((sum, sp) => sum + (sp.barter || 0), 0);
-          const barterShare = totalBarterValue > 0 ? (p.barter / totalBarterValue) : (1 / Math.max(1, stationProducts.length));
+          // Calculate total remaining barter value for proportional distribution
+          let totalRemainingValue = 0;
+          stationProducts.forEach(sp => {
+            const spList = window.productState.customPrices.get(sp.id) ?? (sp.barter || 0);
+            const spCash = window.productState.productCashValues.get(sp.id) || 0;
+            totalRemainingValue += Math.max(0, spList - spCash);
+          });
+          const thisProductRemaining = Math.max(0, (listPricePerUnit || 0) - productCash);
+          const barterShare = totalRemainingValue > 0 ? (thisProductRemaining / totalRemainingValue) : (1 / Math.max(1, stationProducts.length));
           productPrimeTotal += Math.round(daily.primePerDay * barterShare);
           productRosTotal += Math.round(daily.rosPerDay * barterShare);
         });
@@ -7054,8 +7276,9 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${p.name}</strong></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${appliesTo}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${perUnitValue ? money(perUnitValue) + '/mo' : '—'}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${totalMonthly ? money(totalMonthly) + '/mo' : '—'}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${listPricePerUnit ? money(listPricePerUnit) + '/mo' : '—'}</td>
+        ${pricingType === 'mixed' ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right; color:var(--success);">${productCash > 0 ? money(productCash) + '/mo' : '—'}</td>` : ''}
+        ${pricingType === 'mixed' ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right; color:var(--brand);">${productBarter > 0 ? money(productBarter) + '/mo' : '—'}</td>` : ''}
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${totalAnnual ? money(totalAnnual) + '/yr' : '—'}</td>
         ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${productPrimeTotal}</td>` : ''}
         ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${productRosTotal}</td>` : ''}
@@ -7453,10 +7676,12 @@ window.buildProposalText = function buildProposalText() {
   const monthlyPerStationProposal = computeProposalMonthlyPerStation(pricingType);
   const annualAllStationsProposal = monthlyPerStationProposal * stations.length * 12;
 
-  let totalCashAnnual = 0;
+  let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
-    stations.forEach(st => totalCashAnnual += (window.productState.stationCashValues.get(st.key) || 0));
+    const productsForCash = getProductsForCashInput();
+    productsForCash.forEach(p => totalCashMonthly += (window.productState.productCashValues.get(p.id) || 0));
   }
+  const totalCashAnnual = totalCashMonthly * 12;
 
   const remainingAnnual =
     (pricingType === 'mixed')
@@ -7510,17 +7735,20 @@ window.buildProposalText = function buildProposalText() {
       else return assignments.has(st.key);
     });
 
-    // Calculate total barter value for proportional distribution
-    let totalBarterValue = 0;
+    // Calculate total remaining barter value for proportional distribution
+    let totalRemainingValue = 0;
     assignedProducts.forEach(p => {
-      const rateCardValue = p.barter || 0;
-      totalBarterValue += window.productState.customPrices.get(p.id) ?? rateCardValue;
+      const listPrice = window.productState.customPrices.get(p.id) ?? (p.barter || 0);
+      const productCash = window.productState.productCashValues.get(p.id) || 0;
+      totalRemainingValue += Math.max(0, listPrice - productCash);
     });
 
     // One row per product with proportional barter
     assignedProducts.forEach(p => {
-      const barterPrice = window.productState.customPrices.get(p.id) ?? (p.barter || 0);
-      const barterShare = totalBarterValue > 0 ? (barterPrice / totalBarterValue) : (1 / Math.max(1, assignedProducts.length));
+      const listPrice = window.productState.customPrices.get(p.id) ?? (p.barter || 0);
+      const productCash = window.productState.productCashValues.get(p.id) || 0;
+      const productRemaining = Math.max(0, listPrice - productCash);
+      const barterShare = totalRemainingValue > 0 ? (productRemaining / totalRemainingValue) : (1 / Math.max(1, assignedProducts.length));
       const productPrime = Math.round(daily.primePerDay * barterShare);
       const productRos = Math.round(daily.rosPerDay * barterShare);
 
