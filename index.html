@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Futuri Media Deal Calculator v2.3</title>
+  <title>Futuri Media Deal Calculator v2.4</title>
 
   <style>
     :root{
@@ -6430,8 +6430,10 @@ document.addEventListener("click", async (e) => {
 
     // Calculate per-product breakdown
     // Sum cash values across all stations/markets for each product
+    // Only include standard products (not TopLine, SpotOn, etc.)
     let totalCashMonthly = 0;
-    let totalBarterMonthly = 0;
+    let totalBarterTargetMonthly = 0;  // Target barter (remaining for barter)
+    let standardProductsListPriceMonthly = 0;  // List price of standard products only
     const productBreakdown = [];
 
     products.forEach(p => {
@@ -6458,24 +6460,26 @@ document.addEventListener("click", async (e) => {
         productListPriceTotal = unitPrice * locations.length;
       }
 
-      const productBarterTotal = Math.max(0, productListPriceTotal - productCashTotal);
+      const productBarterTarget = Math.max(0, productListPriceTotal - productCashTotal);
 
       totalCashMonthly += productCashTotal;
-      totalBarterMonthly += productBarterTotal;
+      totalBarterTargetMonthly += productBarterTarget;
+      standardProductsListPriceMonthly += productListPriceTotal;
 
       productBreakdown.push({
         id: p.id,
         name: p.name,
         listPrice: productListPriceTotal,
         cashAmount: productCashTotal,
-        barterAmount: productBarterTotal,
-        totalValue: productCashTotal + productBarterTotal,
-        gap: productListPriceTotal - (productCashTotal + productBarterTotal)
+        barterAmount: productBarterTarget,
+        totalValue: productCashTotal + productBarterTarget,
+        gap: productListPriceTotal - (productCashTotal + productBarterTarget)
       });
     });
 
     const totalCashAnnual = totalCashMonthly * 12;
-    const totalBarterAnnual = totalBarterMonthly * 12;
+    const totalBarterTargetAnnual = totalBarterTargetMonthly * 12;  // What barter SHOULD cover
+    const standardProductsListPriceAnnual = standardProductsListPriceMonthly * 12;
 
     // Calculate barter component (value from allocated minutes)
     // Use the per-product per-station barter allocation
@@ -6503,12 +6507,15 @@ document.addEventListener("click", async (e) => {
     const totalValueAnnual = totalCashAnnual + allocatedBarterAnnual;
     const totalValueMonthly = totalValueAnnual / 12;
 
-    // Calculate gap
-    const gap = totalAnnualValue - totalValueAnnual;
+    // Calculate gap: how much barter is allocated vs how much was needed
+    // Gap = Standard Products List Price - (Cash + Allocated Barter)
+    // Positive gap = shortfall (need more barter), Negative gap = surplus (over-allocated)
+    const gap = standardProductsListPriceAnnual - totalValueAnnual;
     const gapMonthly = gap / 12;
 
-    // Determine status
-    const isShortfall = gap > 100; // Allow small rounding tolerance
+    // Determine status - shortfall if gap > 5% of target (with small tolerance)
+    const targetVariance = standardProductsListPriceAnnual > 0 ? Math.abs(gap / standardProductsListPriceAnnual) : 0;
+    const isShortfall = gap > 100 && targetVariance > 0.05; // Allow 5% variance
 
     // Build per-product breakdown rows
     let productRows = '';
@@ -6532,8 +6539,13 @@ document.addEventListener("click", async (e) => {
     content.innerHTML = `
       <div style="display: grid; gap: 10px;">
         <div class="el" style="justify-content: space-between; padding: 10px 12px;">
-          <span><strong>Total Deal Value</strong> (List Price)</span>
+          <span><strong>Total Deal Value</strong> (all products)</span>
           <span style="font-weight: 700;">${money(totalMonthlyAllStations)}/mo • ${money(totalAnnualValue)}/yr</span>
+        </div>
+
+        <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(100, 100, 100, 0.05);">
+          <span><strong>Barter Products Target</strong> (list price)</span>
+          <span style="font-weight: 700;">${money(standardProductsListPriceMonthly)}/mo • ${money(standardProductsListPriceAnnual)}/yr</span>
         </div>
 
         ${pricingType === 'mixed' ? `
@@ -6968,52 +6980,82 @@ function computeBarterAllocationPerProduct() {
           });
         });
       } else {
-        // Station-level product: cash per station, barter calculated per station
+        // Station-level product: calculate total barter, then distribute across stations
+        // This matches the logic in calculateBarterMinutes display
         const assignedStations = stations.filter(s => assignments.has(s.key));
 
+        // First, calculate total barter for this product across all assigned stations
+        let productCashTotal = 0;
+        let productListPriceTotal = 0;
         assignedStations.forEach(st => {
           const cashKey = getCashKey(p.id, st.key);
           const cashAmount = window.productState.productCashValues.get(cashKey) || 0;
-          const barterMonthly = Math.max(0, unitPrice - cashAmount);
-          const barterAnnual = barterMonthly * 12;
-
-          if (barterMonthly <= 0) {
-            stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
-            return;
-          }
-
-          const primeAQH = Number(st.primeAQH) || 0;
-          const rosAQH = Number(st.rosAQH) || 0;
-          const stationTotalAQH = primeAQH + rosAQH;
-
-          if (stationTotalAQH <= 0) {
-            stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
-            return;
-          }
-
-          const primeShare = primeAQH > 0 ? (primeAQH / stationTotalAQH) : 0;
-          const rosShare = rosAQH > 0 ? (rosAQH / stationTotalAQH) : 0;
-
-          const primeTargetValue = barterAnnual * primeShare;
-          const rosTargetValue = barterAnnual * rosShare;
-
-          let autoPrimeMinutes = 0;
-          let autoRosMinutes = 0;
-          if (primeAQH > 0) {
-            autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(primeTargetValue, primeAQH, cpm));
-          }
-          if (rosAQH > 0) {
-            autoRosMinutes = Math.ceil(calculateMinutesFromValue(rosTargetValue, rosAQH, cpm));
-          }
-
-          // Check for manual override
-          const manualKey = `${p.id}:${st.key}`;
-          const manual = window.productState.manualMinutes.get(manualKey);
-          const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
-          const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
-
-          stationMap.set(st.key, { primeMinutes, rosMinutes });
+          productCashTotal += cashAmount;
+          productListPriceTotal += unitPrice;
         });
+
+        const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
+        const productBarterAnnual = productBarterMonthly * 12;
+
+        if (productBarterMonthly <= 0) {
+          assignedStations.forEach(st => {
+            stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
+          });
+        } else {
+          // Calculate total AQH for assigned stations
+          let assignedPrimeAQH = 0;
+          let assignedRosAQH = 0;
+          assignedStations.forEach(st => {
+            assignedPrimeAQH += (Number(st.primeAQH) || 0);
+            assignedRosAQH += (Number(st.rosAQH) || 0);
+          });
+
+          const assignedTotalAQH = assignedPrimeAQH + assignedRosAQH;
+          const hasPrimeAQH = assignedPrimeAQH > 0;
+          const hasRosAQH = assignedRosAQH > 0;
+
+          if (assignedTotalAQH <= 0) {
+            assignedStations.forEach(st => {
+              stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
+            });
+          } else {
+            // Split product's barter value between Prime and ROS proportionally by total AQH
+            const primeValueShare = hasPrimeAQH ? (assignedPrimeAQH / assignedTotalAQH) : 0;
+            const rosValueShare = hasRosAQH ? (assignedRosAQH / assignedTotalAQH) : 0;
+            const productPrimeAnnual = productBarterAnnual * primeValueShare;
+            const productRosAnnual = productBarterAnnual * rosValueShare;
+
+            // Now distribute across stations based on their share of each AQH type
+            assignedStations.forEach(st => {
+              const primeAQH = Number(st.primeAQH) || 0;
+              const rosAQH = Number(st.rosAQH) || 0;
+
+              // This station's share of the product's prime/ros barter value
+              const stationPrimeShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / assignedPrimeAQH) : 0;
+              const stationRosShare = hasRosAQH && rosAQH > 0 ? (rosAQH / assignedRosAQH) : 0;
+
+              const stationPrimeTargetValue = productPrimeAnnual * stationPrimeShare;
+              const stationRosTargetValue = productRosAnnual * stationRosShare;
+
+              let autoPrimeMinutes = 0;
+              let autoRosMinutes = 0;
+              if (primeAQH > 0) {
+                autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
+              }
+              if (rosAQH > 0) {
+                autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
+              }
+
+              // Check for manual override
+              const manualKey = `${p.id}:${st.key}`;
+              const manual = window.productState.manualMinutes.get(manualKey);
+              const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
+              const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+
+              stationMap.set(st.key, { primeMinutes, rosMinutes });
+            });
+          }
+        }
       }
 
       result.set(p.id, stationMap);
