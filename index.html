@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Futuri Media Deal Calculator v2.2</title>
+  <title>Futuri Media Deal Calculator v2.3</title>
 
   <style>
     :root{
@@ -6429,26 +6429,48 @@ document.addEventListener("click", async (e) => {
     const totalAnnualValue = totalMonthlyAllStations * 12;
 
     // Calculate per-product breakdown
+    // Sum cash values across all stations/markets for each product
     let totalCashMonthly = 0;
     let totalBarterMonthly = 0;
     const productBreakdown = [];
 
     products.forEach(p => {
-      const listPrice = getProductMonthlyListPrice(p);
-      const cashAmount = pricingType === 'mixed' ? (window.productState.productCashValues.get(p.id) || 0) : 0;
-      const barterAmount = listPrice - cashAmount;
+      const unitPrice = getProductUnitListPrice(p);
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
 
-      totalCashMonthly += cashAmount;
-      totalBarterMonthly += barterAmount;
+      // Get locations for this product
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      // Sum cash across all locations for this product
+      let productCashTotal = 0;
+      let productListPriceTotal = 0;
+      if (pricingType === 'mixed') {
+        locations.forEach(locationKey => {
+          const cashKey = getCashKey(p.id, locationKey);
+          const cash = window.productState.productCashValues.get(cashKey) || 0;
+          productCashTotal += cash;
+          productListPriceTotal += unitPrice;
+        });
+      } else {
+        productListPriceTotal = unitPrice * locations.length;
+      }
+
+      const productBarterTotal = Math.max(0, productListPriceTotal - productCashTotal);
+
+      totalCashMonthly += productCashTotal;
+      totalBarterMonthly += productBarterTotal;
 
       productBreakdown.push({
         id: p.id,
         name: p.name,
-        listPrice,
-        cashAmount,
-        barterAmount,
-        totalValue: cashAmount + barterAmount,
-        gap: listPrice - (cashAmount + barterAmount)
+        listPrice: productListPriceTotal,
+        cashAmount: productCashTotal,
+        barterAmount: productBarterTotal,
+        totalValue: productCashTotal + productBarterTotal,
+        gap: productListPriceTotal - (productCashTotal + productBarterTotal)
       });
     });
 
@@ -6607,9 +6629,25 @@ document.addEventListener("click", async (e) => {
     // Calculate barter minutes PER PRODUCT
     products.forEach(p => {
       // Get this product's remaining barter value (list price - cash)
-      const listPrice = getProductMonthlyListPrice(p);
-      const cashAmount = window.productState.productCashValues.get(p.id) || 0;
-      const productBarterMonthly = Math.max(0, listPrice - cashAmount);
+      // Sum cash across all locations for this product
+      const unitPrice = getProductUnitListPrice(p);
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
+
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      let productCashTotal = 0;
+      let productListPriceTotal = 0;
+      locations.forEach(locationKey => {
+        const cashKey = getCashKey(p.id, locationKey);
+        const cash = window.productState.productCashValues.get(cashKey) || 0;
+        productCashTotal += cash;
+        productListPriceTotal += unitPrice;
+      });
+
+      const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
       const productBarterAnnual = productBarterMonthly * 12;
 
       if (productBarterMonthly <= 0) return; // Skip products fully covered by cash
@@ -6623,7 +6661,7 @@ document.addEventListener("click", async (e) => {
       productHeader.innerHTML = `
         <div style="flex:1;"><strong>${escapeHtml(p.name)}</strong></div>
         <div style="text-align:right; color:var(--text-muted); font-size:12px;">
-          List: ${money(listPrice)}/mo • Cash: ${money(cashAmount)}/mo • <span style="color:var(--brand);">Barter: ${money(productBarterMonthly)}/mo</span>
+          List: ${money(productListPriceTotal)}/mo • Cash: ${money(productCashTotal)}/mo • <span style="color:var(--brand);">Barter: ${money(productBarterMonthly)}/mo</span>
         </div>
       `;
       breakdown.appendChild(productHeader);
@@ -7113,12 +7151,23 @@ window.generateProposal = function generateProposal() {
   const totalMonthlyRecurring = annualAllStationsProposal / 12;
   const monthlyPerStationTotal = stations.length > 0 ? totalMonthlyRecurring / stations.length : 0;
 
-  // Mixed cash inputs are MONTHLY per product (UI accepts monthly values per product)
+  // Mixed cash inputs are MONTHLY per product per station/market
   let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
-    // Sum up cash per product
+    // Sum up cash across all products and all their locations
     const productsForCash = getProductsForCashInput();
-    productsForCash.forEach(p => totalCashMonthly += (window.productState.productCashValues.get(p.id) || 0));
+    productsForCash.forEach(p => {
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      locations.forEach(locationKey => {
+        const cashKey = getCashKey(p.id, locationKey);
+        totalCashMonthly += window.productState.productCashValues.get(cashKey) || 0;
+      });
+    });
   }
   const totalCashAnnual = totalCashMonthly * 12;
 
@@ -7251,14 +7300,17 @@ window.generateProposal = function generateProposal() {
           const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
           const listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
 
-          // For mixed deals, show the actual cash entered for this product
+          // For mixed deals, show the actual cash entered for this product at this station/market
           // For cash deals, show the list price
           // For barter deals, show "—"
           let cashDisplay = '—';
           if (pricingType === 'cash') {
             cashDisplay = listPrice ? (money(listPrice) + '/mo') : '—';
           } else if (pricingType === 'mixed') {
-            const productCash = window.productState.productCashValues.get(p.id) || 0;
+            // Use station key for station-level products, market for market-level products
+            const locationKey = isMarketLevelProduct(p.id) ? st.market : st.key;
+            const cashKey = getCashKey(p.id, locationKey);
+            const productCash = window.productState.productCashValues.get(cashKey) || 0;
             cashDisplay = productCash > 0 ? (money(productCash) + '/mo') : '—';
           }
 
@@ -7340,12 +7392,31 @@ window.generateProposal = function generateProposal() {
 
       const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
       const listPricePerUnit = window.productState.customPrices.get(p.id) ?? rateCardValue;
-      const totalListMonthly = listPricePerUnit ? listPricePerUnit : null;
+
+      // Get all locations for this product
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      // Sum cash and calculate list price across all locations
+      let productCashTotal = 0;
+      let productListPriceTotal = 0;
+      if (pricingType === 'mixed') {
+        locations.forEach(locationKey => {
+          const cashKey = getCashKey(p.id, locationKey);
+          productCashTotal += window.productState.productCashValues.get(cashKey) || 0;
+          productListPriceTotal += listPricePerUnit || 0;
+        });
+      } else {
+        productListPriceTotal = (listPricePerUnit || 0) * locations.length;
+      }
+
+      const totalListMonthly = productListPriceTotal || null;
       const totalAnnual = totalListMonthly ? (totalListMonthly * 12) : null;
 
       // For mixed deals, get cash and barter breakdown
-      const productCash = pricingType === 'mixed' ? (window.productState.productCashValues.get(p.id) || 0) : 0;
-      const productBarter = pricingType === 'mixed' ? Math.max(0, (listPricePerUnit || 0) - productCash) : 0;
+      const productCash = productCashTotal;
+      const productBarter = pricingType === 'mixed' ? Math.max(0, productListPriceTotal - productCashTotal) : 0;
 
       // Calculate total barter minutes for this product across all assigned stations
       let productPrimeTotal = 0;
@@ -7763,8 +7834,20 @@ window.buildProposalText = function buildProposalText() {
 
   let totalCashMonthly = 0;
   if (pricingType === 'mixed') {
+    // Sum up cash across all products and all their locations
     const productsForCash = getProductsForCashInput();
-    productsForCash.forEach(p => totalCashMonthly += (window.productState.productCashValues.get(p.id) || 0));
+    productsForCash.forEach(p => {
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      locations.forEach(locationKey => {
+        const cashKey = getCashKey(p.id, locationKey);
+        totalCashMonthly += window.productState.productCashValues.get(cashKey) || 0;
+      });
+    });
   }
   const totalCashAnnual = totalCashMonthly * 12;
 
