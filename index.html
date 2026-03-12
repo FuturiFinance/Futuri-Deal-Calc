@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Futuri Media Deal Calculator v2.1</title>
+  <title>Futuri Media Deal Calculator v2.2</title>
 
   <style>
     :root{
@@ -6118,7 +6118,8 @@ document.addEventListener("click", async (e) => {
   }
 
   /**********************
-   * Mixed cash allocation UI - Per Product
+   * Mixed cash allocation UI - Per Station/Market Per Product
+   * Cash is now keyed by "productId:stationKey" or "productId:marketName"
    **********************/
   // Products that are handled specially and excluded from per-product cash input
   const SPECIAL_PRODUCTS = ['topline', 'topline_cx_war_room', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'];
@@ -6129,12 +6130,17 @@ document.addEventListener("click", async (e) => {
     return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
   }
 
+  // Get unit list price for a product (single station/market price)
+  function getProductUnitListPrice(product) {
+    const rateCardValue = product.barter || 0;
+    const customPrice = window.productState.customPrices.get(product.id);
+    return customPrice ?? rateCardValue;
+  }
+
   // Get monthly list price for a product (barter rate card value × count)
   function getProductMonthlyListPrice(product) {
     const dealType = window.state?.dealType || 'broadcast';
-    const rateCardValue = product.barter || 0;
-    const customPrice = window.productState.customPrices.get(product.id);
-    const pricePerUnit = customPrice ?? rateCardValue;
+    const pricePerUnit = getProductUnitListPrice(product);
 
     if (dealType === 'agency') {
       return pricePerUnit; // Flat pricing for agency
@@ -6145,12 +6151,30 @@ document.addEventListener("click", async (e) => {
     return pricePerUnit * count;
   }
 
+  // Get cash key for a product at a station/market
+  function getCashKey(productId, locationKey) {
+    return `${productId}:${locationKey}`;
+  }
+
+  // Get cash value for a product at a station/market
+  function getProductLocationCash(productId, locationKey) {
+    const key = getCashKey(productId, locationKey);
+    return window.productState.productCashValues.get(key) || 0;
+  }
+
+  // Set cash value for a product at a station/market
+  function setProductLocationCash(productId, locationKey, value) {
+    const key = getCashKey(productId, locationKey);
+    window.productState.productCashValues.set(key, value);
+  }
+
   function renderCashValues(monthlyProductValueAllStations){
     const root = el('cashValuesList');
     root.innerHTML = '';
 
     const products = getProductsForCashInput();
     const stations = getSelectedStationsDetailed();
+    const markets = getUniqueMarketsFromStations();
 
     if (!products.length) {
       root.innerHTML = `<div class="placeholder">No products selected for cash/barter allocation.</div>`;
@@ -6171,70 +6195,104 @@ document.addEventListener("click", async (e) => {
     // Header row
     const header = document.createElement('div');
     header.className = 'el';
-    header.style.cssText = 'font-weight:600; font-size:12px; background:var(--surface-2); padding:8px 12px;';
+    header.style.cssText = 'font-weight:600; font-size:11px; background:var(--surface-2); padding:8px 12px;';
     header.innerHTML = `
-      <div style="flex:2;">Product</div>
+      <div style="flex:1.5;">Product</div>
+      <div style="flex:1.5;">Station/Market</div>
       <div style="flex:1; text-align:right;">List Price</div>
       <div style="flex:1; text-align:center;">Cash/mo</div>
-      <div style="flex:1; text-align:right;">Remaining for Barter</div>
+      <div style="flex:1; text-align:right;">Barter</div>
     `;
     root.appendChild(header);
 
+    // Track current product for grouping
+    let currentProductId = null;
+
     products.forEach(p => {
-      const listPrice = getProductMonthlyListPrice(p);
-      const currentCash = window.productState.productCashValues.get(p.id) || 0;
-      const remaining = Math.max(0, listPrice - currentCash);
+      const unitPrice = getProductUnitListPrice(p);
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
 
-      const row = document.createElement('div');
-      row.className = 'el';
-      row.style.cssText = 'align-items:center; padding:8px 12px;';
+      // Get locations for this product
+      const locations = isMarketLevel
+        ? Array.from(assignments).sort()
+        : stations.filter(s => assignments.has(s.key)).map(s => ({ key: s.key, name: s.station, market: s.market }));
 
-      const nameCell = document.createElement('div');
-      nameCell.style.flex = '2';
-      nameCell.innerHTML = `<strong>${escapeHtml(p.name)}</strong>`;
+      if (locations.length === 0) return;
 
-      const listPriceCell = document.createElement('div');
-      listPriceCell.style.cssText = 'flex:1; text-align:right; color:var(--text-muted);';
-      listPriceCell.textContent = money(listPrice) + '/mo';
+      // Product header
+      if (currentProductId !== p.id) {
+        currentProductId = p.id;
+        const productHeader = document.createElement('div');
+        productHeader.style.cssText = 'padding:8px 12px 4px; font-weight:700; font-size:12px; color:var(--brand); border-top:1px solid var(--edge); margin-top:4px;';
+        productHeader.textContent = p.name;
+        root.appendChild(productHeader);
+      }
 
-      const inputCell = document.createElement('div');
-      inputCell.style.cssText = 'flex:1; text-align:center;';
-      const input = document.createElement('input');
-      input.type = 'number';
-      input.min = '0';
-      input.max = String(listPrice);
-      input.step = '1';
-      input.value = String(Math.round(currentCash));
-      input.style.cssText = 'width:100px; text-align:right;';
-      input.dataset.productId = p.id;
-      input.oninput = () => {
-        const v = parseFloat(input.value);
-        const maxVal = getProductMonthlyListPrice(p);
-        const clamped = Math.min(maxVal, Math.max(0, Number.isFinite(v) ? Math.round(v) : 0));
-        window.productState.productCashValues.set(p.id, clamped);
-        updateMixedPricing();
-      };
-      inputCell.appendChild(input);
+      // One row per station/market
+      locations.forEach(loc => {
+        const locationKey = isMarketLevel ? loc : loc.key;
+        const locationName = isMarketLevel ? loc : `${loc.name} — ${loc.market}`;
+        const cashKey = getCashKey(p.id, locationKey);
+        const currentCash = window.productState.productCashValues.get(cashKey) || 0;
+        const remaining = Math.max(0, unitPrice - currentCash);
 
-      const remainingCell = document.createElement('div');
-      remainingCell.style.cssText = 'flex:1; text-align:right; font-weight:600; color:var(--brand);';
-      remainingCell.className = 'remaining-cell';
-      remainingCell.dataset.productId = p.id;
-      remainingCell.textContent = money(remaining) + '/mo';
+        const row = document.createElement('div');
+        row.className = 'el';
+        row.style.cssText = 'align-items:center; padding:4px 12px; font-size:12px;';
 
-      row.appendChild(nameCell);
-      row.appendChild(listPriceCell);
-      row.appendChild(inputCell);
-      row.appendChild(remainingCell);
-      root.appendChild(row);
+        const productCell = document.createElement('div');
+        productCell.style.cssText = 'flex:1.5; color:var(--text-muted);';
+        productCell.textContent = p.name;
+
+        const locationCell = document.createElement('div');
+        locationCell.style.cssText = 'flex:1.5;';
+        locationCell.innerHTML = `<span>${escapeHtml(locationName)}</span>`;
+
+        const listPriceCell = document.createElement('div');
+        listPriceCell.style.cssText = 'flex:1; text-align:right; color:var(--text-muted);';
+        listPriceCell.textContent = money(unitPrice);
+
+        const inputCell = document.createElement('div');
+        inputCell.style.cssText = 'flex:1; text-align:center;';
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = '0';
+        input.max = String(unitPrice);
+        input.step = '1';
+        input.value = String(Math.round(currentCash));
+        input.style.cssText = 'width:80px; text-align:right; font-size:12px;';
+        input.dataset.cashKey = cashKey;
+        input.oninput = () => {
+          const v = parseFloat(input.value);
+          const clamped = Math.min(unitPrice, Math.max(0, Number.isFinite(v) ? Math.round(v) : 0));
+          window.productState.productCashValues.set(cashKey, clamped);
+          updateMixedPricing();
+        };
+        inputCell.appendChild(input);
+
+        const remainingCell = document.createElement('div');
+        remainingCell.style.cssText = 'flex:1; text-align:right; font-weight:600; color:var(--brand);';
+        remainingCell.className = 'remaining-cell';
+        remainingCell.dataset.cashKey = cashKey;
+        remainingCell.textContent = money(remaining);
+
+        row.appendChild(productCell);
+        row.appendChild(locationCell);
+        row.appendChild(listPriceCell);
+        row.appendChild(inputCell);
+        row.appendChild(remainingCell);
+        root.appendChild(row);
+      });
     });
 
     // Totals row
     const totalsRow = document.createElement('div');
     totalsRow.className = 'el';
-    totalsRow.style.cssText = 'font-weight:700; background:var(--surface-2); padding:8px 12px; margin-top:8px;';
+    totalsRow.style.cssText = 'font-weight:700; background:var(--surface-2); padding:8px 12px; margin-top:8px; font-size:12px;';
     totalsRow.innerHTML = `
-      <div style="flex:2;">Total</div>
+      <div style="flex:1.5;">Total</div>
+      <div style="flex:1.5;"></div>
       <div style="flex:1; text-align:right;" id="cashTotalListPrice"></div>
       <div style="flex:1; text-align:center;" id="cashTotalCash"></div>
       <div style="flex:1; text-align:right; color:var(--brand);" id="cashTotalRemaining"></div>
@@ -6252,17 +6310,28 @@ document.addEventListener("click", async (e) => {
     let totalCash = 0;
 
     products.forEach(p => {
-      const listPrice = getProductMonthlyListPrice(p);
-      const cash = window.productState.productCashValues.get(p.id) || 0;
-      totalListPrice += listPrice;
-      totalCash += cash;
+      const unitPrice = getProductUnitListPrice(p);
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
 
-      // Update the remaining cell for this product
-      const remainingCell = document.querySelector(`.remaining-cell[data-product-id="${p.id}"]`);
-      if (remainingCell) {
-        const remaining = Math.max(0, listPrice - cash);
-        remainingCell.textContent = money(remaining) + '/mo';
-      }
+      // Get locations for this product
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      locations.forEach(locationKey => {
+        const cashKey = getCashKey(p.id, locationKey);
+        const cash = window.productState.productCashValues.get(cashKey) || 0;
+        totalListPrice += unitPrice;
+        totalCash += cash;
+
+        // Update the remaining cell for this row
+        const remainingCell = document.querySelector(`.remaining-cell[data-cash-key="${cashKey}"]`);
+        if (remainingCell) {
+          const remaining = Math.max(0, unitPrice - cash);
+          remainingCell.textContent = money(remaining);
+        }
+      });
     });
 
     const totalRemaining = Math.max(0, totalListPrice - totalCash);
@@ -6387,16 +6456,24 @@ document.addEventListener("click", async (e) => {
     const totalBarterAnnual = totalBarterMonthly * 12;
 
     // Calculate barter component (value from allocated minutes)
+    // Use the per-product per-station barter allocation
     let allocatedBarterAnnual = 0;
     const cpm = Number(window.productState.cpm || 2.0);
+    const barterPerProduct = computeBarterAllocationPerProduct();
 
     stations.forEach(st => {
-      const manualMins = window.productState.manualMinutes.get(st.key);
-      if (manualMins) {
-        const primeValue = calculateValueFromMinutes(manualMins.prime || 0, st.primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(manualMins.ros || 0, st.rosAQH, cpm);
-        allocatedBarterAnnual += primeValue + rosValue;
-      }
+      const primeAQH = Number(st.primeAQH) || 0;
+      const rosAQH = Number(st.rosAQH) || 0;
+
+      // Sum up barter value from all products at this station
+      barterPerProduct.forEach((stationMap, productId) => {
+        const stationBarter = stationMap.get(st.key);
+        if (stationBarter) {
+          const primeValue = calculateValueFromMinutes(stationBarter.primeMinutes || 0, primeAQH, cpm);
+          const rosValue = calculateValueFromMinutes(stationBarter.rosMinutes || 0, rosAQH, cpm);
+          allocatedBarterAnnual += primeValue + rosValue;
+        }
+      });
     });
     const allocatedBarterMonthly = allocatedBarterAnnual / 12;
 
@@ -6752,7 +6829,7 @@ function computeProposalMonthlyPerStation(pricingType) {
 
 // --- helper: compute barter allocation (minutes per day) without rendering UI ---
 // Uses the same formula as calculateBarterMinutes:
-// Compute barter allocation PER PRODUCT PER STATION
+// Compute barter allocation PER PRODUCT PER STATION using per-station-per-product cash values
 // Returns Map<productId, Map<stationKey, {primeMinutes, rosMinutes}>>
 function computeBarterAllocationPerProduct() {
   try {
@@ -6762,7 +6839,7 @@ function computeBarterAllocationPerProduct() {
 
     if (!stations.length || !products.length) return new Map();
 
-    // Calculate total AQH
+    // Calculate total AQH for reference
     let totalPrimeAQH = 0;
     let totalRosAQH = 0;
     stations.forEach(s => {
@@ -6770,61 +6847,136 @@ function computeBarterAllocationPerProduct() {
       totalRosAQH += (Number(s.rosAQH) || 0);
     });
 
-    const hasPrimeAQH = totalPrimeAQH > 0;
-    const hasRosAQH = totalRosAQH > 0;
-    const hasAnyAQH = hasPrimeAQH || hasRosAQH;
-    const totalAQH = totalPrimeAQH + totalRosAQH;
-
+    const hasAnyAQH = totalPrimeAQH > 0 || totalRosAQH > 0;
     if (!hasAnyAQH || cpm <= 0) return new Map();
-
-    const primeValueShare = hasPrimeAQH ? (totalPrimeAQH / totalAQH) : 0;
-    const rosValueShare = hasRosAQH ? (totalRosAQH / totalAQH) : 0;
 
     const result = new Map();
 
     products.forEach(p => {
-      const listPrice = getProductMonthlyListPrice(p);
-      const cashAmount = window.productState.productCashValues.get(p.id) || 0;
-      const productBarterMonthly = Math.max(0, listPrice - cashAmount);
-      const productBarterAnnual = productBarterMonthly * 12;
-
-      if (productBarterMonthly <= 0) {
-        result.set(p.id, new Map()); // No barter needed
-        return;
-      }
-
-      const productPrimeAnnual = productBarterAnnual * primeValueShare;
-      const productRosAnnual = productBarterAnnual * rosValueShare;
-
+      const unitPrice = getProductUnitListPrice(p);
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
       const stationMap = new Map();
 
-      stations.forEach(st => {
-        const primeAQH = Number(st.primeAQH) || 0;
-        const rosAQH = Number(st.rosAQH) || 0;
+      if (isMarketLevel) {
+        // Market-level product: cash per market, distribute barter across stations in market
+        const markets = Array.from(assignments);
 
-        const stationPrimeShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / totalPrimeAQH) : 0;
-        const stationRosShare = hasRosAQH && rosAQH > 0 ? (rosAQH / totalRosAQH) : 0;
+        markets.forEach(marketName => {
+          const cashKey = getCashKey(p.id, marketName);
+          const cashAmount = window.productState.productCashValues.get(cashKey) || 0;
+          const barterMonthly = Math.max(0, unitPrice - cashAmount);
+          const barterAnnual = barterMonthly * 12;
 
-        const stationPrimeTargetValue = productPrimeAnnual * stationPrimeShare;
-        const stationRosTargetValue = productRosAnnual * stationRosShare;
+          if (barterMonthly <= 0) return;
 
-        let autoPrimeMinutes = 0;
-        let autoRosMinutes = 0;
-        if (primeAQH > 0) {
-          autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
-        }
-        if (rosAQH > 0) {
-          autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
-        }
+          // Get stations in this market
+          const marketStations = stations.filter(s => s.market === marketName);
+          if (!marketStations.length) return;
 
-        // Check for manual override (keyed by product:station)
-        const manualKey = `${p.id}:${st.key}`;
-        const manual = window.productState.manualMinutes.get(manualKey);
-        const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
-        const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+          // Calculate AQH totals for this market
+          let marketPrimeAQH = 0;
+          let marketRosAQH = 0;
+          marketStations.forEach(s => {
+            marketPrimeAQH += (Number(s.primeAQH) || 0);
+            marketRosAQH += (Number(s.rosAQH) || 0);
+          });
 
-        stationMap.set(st.key, { primeMinutes, rosMinutes });
-      });
+          const marketTotalAQH = marketPrimeAQH + marketRosAQH;
+          if (marketTotalAQH <= 0) return;
+
+          const marketPrimeShare = marketPrimeAQH > 0 ? (marketPrimeAQH / marketTotalAQH) : 0;
+          const marketRosShare = marketRosAQH > 0 ? (marketRosAQH / marketTotalAQH) : 0;
+
+          const marketPrimeAnnual = barterAnnual * marketPrimeShare;
+          const marketRosAnnual = barterAnnual * marketRosShare;
+
+          // Distribute across stations in this market
+          marketStations.forEach(st => {
+            const primeAQH = Number(st.primeAQH) || 0;
+            const rosAQH = Number(st.rosAQH) || 0;
+
+            const stationPrimeShare = marketPrimeAQH > 0 && primeAQH > 0 ? (primeAQH / marketPrimeAQH) : 0;
+            const stationRosShare = marketRosAQH > 0 && rosAQH > 0 ? (rosAQH / marketRosAQH) : 0;
+
+            const stationPrimeTargetValue = marketPrimeAnnual * stationPrimeShare;
+            const stationRosTargetValue = marketRosAnnual * stationRosShare;
+
+            let autoPrimeMinutes = 0;
+            let autoRosMinutes = 0;
+            if (primeAQH > 0) {
+              autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
+            }
+            if (rosAQH > 0) {
+              autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
+            }
+
+            // Check for manual override
+            const manualKey = `${p.id}:${st.key}`;
+            const manual = window.productState.manualMinutes.get(manualKey);
+            const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
+            const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+
+            // Merge with any existing entry for this station (from other markets)
+            const existing = stationMap.get(st.key);
+            if (existing) {
+              stationMap.set(st.key, {
+                primeMinutes: existing.primeMinutes + primeMinutes,
+                rosMinutes: existing.rosMinutes + rosMinutes
+              });
+            } else {
+              stationMap.set(st.key, { primeMinutes, rosMinutes });
+            }
+          });
+        });
+      } else {
+        // Station-level product: cash per station, barter calculated per station
+        const assignedStations = stations.filter(s => assignments.has(s.key));
+
+        assignedStations.forEach(st => {
+          const cashKey = getCashKey(p.id, st.key);
+          const cashAmount = window.productState.productCashValues.get(cashKey) || 0;
+          const barterMonthly = Math.max(0, unitPrice - cashAmount);
+          const barterAnnual = barterMonthly * 12;
+
+          if (barterMonthly <= 0) {
+            stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
+            return;
+          }
+
+          const primeAQH = Number(st.primeAQH) || 0;
+          const rosAQH = Number(st.rosAQH) || 0;
+          const stationTotalAQH = primeAQH + rosAQH;
+
+          if (stationTotalAQH <= 0) {
+            stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
+            return;
+          }
+
+          const primeShare = primeAQH > 0 ? (primeAQH / stationTotalAQH) : 0;
+          const rosShare = rosAQH > 0 ? (rosAQH / stationTotalAQH) : 0;
+
+          const primeTargetValue = barterAnnual * primeShare;
+          const rosTargetValue = barterAnnual * rosShare;
+
+          let autoPrimeMinutes = 0;
+          let autoRosMinutes = 0;
+          if (primeAQH > 0) {
+            autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(primeTargetValue, primeAQH, cpm));
+          }
+          if (rosAQH > 0) {
+            autoRosMinutes = Math.ceil(calculateMinutesFromValue(rosTargetValue, rosAQH, cpm));
+          }
+
+          // Check for manual override
+          const manualKey = `${p.id}:${st.key}`;
+          const manual = window.productState.manualMinutes.get(manualKey);
+          const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
+          const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+
+          stationMap.set(st.key, { primeMinutes, rosMinutes });
+        });
+      }
 
       result.set(p.id, stationMap);
     });
@@ -7244,8 +7396,8 @@ window.generateProposal = function generateProposal() {
     lines.push(`<thead><tr>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
       <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">One-Time</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
       <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
     </tr></thead><tbody>`);
 
     // Base product with user/account add-ons rolled in
@@ -7253,8 +7405,8 @@ window.generateProposal = function generateProposal() {
     lines.push(`<tr>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${tlName}</strong><br><span style="font-size:11px;color:var(--muted);">${numMarkets} market${numMarkets > 1 ? 's' : ''}, ${window.toplineState.usersNeeded} users, ${window.toplineState.accountsNeeded} accounts</span></td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal)}</td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal / 12)}</td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.baseSubtotal)}</td>
     </tr>`);
 
     // Attribution
@@ -7262,8 +7414,8 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Attribution Add-on</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.attributionAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.attributionAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.attributionAnnual)}</td>
       </tr>`);
     }
 
@@ -7272,8 +7424,8 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">TV <em style="font-size:11px; color:var(--muted);">hard costs</em></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.tvAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.tvAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.tvAnnual)}</td>
       </tr>`);
     }
 
@@ -7292,8 +7444,8 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CRM Integration (${window.toplineState.crmIntegrationHours} hrs)</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmOneTime)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmMaintenance)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmMaintenance / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.crmMaintenance)}</td>
       </tr>`);
     }
 
@@ -7309,8 +7461,8 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn <em style="font-size:11px; color:var(--muted);">${tl.spotonTotalCredits} credits/mo (${spotonDesc.join(', ') || '—'})</em></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotonAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotonAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.spotonAnnual)}</td>
       </tr>`);
     }
 
@@ -7319,8 +7471,8 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Retail Locations (${window.toplineState.chuyLocations})</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuySetup)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyLocationAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyLocationAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyLocationAnnual)}</td>
       </tr>`);
     }
 
@@ -7329,8 +7481,8 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY Unique Retailers (${window.toplineState.chuyRetailers})</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyRetailerAnnual)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyRetailerAnnual / 12)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(tl.chuyRetailerAnnual)}</td>
       </tr>`);
     }
 
@@ -7338,8 +7490,8 @@ window.generateProposal = function generateProposal() {
     lines.push(`<tr style="background:rgba(103,36,119,.06);">
       <td style="padding:8px;"><strong>TopLine Total</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalOneTime)}</strong></td>
-      <td style="padding:8px; text-align:right;"><strong>${money(tl.totalAnnual)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalMonthly)}</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${money(tl.totalAnnual)}</strong></td>
     </tr>`);
 
     lines.push(`</tbody></table>`);
@@ -7571,8 +7723,8 @@ window.generateProposal = function generateProposal() {
   if (grandTotalOneTime > 0) {
     lines.push(`<div><div class="muted" style="font-size:11px;">One-Time Fees</div><strong style="font-size:18px;">${money(grandTotalOneTime)}</strong></div>`);
   }
-  lines.push(`<div><div class="muted" style="font-size:11px;">Annual Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
   lines.push(`<div><div class="muted" style="font-size:11px;">Monthly Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
+  lines.push(`<div><div class="muted" style="font-size:11px;">Annual Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
   lines.push(`</div>`);
   lines.push(`</div>`);
 
