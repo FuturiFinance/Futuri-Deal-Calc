@@ -4,7 +4,10 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>Futuri Media Deal Calculator v2.5</title>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+  <meta http-equiv="Pragma" content="no-cache"/>
+  <meta http-equiv="Expires" content="0"/>
+  <title>Futuri Media Deal Calculator v2.10</title>
 
   <style>
     :root{
@@ -7289,7 +7292,6 @@ window.generateProposal = function generateProposal() {
   lines.push(`<span class="pill">Annual Total: <span>${money(annualAllStationsProposal)}</span></span>`);
   if (pricingType === 'mixed' && !isAgencyDeal) {
     lines.push(`<span class="pill">Cash (Monthly): <span>${money(totalCashMonthly)}</span>/mo</span>`);
-    lines.push(`<span class="pill">Barter Remaining (Annual): <span>${money(remainingAnnual)}</span></span>`);
   }
   lines.push(`</div>`);
 
@@ -7315,13 +7317,20 @@ window.generateProposal = function generateProposal() {
     lines.push(`<div class="title" style="margin-bottom:6px;">Station Breakdown</div>`);
     lines.push(`<div style="overflow-x:auto;">`);
     lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    // Columns by deal type:
+    // Cash: Station, Market, Product, Monthly Cash, Annual Cash
+    // Mixed: Station, Market, Product, Monthly Cash, Prime/Day, ROS/Day
+    // Barter: Station, Market, Product, Prime/Day, ROS/Day
+    const showCashCol = (pricingType === 'cash' || pricingType === 'mixed');
+    const showAnnualCol = (pricingType === 'cash');
     lines.push(`<thead><tr>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product(s)</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Cash / Station / Month</th>
-      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime / Day</th>` : ''}
-      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS / Day</th>` : ''}
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+      ${showCashCol ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly Cash</th>` : ''}
+      ${showAnnualCol ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual Cash</th>` : ''}
+      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime/Day</th>` : ''}
+      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS/Day</th>` : ''}
     </tr></thead>`);
     lines.push(`<tbody>`);
 
@@ -7359,18 +7368,18 @@ window.generateProposal = function generateProposal() {
           const listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
 
           // For mixed deals, show the actual cash entered for this product at this station/market
-          // For cash deals, show the list price
-          // For barter deals, show "—"
-          let cashDisplay = '—';
+          // For cash deals, show the list price (monthly and annual)
+          // For barter deals, no cash column
+          let monthlyCash = 0;
           if (pricingType === 'cash') {
-            cashDisplay = listPrice ? (money(listPrice) + '/mo') : '—';
+            monthlyCash = listPrice || 0;
           } else if (pricingType === 'mixed') {
             // Use station key for station-level products, market for market-level products
             const locationKey = isMarketLevelProduct(p.id) ? st.market : st.key;
             const cashKey = getCashKey(p.id, locationKey);
-            const productCash = window.productState.productCashValues.get(cashKey) || 0;
-            cashDisplay = productCash > 0 ? (money(productCash) + '/mo') : '—';
+            monthlyCash = window.productState.productCashValues.get(cashKey) || 0;
           }
+          const annualCash = monthlyCash * 12;
 
           // Get this product's barter minutes at this station from the per-product allocation
           const productBarter = getProductStationBarter(p.id, st.key);
@@ -7381,9 +7390,8 @@ window.generateProposal = function generateProposal() {
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${p.name}</td>
-            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">
-              ${cashDisplay}
-            </td>
+            ${showCashCol ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${monthlyCash > 0 ? money(monthlyCash) : '—'}</td>` : ''}
+            ${showAnnualCol ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${annualCash > 0 ? money(annualCash) : '—'}</td>` : ''}
             ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(productPrime)}</td>` : ''}
             ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(productRos)}</td>` : ''}
           </tr>`);
@@ -7395,7 +7403,8 @@ window.generateProposal = function generateProposal() {
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ""}</td>
             <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><span class="muted">—</span></td>
-            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
+            ${showCashCol ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>` : ''}
+            ${showAnnualCol ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>` : ''}
             ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(daily.primePerDay)}</td>` : ''}
             ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${String(daily.rosPerDay)}</td>` : ''}
           </tr>`);
@@ -7413,10 +7422,7 @@ window.generateProposal = function generateProposal() {
     lines.push(`<thead><tr>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
       <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Applies To</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">List Price</th>
       ${pricingType === 'mixed' ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Cash/mo</th>` : ''}
-      ${pricingType === 'mixed' ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Barter/mo</th>` : ''}
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
       ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime/Day</th>` : ''}
       ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS/Day</th>` : ''}
     </tr></thead><tbody>`);
@@ -7490,10 +7496,7 @@ window.generateProposal = function generateProposal() {
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${p.name}</strong></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${appliesTo}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${listPricePerUnit ? money(listPricePerUnit) + '/mo' : '—'}</td>
         ${pricingType === 'mixed' ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right; color:var(--success);">${productCash > 0 ? money(productCash) + '/mo' : '—'}</td>` : ''}
-        ${pricingType === 'mixed' ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right; color:var(--brand);">${productBarter > 0 ? money(productBarter) + '/mo' : '—'}</td>` : ''}
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${totalAnnual ? money(totalAnnual) + '/yr' : '—'}</td>
         ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${productPrimeTotal}</td>` : ''}
         ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${productRosTotal}</td>` : ''}
       </tr>`);
@@ -7786,56 +7789,6 @@ window.generateProposal = function generateProposal() {
     lines.push(`</div>`);
   }
 
-  // Standard Products section - show all other selected products with rates
-  // Products: topline_cx_war_room, topicpulse, instant_video, topicpulse_iv,
-  // topicpulse_community_radar_nextdoor, prep_plus, post, streaming, mobile, ldr
-  // Note: spoton is a configurable product with its own section
-  const standardProductIds = [
-    'topline_cx_war_room', 'topicpulse', 'instant_video', 'topicpulse_iv',
-    'topicpulse_community_radar_nextdoor', 'prep_plus', 'post', 'streaming', 'mobile', 'ldr'
-  ];
-
-  const selectedStandardProducts = products.filter(p => standardProductIds.includes(p.id));
-
-  if (selectedStandardProducts.length > 0) {
-    lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Additional Products</div>`);
-
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
-    </tr></thead><tbody>`);
-
-    let standardProductsTotal = 0;
-    selectedStandardProducts.forEach(p => {
-      const rate = (pricingType === 'cash' || p.cashOnly) ? p.cash : p.barter;
-      if (rate && rate > 0) {
-        const annual = rate * 12;
-        standardProductsTotal += annual;
-        lines.push(`<tr>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${p.name}</strong>${p.note ? `<br><span style="font-size:11px;color:var(--muted);">${p.note}</span>` : ''}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(rate)}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(annual)}</td>
-        </tr>`);
-      }
-    });
-
-    // Subtotal row for standard products
-    if (standardProductsTotal > 0) {
-      lines.push(`<tr style="background:rgba(103,36,119,.06);">
-        <td style="padding:8px;"><strong>Additional Products Total</strong></td>
-        <td style="padding:8px; text-align:right;"><strong>${money(standardProductsTotal / 12)}</strong></td>
-        <td style="padding:8px; text-align:right;"><strong>${money(standardProductsTotal)}</strong></td>
-      </tr>`);
-    }
-
-    lines.push(`</tbody></table>`);
-    lines.push(`</div>`);
-  }
-
   // Grand Total section
   let grandTotalOneTime = 0;
   let grandTotalAnnual = annualAllStationsProposal;
@@ -7933,7 +7886,6 @@ window.buildProposalText = function buildProposalText() {
   lines.push(`Annual Total (all stations): ${money(annualAllStationsProposal)}`);
   if (pricingType === 'mixed') {
     lines.push(`Cash (Monthly): ${money(totalCashMonthly)}/mo`);
-    lines.push(`Barter Remaining (Annual): ${money(remainingAnnual)}`);
   }
   lines.push(`Deal Terms: Term ${termMonths}mo | Auto-Renew ${arEnabled ? "Yes" : "No"} | AR Term ${arEnabled ? arMonths + "mo" : "—"} | Nielsen ${nielsenDisplay}`);
   lines.push(``);
