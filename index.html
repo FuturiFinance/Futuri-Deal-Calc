@@ -7,7 +7,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
   <meta http-equiv="Pragma" content="no-cache"/>
   <meta http-equiv="Expires" content="0"/>
-  <title>Futuri Media Deal Calculator v2.10</title>
+  <title>Futuri Media Deal Calculator v2.11</title>
 
   <style>
     :root{
@@ -518,7 +518,10 @@
   <header>
     <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
       <span id="whois" class="role-badge" title="Current role">Role: —</span>
-      <span id="activeNielsenBadge" class="role-badge" title="Active Nielsen Book" style="display:none;">Nielsen: —</span>
+      <select id="bookSelector" class="role-badge" title="Select Nielsen Book" style="background:var(--brand);color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer;">
+        <option value="fall2025">Book: Fall 2025 [RADIO]</option>
+        <option value="spring2025">Book: Spring 2025 [RADIO]</option>
+      </select>
       <button class="btn" id="btnLogout" title="Sign out" style="display:none;" type="button">Logout</button>
     </div>
     <div class="wrap" style="padding:12px 16px;">
@@ -3556,7 +3559,14 @@ document.addEventListener("click", async (e) => {
      **************************************/
 
     window.BASE_DS = { parents: [], markets: [], stations: [] };
-    const DATA_URL = './radio_data.json';
+
+    // Bundled Nielsen books configuration
+    const BUNDLED_BOOKS = {
+      fall2025: { name: 'Fall 2025', type: 'RADIO', file: './radio_data_fall2025.json' },
+      spring2025: { name: 'Spring 2025', type: 'RADIO', file: './radio_data.json' }
+    };
+    window._selectedBundledBook = 'fall2025'; // Default to Fall 2025
+    const DATA_URL = BUNDLED_BOOKS[window._selectedBundledBook].file;
 
     window.DS = { parents: [], markets: [], stations: [] };
     window.IDX = {
@@ -4511,8 +4521,12 @@ document.addEventListener("click", async (e) => {
       }
     }
 
+    function getCurrentBookUrl() {
+      return BUNDLED_BOOKS[window._selectedBundledBook]?.file || DATA_URL;
+    }
+
     async function fetchRadioDataFromNetwork() {
-      const response = await fetch(DATA_URL, { cache: 'no-store' });
+      const response = await fetch(getCurrentBookUrl(), { cache: 'no-store' });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return await response.json();
     }
@@ -4623,7 +4637,7 @@ document.addEventListener("click", async (e) => {
       // Load rate card products dynamically
       await loadRateCard();
 
-      await window.UserData.init(DATA_URL);
+      await window.UserData.init(getCurrentBookUrl());
       // load base dataset first (may be empty if no bundled file)
       window.BASE_DS = await loadDataset();
       window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
@@ -4644,9 +4658,58 @@ document.addEventListener("click", async (e) => {
       window.updateProductSummary();
     };
 
+    // Switch bundled Nielsen book
+    async function switchBundledBook(bookId) {
+      if (!BUNDLED_BOOKS[bookId]) return;
+      window._selectedBundledBook = bookId;
+      const bookFile = BUNDLED_BOOKS[bookId].file;
+
+      try {
+        // Reload the base dataset from the new book
+        const res = await fetch(bookFile, { cache: 'no-store' });
+        const data = await res.json();
+
+        // Update BASE_DS with the new data
+        window.BASE_DS = {
+          parents: data.parents || [],
+          markets: data.markets || [],
+          stations: data.stations || []
+        };
+
+        // Merge with user data and rebuild index
+        window.DS = mergeUserIntoDataset(window.BASE_DS, window.UserData.getMerged());
+        rebuildIndex();
+
+        // Clear current selections since parent list may have changed
+        window.state.parent = '';
+        window.state.markets.clear();
+        window.state.stations.clear();
+
+        // Re-render UI
+        window.renderParents(el('parentSearch')?.value || '');
+        window.setMarketsEnabled(false);
+        window.setStationsEnabled(false);
+        window.updatePreview();
+
+        console.log(`Switched to ${BUNDLED_BOOKS[bookId].name} book (${data.stations?.length || 0} stations)`);
+      } catch (e) {
+        console.error('Failed to switch book:', e);
+        alert('Failed to load book data. Please try again.');
+      }
+    }
+
     function setupEventListeners() {
       window.setMarketsEnabled(false);
       window.setStationsEnabled(false);
+
+      // Book selector dropdown
+      const bookSelector = el('bookSelector');
+      if (bookSelector) {
+        bookSelector.value = window._selectedBundledBook || 'fall2025';
+        bookSelector.addEventListener('change', (e) => {
+          switchBundledBook(e.target.value);
+        });
+      }
 
       const ps = el('parentSearch');
       ps.addEventListener('input', () => window.renderParents(ps.value));
