@@ -6532,15 +6532,6 @@ document.addEventListener("click", async (e) => {
 
     const totalRemaining = Math.max(0, totalListPrice - totalCash);
 
-    // Debug logging for mixed pricing calculation
-    // console.log('[Barter Debug] updateMixedPricing totals:', {
-      productsCount: products.length,
-      stationsCount: stations.length,
-      totalListPrice,
-      totalCash,
-      totalRemaining,
-      willCallBarter: totalRemaining > 0 && stations.length > 0
-    });
 
     // Update totals row
     const listPriceEl = el('cashTotalListPrice');
