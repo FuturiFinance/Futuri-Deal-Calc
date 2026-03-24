@@ -3732,9 +3732,9 @@ document.addEventListener("click", async (e) => {
     // Validate window.state.stations against the actual index
     // Removes any station keys that don't exist in the current data
     function validateStationsAgainstIndex() {
-      console.log('[Barter Debug] validateStationsAgainstIndex called - parent:', window.state.parent, 'stations before:', window.state.stations.size);
+      // console.log('[Barter Debug] validateStationsAgainstIndex called - parent:', window.state.parent, 'stations before:', window.state.stations.size);
       if (!window.state.parent || !window.IDX?.stationsByParent) {
-        console.log('[Barter Debug] validateStationsAgainstIndex early return - no parent or no index');
+        // console.log('[Barter Debug] validateStationsAgainstIndex early return - no parent or no index');
         return;
       }
 
@@ -3775,7 +3775,7 @@ document.addEventListener("click", async (e) => {
         console.log(`Removed ${staleMarkets.length} stale market keys from deal`);
       }
 
-      console.log('[Barter Debug] validateStationsAgainstIndex complete - stations after:', window.state.stations.size);
+      // console.log('[Barter Debug] validateStationsAgainstIndex complete - stations after:', window.state.stations.size);
     }
 
     /**********************
@@ -5532,11 +5532,11 @@ document.addEventListener("click", async (e) => {
     if (pricingType === 'barter') {
       el('cashValuesSection').classList.add('hidden');
       const annualBarterValue = totalMonthlyAllStations * 12;
-      console.log('[Barter Debug] Pure barter mode - totalMonthlyAllStations:', totalMonthlyAllStations, 'annualBarterValue:', annualBarterValue);
+      // console.log('[Barter Debug] Pure barter mode - totalMonthlyAllStations:', totalMonthlyAllStations, 'annualBarterValue:', annualBarterValue);
       calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
     } else if (pricingType === 'mixed') {
       el('cashValuesSection').classList.remove('hidden');
-      console.log('[Barter Debug] Mixed mode - calling renderCashValues with:', totalMonthlyAllStations);
+      // console.log('[Barter Debug] Mixed mode - calling renderCashValues with:', totalMonthlyAllStations);
       renderCashValues(totalMonthlyAllStations);
     } else {
       el('cashValuesSection').classList.add('hidden');
@@ -6533,7 +6533,7 @@ document.addEventListener("click", async (e) => {
     const totalRemaining = Math.max(0, totalListPrice - totalCash);
 
     // Debug logging for mixed pricing calculation
-    console.log('[Barter Debug] updateMixedPricing totals:', {
+    // console.log('[Barter Debug] updateMixedPricing totals:', {
       productsCount: products.length,
       stationsCount: stations.length,
       totalListPrice,
@@ -6556,7 +6556,7 @@ document.addEventListener("click", async (e) => {
     if (totalRemaining > 0 && stations.length > 0) {
       calculateBarterMinutes(totalRemaining * 12, totalRemaining);
     } else {
-      console.log('[Barter Debug] Barter section hidden - remaining:', totalRemaining, 'stations:', stations.length);
+      // console.log('[Barter Debug] Barter section hidden - remaining:', totalRemaining, 'stations:', stations.length);
       el('barterMinutesSection').classList.add('hidden');
     }
   }
@@ -6645,31 +6645,28 @@ document.addEventListener("click", async (e) => {
 
     products.forEach(p => {
       const unitPrice = getProductUnitListPrice(p);
-      const isMarketLevel = isMarketLevelProduct(p.id);
-      const assignments = getProductAssignments(p.id);
+      const assignedStations = getAssignedStationsForProduct(p.id);
 
-      // Get locations for this product
-      const locations = isMarketLevel
-        ? Array.from(assignments)
-        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+      if (!assignedStations.length) return;
 
-      // Sum cash across all locations for this product
+      // Calculate list price and cash for this product
       let productCashTotal = 0;
       let productListPriceTotal = 0;
 
-      // For special products, the calculated value is already the total (not per-location)
       if (p.isSpecialProduct) {
-        productListPriceTotal = unitPrice; // unitPrice IS the total for special products
-        // Special products don't have per-location cash input, so cash stays 0
+        // Special products: calculated value is the total
+        productListPriceTotal = unitPrice;
       } else if (pricingType === 'mixed') {
-        locations.forEach(locationKey => {
-          const cashKey = getCashKey(p.id, locationKey);
+        // Mixed: sum per-station cash
+        assignedStations.forEach(st => {
+          const cashKey = getCashKey(p.id, st.key);
           const cash = window.productState.productCashValues.get(cashKey) || 0;
           productCashTotal += cash;
           productListPriceTotal += unitPrice;
         });
       } else {
-        productListPriceTotal = unitPrice * locations.length;
+        // Pure barter: just sum list prices
+        productListPriceTotal = unitPrice * assignedStations.length;
       }
 
       const productBarterTarget = Math.max(0, productListPriceTotal - productCashTotal);
@@ -7116,12 +7113,12 @@ function computeProposalMonthlyPerStation(pricingType) {
 function computeBarterAllocationPerProduct() {
   try {
     const stations = getSelectedStationsDetailed();
-    const products = getProductsForCashInput();
+    const products = getProductsForBarter();  // Include TopLine and other special products
     const cpm = Number(window.productState.cpm || 2.0);
 
     if (!stations.length || !products.length) return new Map();
 
-    // Calculate total AQH for reference
+    // Check for any AQH
     let totalPrimeAQH = 0;
     let totalRosAQH = 0;
     stations.forEach(s => {
@@ -7134,161 +7131,99 @@ function computeBarterAllocationPerProduct() {
 
     const result = new Map();
 
+    // All products use the same code path - market-level expansion happens in getAssignedStationsForProduct
     products.forEach(p => {
       const unitPrice = getProductUnitListPrice(p);
-      const isMarketLevel = isMarketLevelProduct(p.id);
-      const assignments = getProductAssignments(p.id);
+      const assignedStations = getAssignedStationsForProduct(p.id);
       const stationMap = new Map();
 
-      if (isMarketLevel) {
-        // Market-level product: cash per market, distribute barter across stations in market
-        const markets = Array.from(assignments);
+      if (!assignedStations.length) {
+        result.set(p.id, stationMap);
+        return;
+      }
 
-        markets.forEach(marketName => {
-          const cashKey = getCashKey(p.id, marketName);
-          const cashAmount = window.productState.productCashValues.get(cashKey) || 0;
-          const barterMonthly = Math.max(0, unitPrice - cashAmount);
-          const barterAnnual = barterMonthly * 12;
+      // Calculate total list price and cash for this product
+      let productCashTotal = 0;
+      let productListPriceTotal = 0;
 
-          if (barterMonthly <= 0) return;
-
-          // Get stations in this market
-          const marketStations = stations.filter(s => s.market === marketName);
-          if (!marketStations.length) return;
-
-          // Calculate AQH totals for this market
-          let marketPrimeAQH = 0;
-          let marketRosAQH = 0;
-          marketStations.forEach(s => {
-            marketPrimeAQH += (Number(s.primeAQH) || 0);
-            marketRosAQH += (Number(s.rosAQH) || 0);
-          });
-
-          const marketTotalAQH = marketPrimeAQH + marketRosAQH;
-          if (marketTotalAQH <= 0) return;
-
-          const marketPrimeShare = marketPrimeAQH > 0 ? (marketPrimeAQH / marketTotalAQH) : 0;
-          const marketRosShare = marketRosAQH > 0 ? (marketRosAQH / marketTotalAQH) : 0;
-
-          const marketPrimeAnnual = barterAnnual * marketPrimeShare;
-          const marketRosAnnual = barterAnnual * marketRosShare;
-
-          // Distribute across stations in this market
-          marketStations.forEach(st => {
-            const primeAQH = Number(st.primeAQH) || 0;
-            const rosAQH = Number(st.rosAQH) || 0;
-
-            const stationPrimeShare = marketPrimeAQH > 0 && primeAQH > 0 ? (primeAQH / marketPrimeAQH) : 0;
-            const stationRosShare = marketRosAQH > 0 && rosAQH > 0 ? (rosAQH / marketRosAQH) : 0;
-
-            const stationPrimeTargetValue = marketPrimeAnnual * stationPrimeShare;
-            const stationRosTargetValue = marketRosAnnual * stationRosShare;
-
-            let autoPrimeMinutes = 0;
-            let autoRosMinutes = 0;
-            if (primeAQH > 0) {
-              autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
-            }
-            if (rosAQH > 0) {
-              autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
-            }
-
-            // Check for manual override
-            const manualKey = `${p.id}:${st.key}`;
-            const manual = window.productState.manualMinutes.get(manualKey);
-            const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
-            const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
-
-            // Merge with any existing entry for this station (from other markets)
-            const existing = stationMap.get(st.key);
-            if (existing) {
-              stationMap.set(st.key, {
-                primeMinutes: existing.primeMinutes + primeMinutes,
-                rosMinutes: existing.rosMinutes + rosMinutes
-              });
-            } else {
-              stationMap.set(st.key, { primeMinutes, rosMinutes });
-            }
-          });
-        });
+      if (p.isSpecialProduct) {
+        // Special products: calculated value is the total (no per-station cash)
+        productListPriceTotal = unitPrice;
       } else {
-        // Station-level product: calculate total barter, then distribute across stations
-        // This matches the logic in calculateBarterMinutes display
-        const assignedStations = stations.filter(s => assignments.has(s.key));
-
-        // First, calculate total barter for this product across all assigned stations
-        let productCashTotal = 0;
-        let productListPriceTotal = 0;
+        // Standard products: sum per-station values
         assignedStations.forEach(st => {
           const cashKey = getCashKey(p.id, st.key);
           const cashAmount = window.productState.productCashValues.get(cashKey) || 0;
           productCashTotal += cashAmount;
           productListPriceTotal += unitPrice;
         });
-
-        const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
-        const productBarterAnnual = productBarterMonthly * 12;
-
-        if (productBarterMonthly <= 0) {
-          assignedStations.forEach(st => {
-            stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
-          });
-        } else {
-          // Calculate total AQH for assigned stations
-          let assignedPrimeAQH = 0;
-          let assignedRosAQH = 0;
-          assignedStations.forEach(st => {
-            assignedPrimeAQH += (Number(st.primeAQH) || 0);
-            assignedRosAQH += (Number(st.rosAQH) || 0);
-          });
-
-          const assignedTotalAQH = assignedPrimeAQH + assignedRosAQH;
-          const hasPrimeAQH = assignedPrimeAQH > 0;
-          const hasRosAQH = assignedRosAQH > 0;
-
-          if (assignedTotalAQH <= 0) {
-            assignedStations.forEach(st => {
-              stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
-            });
-          } else {
-            // Split product's barter value between Prime and ROS proportionally by total AQH
-            const primeValueShare = hasPrimeAQH ? (assignedPrimeAQH / assignedTotalAQH) : 0;
-            const rosValueShare = hasRosAQH ? (assignedRosAQH / assignedTotalAQH) : 0;
-            const productPrimeAnnual = productBarterAnnual * primeValueShare;
-            const productRosAnnual = productBarterAnnual * rosValueShare;
-
-            // Now distribute across stations based on their share of each AQH type
-            assignedStations.forEach(st => {
-              const primeAQH = Number(st.primeAQH) || 0;
-              const rosAQH = Number(st.rosAQH) || 0;
-
-              // This station's share of the product's prime/ros barter value
-              const stationPrimeShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / assignedPrimeAQH) : 0;
-              const stationRosShare = hasRosAQH && rosAQH > 0 ? (rosAQH / assignedRosAQH) : 0;
-
-              const stationPrimeTargetValue = productPrimeAnnual * stationPrimeShare;
-              const stationRosTargetValue = productRosAnnual * stationRosShare;
-
-              let autoPrimeMinutes = 0;
-              let autoRosMinutes = 0;
-              if (primeAQH > 0) {
-                autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
-              }
-              if (rosAQH > 0) {
-                autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
-              }
-
-              // Check for manual override
-              const manualKey = `${p.id}:${st.key}`;
-              const manual = window.productState.manualMinutes.get(manualKey);
-              const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
-              const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
-
-              stationMap.set(st.key, { primeMinutes, rosMinutes });
-            });
-          }
-        }
       }
+
+      const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
+      const productBarterAnnual = productBarterMonthly * 12;
+
+      if (productBarterMonthly <= 0) {
+        assignedStations.forEach(st => {
+          stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
+        });
+        result.set(p.id, stationMap);
+        return;
+      }
+
+      // Calculate AQH totals for assigned stations
+      let assignedPrimeAQH = 0;
+      let assignedRosAQH = 0;
+      assignedStations.forEach(st => {
+        assignedPrimeAQH += (Number(st.primeAQH) || 0);
+        assignedRosAQH += (Number(st.rosAQH) || 0);
+      });
+
+      const assignedTotalAQH = assignedPrimeAQH + assignedRosAQH;
+      const hasPrimeAQH = assignedPrimeAQH > 0;
+      const hasRosAQH = assignedRosAQH > 0;
+
+      if (assignedTotalAQH <= 0) {
+        assignedStations.forEach(st => {
+          stationMap.set(st.key, { primeMinutes: 0, rosMinutes: 0 });
+        });
+        result.set(p.id, stationMap);
+        return;
+      }
+
+      // Split barter value between Prime and ROS proportionally by AQH
+      const primeValueShare = hasPrimeAQH ? (assignedPrimeAQH / assignedTotalAQH) : 0;
+      const rosValueShare = hasRosAQH ? (assignedRosAQH / assignedTotalAQH) : 0;
+      const productPrimeAnnual = productBarterAnnual * primeValueShare;
+      const productRosAnnual = productBarterAnnual * rosValueShare;
+
+      // Distribute across stations based on their share of each AQH type
+      assignedStations.forEach(st => {
+        const primeAQH = Number(st.primeAQH) || 0;
+        const rosAQH = Number(st.rosAQH) || 0;
+
+        const stationPrimeShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / assignedPrimeAQH) : 0;
+        const stationRosShare = hasRosAQH && rosAQH > 0 ? (rosAQH / assignedRosAQH) : 0;
+
+        const stationPrimeTargetValue = productPrimeAnnual * stationPrimeShare;
+        const stationRosTargetValue = productRosAnnual * stationRosShare;
+
+        let autoPrimeMinutes = 0;
+        let autoRosMinutes = 0;
+        if (primeAQH > 0) {
+          autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
+        }
+        if (rosAQH > 0) {
+          autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
+        }
+
+        // Check for manual override
+        const manualKey = `${p.id}:${st.key}`;
+        const manual = window.productState.manualMinutes.get(manualKey);
+        const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
+        const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+
+        stationMap.set(st.key, { primeMinutes, rosMinutes });
+      });
 
       result.set(p.id, stationMap);
     });
