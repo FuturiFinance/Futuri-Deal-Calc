@@ -2347,6 +2347,13 @@ function loadDeal(payload){
   window.state.parent = payload.parent || "";
   window.state.markets = new Set(payload.markets || []);
   window.state.stations = new Set(payload.stations || []);
+
+  // Validate that restored stations exist in the current index
+  // This removes stale station keys that don't match current Nielsen book data
+  if (typeof validateStationsAgainstIndex === "function") {
+    validateStationsAgainstIndex();
+  }
+
   window.state.dealType = payload.dealType || "broadcast";
   window.state.customerName = payload.customerName || "";
   window.state.customerLocation = payload.customerLocation || "";
@@ -3705,6 +3712,55 @@ document.addEventListener("click", async (e) => {
     // Reset all product assignments (clear everything)
     function resetProductAssignments() {
       window.productState.productAssignments.clear();
+    }
+
+    // Validate window.state.stations against the actual index
+    // Removes any station keys that don't exist in the current data
+    function validateStationsAgainstIndex() {
+      console.log('[Barter Debug] validateStationsAgainstIndex called - parent:', window.state.parent, 'stations before:', window.state.stations.size);
+      if (!window.state.parent || !window.IDX?.stationsByParent) {
+        console.log('[Barter Debug] validateStationsAgainstIndex early return - no parent or no index');
+        return;
+      }
+
+      const indexedStations = window.IDX.stationsByParent.get(window.state.parent) || [];
+      const validStationKeys = new Set();
+      const validMarkets = new Set();
+
+      // Build sets of valid station keys and markets from the index
+      indexedStations.forEach(s => {
+        const key = s.parent + '|' + s.market + '|' + s.station;
+        validStationKeys.add(key);
+        validMarkets.add(s.market);
+      });
+
+      // Remove any station keys from state that don't exist in the index
+      const staleStations = [];
+      window.state.stations.forEach(key => {
+        if (!validStationKeys.has(key)) {
+          staleStations.push(key);
+        }
+      });
+
+      if (staleStations.length > 0) {
+        staleStations.forEach(key => window.state.stations.delete(key));
+        console.log(`Removed ${staleStations.length} stale station keys from deal`);
+      }
+
+      // Also clean up markets that no longer have valid stations
+      const staleMarkets = [];
+      window.state.markets.forEach(market => {
+        if (!validMarkets.has(market)) {
+          staleMarkets.push(market);
+        }
+      });
+
+      if (staleMarkets.length > 0) {
+        staleMarkets.forEach(market => window.state.markets.delete(market));
+        console.log(`Removed ${staleMarkets.length} stale market keys from deal`);
+      }
+
+      console.log('[Barter Debug] validateStationsAgainstIndex complete - stations after:', window.state.stations.size);
     }
 
     /**********************
@@ -5461,9 +5517,11 @@ document.addEventListener("click", async (e) => {
     if (pricingType === 'barter') {
       el('cashValuesSection').classList.add('hidden');
       const annualBarterValue = totalMonthlyAllStations * 12;
+      console.log('[Barter Debug] Pure barter mode - totalMonthlyAllStations:', totalMonthlyAllStations, 'annualBarterValue:', annualBarterValue);
       calculateBarterMinutes(annualBarterValue, totalMonthlyAllStations);
     } else if (pricingType === 'mixed') {
       el('cashValuesSection').classList.remove('hidden');
+      console.log('[Barter Debug] Mixed mode - calling renderCashValues with:', totalMonthlyAllStations);
       renderCashValues(totalMonthlyAllStations);
     } else {
       el('cashValuesSection').classList.add('hidden');
@@ -6193,7 +6251,13 @@ document.addEventListener("click", async (e) => {
   // Get products eligible for per-product cash input
   function getProductsForCashInput() {
     const products = getSelectedProductsDetailed();
-    return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
+    const filtered = products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
+    console.log('[Barter Debug] getProductsForCashInput:', {
+      allProducts: products.map(p => ({ id: p.id, barter: p.barter, value: p.value })),
+      filteredProducts: filtered.map(p => p.id),
+      specialProducts: SPECIAL_PRODUCTS
+    });
+    return filtered;
   }
 
   // Get unit list price for a product (single station/market price)
@@ -6402,6 +6466,16 @@ document.addEventListener("click", async (e) => {
 
     const totalRemaining = Math.max(0, totalListPrice - totalCash);
 
+    // Debug logging for mixed pricing calculation
+    console.log('[Barter Debug] updateMixedPricing totals:', {
+      productsCount: products.length,
+      stationsCount: stations.length,
+      totalListPrice,
+      totalCash,
+      totalRemaining,
+      willCallBarter: totalRemaining > 0 && stations.length > 0
+    });
+
     // Update totals row
     const listPriceEl = el('cashTotalListPrice');
     const cashEl = el('cashTotalCash');
@@ -6416,6 +6490,7 @@ document.addEventListener("click", async (e) => {
     if (totalRemaining > 0 && stations.length > 0) {
       calculateBarterMinutes(totalRemaining * 12, totalRemaining);
     } else {
+      console.log('[Barter Debug] Barter section hidden - remaining:', totalRemaining, 'stations:', stations.length);
       el('barterMinutesSection').classList.add('hidden');
     }
   }
@@ -6665,7 +6740,18 @@ document.addEventListener("click", async (e) => {
     const products = getProductsForCashInput();
     const pricingType = window.productState.pricingType;
 
+    // Debug logging for barter calculation
+    console.log('[Barter Debug] calculateBarterMinutes called with:', {
+      annualRemainingValue,
+      monthlyRemainingValue,
+      stationsCount: stations.length,
+      productsCount: products.length,
+      productIds: products.map(p => p.id),
+      pricingType
+    });
+
     if (!stations.length || !annualRemainingValue || annualRemainingValue <= 0) {
+      console.log('[Barter Debug] Early return - stations:', stations.length, 'annualValue:', annualRemainingValue);
       section.classList.add('hidden');
       return;
     }
@@ -6698,6 +6784,15 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
+    // Check if there are any standard products for barter calculation
+    if (!products.length) {
+      console.log('[Barter Debug] No standard products for barter - only special products selected');
+      breakdown.innerHTML = '<div class="el muted">No standard products selected for barter allocation. Special products (TopLine, SpotOn, etc.) have fixed pricing and cannot be converted to barter minutes.</div>';
+      el('totalPrimeMinutes').textContent = '0';
+      el('totalROSMinutes').textContent = '0';
+      return;
+    }
+
     // Track grand totals
     let grandTotalPrimeMinutes = 0;
     let grandTotalRosMinutes = 0;
@@ -6716,6 +6811,16 @@ document.addEventListener("click", async (e) => {
         ? Array.from(assignments)
         : stations.filter(s => assignments.has(s.key)).map(s => s.key);
 
+      // Debug logging for each product
+      console.log('[Barter Debug] Product:', p.id, {
+        unitPrice,
+        isMarketLevel,
+        assignmentsSize: assignments.size,
+        locationsCount: locations.length,
+        stationKeys: stations.slice(0, 3).map(s => s.key),
+        assignmentsSample: Array.from(assignments).slice(0, 3)
+      });
+
       let productCashTotal = 0;
       let productListPriceTotal = 0;
       locations.forEach(locationKey => {
@@ -6727,6 +6832,13 @@ document.addEventListener("click", async (e) => {
 
       const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
       const productBarterAnnual = productBarterMonthly * 12;
+
+      console.log('[Barter Debug] Product totals:', p.id, {
+        productListPriceTotal,
+        productCashTotal,
+        productBarterMonthly,
+        productBarterAnnual
+      });
 
       if (productBarterMonthly <= 0) return; // Skip products fully covered by cash
 
