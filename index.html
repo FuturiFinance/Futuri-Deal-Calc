@@ -3664,14 +3664,20 @@ document.addEventListener("click", async (e) => {
     // Get assigned stations/markets for a product (defaults to all if not set)
     function getProductAssignments(productId) {
       const assignments = window.productState.productAssignments.get(productId);
-      if (!assignments || assignments.size === 0) {
+      const hasExplicit = assignments && assignments.size > 0;
+
+      if (!hasExplicit) {
         // Default: all stations/markets
         if (isMarketLevelProduct(productId)) {
-          return new Set(getUniqueMarketsFromStations());
+          const markets = getUniqueMarketsFromStations();
+          console.log('[Barter Debug] getProductAssignments defaulting', productId, 'to markets:', markets);
+          return new Set(markets);
         } else {
           return new Set(Array.from(window.state.stations));
         }
       }
+
+      console.log('[Barter Debug] getProductAssignments explicit', productId, ':', Array.from(assignments));
       return assignments;
     }
 
@@ -6936,7 +6942,7 @@ document.addEventListener("click", async (e) => {
       breakdown.appendChild(productHeader);
 
       // Get stations assigned to this product
-      const assignedStations = isMarketLevel
+      let assignedStations = isMarketLevel
         ? stations.filter(s => assignments.has(s.market))
         : stations.filter(s => assignments.has(s.key));
 
@@ -6949,6 +6955,13 @@ document.addEventListener("click", async (e) => {
           assignedStationsCount: assignedStations.length,
           stationsWithAQH: stations.map(s => ({ market: s.market, primeAQH: s.primeAQH, rosAQH: s.rosAQH }))
         });
+      }
+
+      // Fallback: if no stations matched for market-level product, use all stations
+      // (market-level products should default to all stations in all markets)
+      if (isMarketLevel && assignedStations.length === 0 && stations.length > 0) {
+        console.warn('[Barter Debug] No stations matched for market-level product', p.id, '- falling back to all stations');
+        assignedStations = stations;
       }
 
       // Calculate AQH totals for assigned stations only
