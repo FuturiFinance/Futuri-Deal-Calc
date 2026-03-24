@@ -3664,21 +3664,30 @@ document.addEventListener("click", async (e) => {
     // Get assigned stations/markets for a product (defaults to all if not set)
     function getProductAssignments(productId) {
       const assignments = window.productState.productAssignments.get(productId);
-      const hasExplicit = assignments && assignments.size > 0;
-
-      if (!hasExplicit) {
+      if (!assignments || assignments.size === 0) {
         // Default: all stations/markets
         if (isMarketLevelProduct(productId)) {
-          const markets = getUniqueMarketsFromStations();
-          console.log('[Barter Debug] getProductAssignments defaulting', productId, 'to markets:', markets);
-          return new Set(markets);
+          return new Set(getUniqueMarketsFromStations());
         } else {
           return new Set(Array.from(window.state.stations));
         }
       }
-
-      console.log('[Barter Debug] getProductAssignments explicit', productId, ':', Array.from(assignments));
       return assignments;
+    }
+
+    // Get assigned STATIONS for a product (resolves market-level products to their stations)
+    // This is the unified function - all products go through the same path
+    function getAssignedStationsForProduct(productId) {
+      const allStations = getSelectedStationsDetailed();
+      const assignments = getProductAssignments(productId);
+
+      if (isMarketLevelProduct(productId)) {
+        // Market-level product: expand market assignments to stations within those markets
+        return allStations.filter(s => assignments.has(s.market));
+      } else {
+        // Station-level product: filter by station key
+        return allStations.filter(s => assignments.has(s.key));
+      }
     }
 
     // Get effective count (stations or markets) for a product's pricing
@@ -6257,16 +6266,10 @@ document.addEventListener("click", async (e) => {
   // Products that should NOT participate in barter calculation at all (cash-only or non-convertible)
   const BARTER_EXCLUDED_PRODUCTS = ['topline_cx_war_room']; // CX War Room is cash-only
 
-  // Get products eligible for per-product cash input
+  // Get products eligible for per-product cash input (excludes special products)
   function getProductsForCashInput() {
     const products = getSelectedProductsDetailed();
-    const filtered = products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
-    console.log('[Barter Debug] getProductsForCashInput:', {
-      allProducts: products.map(p => ({ id: p.id, barter: p.barter, value: p.value })),
-      filteredProducts: filtered.map(p => p.id),
-      specialProducts: SPECIAL_PRODUCTS
-    });
-    return filtered;
+    return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
   }
 
   // Get products eligible for barter calculation (includes special products with calculated values)
@@ -6315,12 +6318,6 @@ document.addEventListener("click", async (e) => {
         }
       }
     });
-
-    console.log('[Barter Debug] getProductsForBarter:', result.map(p => ({
-      id: p.id,
-      barter: p.barter,
-      isSpecial: p.isSpecialProduct
-    })));
 
     return result;
   }
@@ -6811,24 +6808,9 @@ document.addEventListener("click", async (e) => {
     const barterTotals = el('barterTotals');
 
     const stations = getSelectedStationsDetailed();
-    const products = getProductsForBarter();  // Use barter-eligible products (includes special products)
-    const pricingType = window.productState.pricingType;
-
-    // Debug logging for barter calculation
-    console.log('[Barter Debug] calculateBarterMinutes called with:', {
-      annualRemainingValue,
-      monthlyRemainingValue,
-      stationsCount: stations.length,
-      stationMarkets: stations.map(s => s.market),
-      stationsWithAQH: stations.map(s => ({ station: s.station, market: s.market, primeAQH: s.primeAQH, rosAQH: s.rosAQH })),
-      productsCount: products.length,
-      productIds: products.map(p => p.id),
-      productsDetails: products.map(p => ({ id: p.id, isSpecial: p.isSpecialProduct, calcValue: p.calculatedValue })),
-      pricingType
-    });
+    const products = getProductsForBarter();
 
     if (!stations.length || !annualRemainingValue || annualRemainingValue <= 0) {
-      console.log('[Barter Debug] Early return - stations:', stations.length, 'annualValue:', annualRemainingValue);
       section.classList.add('hidden');
       return;
     }
@@ -6869,46 +6851,29 @@ document.addEventListener("click", async (e) => {
 
     // Check if there are any barter-eligible products
     if (!products.length) {
-      console.log('[Barter Debug] No barter-eligible products selected');
       breakdown.innerHTML = '<div class="el muted">No products selected for barter allocation.</div>';
       el('totalPrimeMinutes').textContent = '0';
       el('totalROSMinutes').textContent = '0';
       return;
     }
 
-    // Calculate barter minutes PER PRODUCT
+    // Calculate barter minutes PER PRODUCT - all products use the same code path
     products.forEach(p => {
-      // Get this product's remaining barter value (list price - cash)
-      // Sum cash across all locations for this product
+      // Get assigned stations for this product (handles market-level → station expansion)
+      const assignedStations = getAssignedStationsForProduct(p.id);
+      if (!assignedStations.length) return; // No stations assigned to this product
+
       const unitPrice = getProductUnitListPrice(p);
-      const isMarketLevel = isMarketLevelProduct(p.id);
-      const assignments = getProductAssignments(p.id);
-
-      const locations = isMarketLevel
-        ? Array.from(assignments)
-        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
-
-      // Debug logging for each product
-      console.log('[Barter Debug] Product:', p.id, {
-        unitPrice,
-        isMarketLevel,
-        assignmentsSize: assignments.size,
-        locationsCount: locations.length,
-        stationKeys: stations.slice(0, 3).map(s => s.key),
-        assignmentsSample: Array.from(assignments).slice(0, 3)
-      });
-
       let productCashTotal = 0;
       let productListPriceTotal = 0;
 
-      // For special products, the calculated value is already the total (not per-location)
+      // For special products (TopLine, SpotOn, etc.), the calculated value is the total
+      // For standard products, sum up per-station values
       if (p.isSpecialProduct) {
-        productListPriceTotal = unitPrice; // unitPrice IS the total for special products
-        // Special products don't have per-location cash input, so cash stays 0
+        productListPriceTotal = unitPrice;
       } else {
-        // Standard products: sum up per-location values
-        locations.forEach(locationKey => {
-          const cashKey = getCashKey(p.id, locationKey);
+        assignedStations.forEach(st => {
+          const cashKey = getCashKey(p.id, st.key);
           const cash = window.productState.productCashValues.get(cashKey) || 0;
           productCashTotal += cash;
           productListPriceTotal += unitPrice;
@@ -6917,13 +6882,6 @@ document.addEventListener("click", async (e) => {
 
       const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
       const productBarterAnnual = productBarterMonthly * 12;
-
-      console.log('[Barter Debug] Product totals:', p.id, {
-        productListPriceTotal,
-        productCashTotal,
-        productBarterMonthly,
-        productBarterAnnual
-      });
 
       if (productBarterMonthly <= 0) return; // Skip products fully covered by cash
 
@@ -6941,30 +6899,7 @@ document.addEventListener("click", async (e) => {
       `;
       breakdown.appendChild(productHeader);
 
-      // Get stations assigned to this product
-      let assignedStations = isMarketLevel
-        ? stations.filter(s => assignments.has(s.market))
-        : stations.filter(s => assignments.has(s.key));
-
-      // Debug: log assignment matching for market-level products
-      if (isMarketLevel) {
-        console.log('[Barter Debug] Market-level product assignment matching:', {
-          productId: p.id,
-          assignmentsArray: Array.from(assignments),
-          stationMarkets: stations.map(s => s.market),
-          assignedStationsCount: assignedStations.length,
-          stationsWithAQH: stations.map(s => ({ market: s.market, primeAQH: s.primeAQH, rosAQH: s.rosAQH }))
-        });
-      }
-
-      // Fallback: if no stations matched for market-level product, use all stations
-      // (market-level products should default to all stations in all markets)
-      if (isMarketLevel && assignedStations.length === 0 && stations.length > 0) {
-        console.warn('[Barter Debug] No stations matched for market-level product', p.id, '- falling back to all stations');
-        assignedStations = stations;
-      }
-
-      // Calculate AQH totals for assigned stations only
+      // Calculate AQH totals for assigned stations
       let assignedPrimeAQH = 0;
       let assignedRosAQH = 0;
       assignedStations.forEach(s => {
