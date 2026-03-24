@@ -6813,8 +6813,11 @@ document.addEventListener("click", async (e) => {
       annualRemainingValue,
       monthlyRemainingValue,
       stationsCount: stations.length,
+      stationMarkets: stations.map(s => s.market),
+      stationsWithAQH: stations.map(s => ({ station: s.station, market: s.market, primeAQH: s.primeAQH, rosAQH: s.rosAQH })),
       productsCount: products.length,
       productIds: products.map(p => p.id),
+      productsDetails: products.map(p => ({ id: p.id, isSpecial: p.isSpecialProduct, calcValue: p.calculatedValue })),
       pricingType
     });
 
@@ -6936,6 +6939,17 @@ document.addEventListener("click", async (e) => {
       const assignedStations = isMarketLevel
         ? stations.filter(s => assignments.has(s.market))
         : stations.filter(s => assignments.has(s.key));
+
+      // Debug: log assignment matching for market-level products
+      if (isMarketLevel) {
+        console.log('[Barter Debug] Market-level product assignment matching:', {
+          productId: p.id,
+          assignmentsArray: Array.from(assignments),
+          stationMarkets: stations.map(s => s.market),
+          assignedStationsCount: assignedStations.length,
+          stationsWithAQH: stations.map(s => ({ market: s.market, primeAQH: s.primeAQH, rosAQH: s.rosAQH }))
+        });
+      }
 
       // Calculate AQH totals for assigned stations only
       let assignedPrimeAQH = 0;
