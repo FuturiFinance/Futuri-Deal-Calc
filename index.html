@@ -6620,7 +6620,7 @@ document.addEventListener("click", async (e) => {
     }
 
     const stations = getSelectedStationsDetailed();
-    const products = getProductsForCashInput();
+    const products = getProductsForBarter();  // Include special products like TopLine
 
     if (!stations.length || !products.length || !totalMonthlyAllStations) {
       section.classList.add('hidden');
@@ -6653,7 +6653,12 @@ document.addEventListener("click", async (e) => {
       // Sum cash across all locations for this product
       let productCashTotal = 0;
       let productListPriceTotal = 0;
-      if (pricingType === 'mixed') {
+
+      // For special products, the calculated value is already the total (not per-location)
+      if (p.isSpecialProduct) {
+        productListPriceTotal = unitPrice; // unitPrice IS the total for special products
+        // Special products don't have per-location cash input, so cash stays 0
+      } else if (pricingType === 'mixed') {
         locations.forEach(locationKey => {
           const cashKey = getCashKey(p.id, locationKey);
           const cash = window.productState.productCashValues.get(cashKey) || 0;
