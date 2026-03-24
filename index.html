@@ -6784,23 +6784,85 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
-    // Check if there are any standard products for barter calculation
-    if (!products.length) {
-      console.log('[Barter Debug] No standard products for barter - only special products selected');
-      breakdown.innerHTML = '<div class="el muted">No standard products selected for barter allocation. Special products (TopLine, SpotOn, etc.) have fixed pricing and cannot be converted to barter minutes.</div>';
-      el('totalPrimeMinutes').textContent = '0';
-      el('totalROSMinutes').textContent = '0';
-      return;
-    }
-
     // Track grand totals
     let grandTotalPrimeMinutes = 0;
     let grandTotalRosMinutes = 0;
     let grandTotalAllocatedValue = 0;
-    let grandTotalTargetValue = 0;
+    // Use the passed-in target value (includes all products, including special products)
+    let grandTotalTargetValue = annualRemainingValue;
 
-    // Calculate barter minutes PER PRODUCT
-    products.forEach(p => {
+    // If no standard products, calculate barter for the total value across all stations
+    const hasStandardProducts = products.length > 0;
+
+    if (!hasStandardProducts) {
+      console.log('[Barter Debug] No standard products - calculating barter for total value:', annualRemainingValue);
+
+      // Show info message
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'el muted';
+      infoDiv.style.cssText = 'font-size:12px; margin-bottom:8px;';
+      infoDiv.textContent = 'Barter minutes calculated to cover total deal value (special products included).';
+      breakdown.appendChild(infoDiv);
+
+      // Split total value between Prime and ROS proportionally by total AQH
+      const primeValueShare = hasPrimeAQH ? (totalPrimeAQH / totalAQH) : 0;
+      const rosValueShare = hasRosAQH ? (totalRosAQH / totalAQH) : 0;
+      const totalPrimeAnnual = annualRemainingValue * primeValueShare;
+      const totalRosAnnual = annualRemainingValue * rosValueShare;
+
+      // Calculate minutes for each station
+      stations.forEach(st => {
+        const primeAQH = Number(st.primeAQH) || 0;
+        const rosAQH = Number(st.rosAQH) || 0;
+
+        // Station's share of total value
+        const stationPrimeShare = hasPrimeAQH && primeAQH > 0 ? (primeAQH / totalPrimeAQH) : 0;
+        const stationRosShare = hasRosAQH && rosAQH > 0 ? (rosAQH / totalRosAQH) : 0;
+
+        const stationPrimeTargetValue = totalPrimeAnnual * stationPrimeShare;
+        const stationRosTargetValue = totalRosAnnual * stationRosShare;
+
+        // Calculate minutes needed
+        let primeMinutes = 0;
+        let rosMinutes = 0;
+        if (primeAQH > 0) {
+          primeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
+        }
+        if (rosAQH > 0) {
+          rosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
+        }
+
+        grandTotalPrimeMinutes += primeMinutes;
+        grandTotalRosMinutes += rosMinutes;
+
+        // Calculate allocated value from minutes
+        const primeValue = calculateValueFromMinutes(primeMinutes, primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(rosMinutes, rosAQH, cpm);
+        grandTotalAllocatedValue += primeValue + rosValue;
+
+        // Create station row
+        const row = document.createElement('div');
+        row.className = 'el';
+        row.style.cssText = 'padding:6px 12px; font-size:12px;';
+        row.innerHTML = `
+          <div style="flex:2;"><strong>${escapeHtml(st.station)}</strong> <span class="muted">— ${escapeHtml(st.market)}</span></div>
+          <div style="flex:1; text-align:center;">Prime: ${primeMinutes} min</div>
+          <div style="flex:1; text-align:center;">ROS: ${rosMinutes} min</div>
+          <div style="flex:1; text-align:right; color:var(--brand);">${money(primeValue + rosValue)}/yr</div>
+        `;
+        breakdown.appendChild(row);
+      });
+    }
+
+    // Calculate barter minutes PER PRODUCT (only if there are standard products)
+    if (hasStandardProducts) {
+      // For standard products, recalculate target from their values
+      grandTotalTargetValue = 0;
+      grandTotalPrimeMinutes = 0;
+      grandTotalRosMinutes = 0;
+      grandTotalAllocatedValue = 0;
+
+      products.forEach(p => {
       // Get this product's remaining barter value (list price - cash)
       // Sum cash across all locations for this product
       const unitPrice = getProductUnitListPrice(p);
@@ -6995,7 +7057,8 @@ document.addEventListener("click", async (e) => {
       productSubtotal.style.cssText = 'padding:4px 12px 8px 24px; font-size:11px; color:var(--text-muted); margin-bottom:8px;';
       productSubtotal.innerHTML = `${p.name} Total: ${productPrimeMinutesTotal} Prime/day + ${productRosMinutesTotal} ROS/day = ${money(productAllocatedValue)} annual value`;
       breakdown.appendChild(productSubtotal);
-    });
+      });
+    } // end if (hasStandardProducts)
 
     // Update totals display
     el('totalPrimeMinutes').textContent = String(Math.round(grandTotalPrimeMinutes));
