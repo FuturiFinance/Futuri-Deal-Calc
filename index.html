@@ -6267,10 +6267,23 @@ document.addEventListener("click", async (e) => {
   // Products that should NOT participate in barter calculation at all (cash-only or non-convertible)
   const BARTER_EXCLUDED_PRODUCTS = ['topline_cx_war_room']; // CX War Room is cash-only
 
-  // Get products eligible for per-product cash input (excludes special products)
+  // Special products that SHOULD appear in cash input (allow cash override)
+  const SPECIAL_PRODUCTS_WITH_CASH_INPUT = ['topline'];
+
+  // Get products eligible for per-product cash input (includes TopLine for cash override)
   function getProductsForCashInput() {
     const products = getSelectedProductsDetailed();
-    return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id));
+    return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id) || SPECIAL_PRODUCTS_WITH_CASH_INPUT.includes(p.id)).map(p => {
+      // For special products, add their calculated value
+      if (p.id === 'topline') {
+        const costs = calculateTopLineCosts();
+        const numMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
+        // Per-market monthly value (total divided by number of markets)
+        const perMarketMonthly = (costs.totalMonthly || 0) / numMarkets;
+        return { ...p, calculatedValue: perMarketMonthly, isSpecialProduct: true };
+      }
+      return p;
+    });
   }
 
   // Get products eligible for barter calculation (includes special products with calculated values)
@@ -6646,8 +6659,20 @@ document.addEventListener("click", async (e) => {
       let productListPriceTotal = 0;
 
       if (p.isSpecialProduct) {
-        // Special products: calculated value is the total
-        productListPriceTotal = unitPrice;
+        // Special products: use calculated value and check for cash inputs
+        const isMarketLevel = isMarketLevelProduct(p.id);
+        if (isMarketLevel) {
+          const assignments = getProductAssignments(p.id);
+          assignments.forEach(market => {
+            productListPriceTotal += unitPrice;
+            if (pricingType === 'mixed') {
+              const cashKey = getCashKey(p.id, market);
+              productCashTotal += window.productState.productCashValues.get(cashKey) || 0;
+            }
+          });
+        } else {
+          productListPriceTotal = unitPrice * assignedStations.length;
+        }
       } else if (pricingType === 'mixed') {
         // Mixed: sum per-station cash
         assignedStations.forEach(st => {
