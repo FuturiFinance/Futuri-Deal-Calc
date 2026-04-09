@@ -7561,11 +7561,14 @@ window.generateProposal = function generateProposal() {
         assignedProducts.forEach(p => {
           let listPrice = 0;
 
-          // Handle TopLine specially - use calculated/overridden value per market
+          // Handle TopLine specially - use calculated/overridden value divided by stations in market
           if (p.id === 'topline') {
             const costs = calculateTopLineCosts();
             const numMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
-            listPrice = (costs.totalMonthly || 0) / numMarkets;
+            const perMarketMonthly = (costs.totalMonthly || 0) / numMarkets;
+            // Count stations in THIS market to divide the market price across them
+            const stationsInThisMarket = stations.filter(s => s.market === st.market).length;
+            listPrice = perMarketMonthly / Math.max(1, stationsInThisMarket);
           } else {
             const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
             listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
@@ -7576,7 +7579,7 @@ window.generateProposal = function generateProposal() {
           // For barter deals, no cash column
           let monthlyCash = 0;
           if (pricingType === 'cash') {
-            // For cash deals, use the list price (which for TopLine is the calculated/overridden value)
+            // For cash deals, use the list price (which for TopLine is the calculated/overridden value per station)
             monthlyCash = listPrice || 0;
           } else if (pricingType === 'mixed') {
             // Use station key for station-level products, market for market-level products
