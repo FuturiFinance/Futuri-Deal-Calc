@@ -7530,9 +7530,15 @@ window.generateProposal = function generateProposal() {
       .forEach(st => {
         const daily = barterByKey.get(st.key) || { primePerDay: 0, rosPerDay: 0 };
 
-        // Get products assigned to this station (excluding special products with their own sections)
+        // Get products assigned to this station (excluding most special products, but include TopLine for cash/mixed)
         const assignedProducts = products.filter(p => {
-          if (['topline', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'].includes(p.id)) {
+          // Include TopLine in station breakdown for cash/mixed deals
+          if (p.id === 'topline') {
+            const assignments = getProductAssignments(p.id);
+            return assignments.has(st.market);
+          }
+          // Exclude other special products
+          if (['content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'].includes(p.id)) {
             return false;
           }
           const assignments = getProductAssignments(p.id);
@@ -7553,14 +7559,24 @@ window.generateProposal = function generateProposal() {
 
         // One row per product
         assignedProducts.forEach(p => {
-          const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
-          const listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
+          let listPrice = 0;
+
+          // Handle TopLine specially - use calculated/overridden value per market
+          if (p.id === 'topline') {
+            const costs = calculateTopLineCosts();
+            const numMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
+            listPrice = (costs.totalMonthly || 0) / numMarkets;
+          } else {
+            const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
+            listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
+          }
 
           // For mixed deals, show the actual cash entered for this product at this station/market
           // For cash deals, show the list price (monthly and annual)
           // For barter deals, no cash column
           let monthlyCash = 0;
           if (pricingType === 'cash') {
+            // For cash deals, use the list price (which for TopLine is the calculated/overridden value)
             monthlyCash = listPrice || 0;
           } else if (pricingType === 'mixed') {
             // Use station key for station-level products, market for market-level products
@@ -7807,9 +7823,20 @@ window.generateProposal = function generateProposal() {
       </tr>`);
     }
 
+    // Price adjustment row if override is active
+    if (tl.isOverridden) {
+      const adjustment = tl.totalAnnual - tl.calculatedAnnual;
+      lines.push(`<tr style="background:rgba(103,36,119,.12);">
+        <td style="padding:8px;"><strong>Price Override</strong><br><span style="font-size:11px;color:var(--muted);">Custom pricing applied</span></td>
+        <td style="padding:8px; text-align:right;">—</td>
+        <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment / 12)}</td>
+        <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment)}</td>
+      </tr>`);
+    }
+
     // Totals row
     lines.push(`<tr style="background:rgba(103,36,119,.06);">
-      <td style="padding:8px;"><strong>TopLine Total</strong></td>
+      <td style="padding:8px;"><strong>TopLine Total</strong>${tl.isOverridden ? '<br><span style="font-size:11px;color:var(--brand);">(Override Applied)</span>' : ''}</td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalOneTime)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalMonthly)}</strong></td>
       <td style="padding:8px; text-align:right;"><strong>${money(tl.totalAnnual)}</strong></td>
