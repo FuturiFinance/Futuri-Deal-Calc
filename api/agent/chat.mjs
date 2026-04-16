@@ -307,11 +307,18 @@ export default async function handler(req, res) {
   const toolCalls = [];
 
   try {
-    // Initial Claude call
+    // Initial Claude call with prompt caching for system prompt
+    // Uses cache_control to cache the system prompt across requests
     let response = await client.messages.create({
       model,
       max_tokens: maxTokens,
-      system: systemPrompt,
+      system: [
+        {
+          type: "text",
+          text: systemPrompt,
+          cache_control: { type: "ephemeral" }
+        }
+      ],
       tools: TOOL_DEFINITIONS,
       messages
     });
@@ -357,11 +364,17 @@ export default async function handler(req, res) {
         content: toolResults
       });
 
-      // Continue conversation with tool results
+      // Continue conversation with tool results (use cached system prompt)
       response = await client.messages.create({
         model,
         max_tokens: maxTokens,
-        system: systemPrompt,
+        system: [
+          {
+            type: "text",
+            text: systemPrompt,
+            cache_control: { type: "ephemeral" }
+          }
+        ],
         tools: TOOL_DEFINITIONS,
         messages: conversationHistory
       });
