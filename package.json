@@ -1,0 +1,16 @@
+{
+  "name": "futuri-deal-calc",
+  "version": "1.0.0",
+  "description": "Futuri Deal Calculator with AI-powered pricing assistant",
+  "scripts": {
+    "test:tools": "node tools/deal-tools.test.js",
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

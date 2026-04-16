@@ -1,0 +1,192 @@
+# Futuri Deal Calculator - Agent Chat API Tests
+# Use with VS Code REST Client extension or convert to curl commands
+#
+# Base URL for local development: http://localhost:3000
+# Base URL for Vercel preview: https://your-deployment.vercel.app
+#
+# Prerequisites:
+# 1. Set ANTHROPIC_API_KEY in Vercel environment variables
+# 2. Deploy to Vercel or run `vercel dev` locally
+
+@baseUrl = http://localhost:3000
+
+### Test 1: Simple single-product deal
+# "POST on KHCM at $700/mo"
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Cumulus wants POST on KHCM at $700/mo cash"
+    }
+  ],
+  "context": {
+    "mediaType": "Radio",
+    "nielsenBook": "fall2025",
+    "cpm": 2.00
+  }
+}
+
+### Test 2: Multi-product broadcast deal with mixed payment
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Cumulus wants to add POST on KHCM at $700/mo and Streaming on all Honolulu stations at $275/mo each. Mixed deal, $400 cash per station per month."
+    }
+  ],
+  "context": {
+    "mediaType": "Radio",
+    "nielsenBook": "fall2025",
+    "cpm": 2.00
+  }
+}
+
+### Test 3: Agency/Other deal
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "New agency deal for Smith Marketing Agency in Chicago. They want TopicPulse and Prep+ at standard rates, cash payment."
+    }
+  ],
+  "context": {
+    "mediaType": "AgencyOther"
+  }
+}
+
+### Test 4: TV deal (cash only, off-book stations)
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "ABC Stations wants TopicPulse on WLS-TV Chicago and WABC-TV New York. This is a TV deal."
+    }
+  ],
+  "context": {
+    "mediaType": "TV"
+  }
+}
+
+### Test 5: Ambiguous request (should trigger clarifying questions)
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "iHeart wants TopLine and some TopicPulse"
+    }
+  ],
+  "context": {
+    "mediaType": "Radio",
+    "nielsenBook": "fall2025"
+  }
+}
+
+### Test 6: TopLine multi-market deal
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "iHeartMedia wants TopLine Access for New York, Los Angeles, and Chicago markets. 10 users, 300 accounts. Cash deal."
+    }
+  ],
+  "context": {
+    "mediaType": "Radio",
+    "nielsenBook": "fall2025"
+  }
+}
+
+### Test 7: Barter-only deal
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Audacy wants TopicPulse IV on all their New York stations, full barter."
+    }
+  ],
+  "context": {
+    "mediaType": "Radio",
+    "nielsenBook": "fall2025",
+    "cpm": 2.00
+  }
+}
+
+### Test 8: Content Automation deal
+POST {{baseUrl}}/api/agent/chat
+Content-Type: application/json
+
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": "Entercom wants Content Automation Medium tier for their cluster, cash pricing."
+    }
+  ],
+  "context": {
+    "mediaType": "Radio"
+  }
+}
+
+###############################################################################
+# CURL EQUIVALENTS
+###############################################################################
+
+# Test 1: Simple single-product deal
+# curl -X POST http://localhost:3000/api/agent/chat \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "messages": [{"role": "user", "content": "Cumulus wants POST on KHCM at $700/mo cash"}],
+#     "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 2.00}
+#   }'
+
+# Test 2: Multi-product mixed deal
+# curl -X POST http://localhost:3000/api/agent/chat \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "messages": [{"role": "user", "content": "Cumulus wants to add POST on KHCM at $700/mo and Streaming on all Honolulu stations at $275/mo each. Mixed deal, $400 cash per station per month."}],
+#     "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 2.00}
+#   }'
+
+# Test 3: Agency deal
+# curl -X POST http://localhost:3000/api/agent/chat \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "messages": [{"role": "user", "content": "New agency deal for Smith Marketing Agency in Chicago. They want TopicPulse and Prep+ at standard rates, cash payment."}],
+#     "context": {"mediaType": "AgencyOther"}
+#   }'
+
+# Test 4: TV deal
+# curl -X POST http://localhost:3000/api/agent/chat \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "messages": [{"role": "user", "content": "ABC Stations wants TopicPulse on WLS-TV Chicago and WABC-TV New York. This is a TV deal."}],
+#     "context": {"mediaType": "TV"}
+#   }'
+
+# Test 5: Ambiguous request
+# curl -X POST http://localhost:3000/api/agent/chat \
+#   -H "Content-Type: application/json" \
+#   -d '{
+#     "messages": [{"role": "user", "content": "iHeart wants TopLine and some TopicPulse"}],
+#     "context": {"mediaType": "Radio", "nielsenBook": "fall2025"}
+#   }'
