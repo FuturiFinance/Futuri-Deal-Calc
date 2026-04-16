@@ -74,16 +74,18 @@
   // ============================================================================
 
   test('lookupParent: exact match returns top result', () => {
-    const results = DealTools.lookupParent('iHeartMedia, Inc.', { data: nielsenData });
-    assertTrue(results.length > 0, 'Should return results');
-    assertEqual(results[0].parentName, 'iHeartMedia, Inc.', 'First result should be exact match');
-    assertGreaterThan(results[0].stationCount, 0, 'Should have stations');
+    const response = DealTools.lookupParent('iHeartMedia, Inc.', { data: nielsenData });
+    assertTrue(response.results.length > 0, 'Should return results');
+    assertEqual(response.results[0].parentName, 'iHeartMedia, Inc.', 'First result should be exact match');
+    assertGreaterThan(response.results[0].stationCount, 0, 'Should have stations');
+    assertTrue(response.results[0].inBook === true, 'In-book parent should have inBook: true');
   });
 
   test('lookupParent: partial match works', () => {
-    const results = DealTools.lookupParent('heart', { data: nielsenData });
-    assertTrue(results.length > 0, 'Should return results for partial match');
-    assertTrue(results.some(r => r.parentName.toLowerCase().includes('heart')), 'Results should contain "heart"');
+    const response = DealTools.lookupParent('heart', { data: nielsenData });
+    assertTrue(response.results.length > 0, 'Should return results for partial match');
+    assertTrue(response.results.some(r => r.parentName.toLowerCase().includes('heart')), 'Results should contain "heart"');
+    assertTrue(response.canCreateNew !== undefined, 'Should have canCreateNew flag');
   });
 
   // ============================================================================
@@ -108,17 +110,19 @@
   // ============================================================================
 
   test('lookupStations: returns stations with AQH data', () => {
-    const results = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', null, { data: nielsenData });
-    assertGreaterThan(results.length, 0, 'Should return stations');
-    assertTrue(results.every(r => r.stationCallSign), 'All stations should have call signs');
-    assertTrue(results.some(r => r.primeAQH > 0), 'Some stations should have prime AQH');
+    const response = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', null, { data: nielsenData });
+    assertGreaterThan(response.results.length, 0, 'Should return stations');
+    assertTrue(response.results.every(r => r.stationCallSign), 'All stations should have call signs');
+    assertTrue(response.results.some(r => r.primeAQH > 0), 'Some stations should have prime AQH');
+    assertTrue(response.results.every(r => r.inBook === true), 'All results should be in-book');
   });
 
   test('lookupStations: returns specific station data', () => {
-    const results = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', 'WLTW', { data: nielsenData });
-    assertTrue(results.length > 0, 'Should find WLTW');
-    assertTrue(results[0].stationCallSign.includes('WLTW'), 'Should find WLTW-FM');
-    assertGreaterThan(results[0].primeAQH, 20000, 'WLTW should have high AQH');
+    const response = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', 'WLTW', { data: nielsenData });
+    assertTrue(response.results.length > 0, 'Should find WLTW');
+    assertTrue(response.results[0].stationCallSign.includes('WLTW'), 'Should find WLTW-FM');
+    assertGreaterThan(response.results[0].primeAQH, 20000, 'WLTW should have high AQH');
+    assertTrue(response.canCreateNew !== undefined, 'Should have canCreateNew flag');
   });
 
   // ============================================================================
@@ -281,8 +285,8 @@
   // ============================================================================
 
   test('buildDeal: broadcast deal with multiple stations', () => {
-    const stations = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', null, { data: nielsenData });
-    const stationKeys = stations.slice(0, 3).map(s =>
+    const response = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', null, { data: nielsenData });
+    const stationKeys = response.results.slice(0, 3).map(s =>
       `${s.parent}|${s.market}|${s.stationCallSign}`
     );
 
@@ -298,11 +302,13 @@
     });
 
     assertEqual(deal.dealType, 'broadcast');
+    assertEqual(deal.mediaType, 'Radio', 'Default media type should be Radio');
     assertEqual(deal.parent, 'iHeartMedia, Inc.');
     assertEqual(deal.stations.length, 3);
     assertEqual(deal.products.length, 2);
     assertGreaterThan(deal.totalAnnual, 0, 'Should have total annual value');
     assertEqual(deal.cashAnnual, deal.totalAnnual, 'Cash deal: cash should equal total');
+    assertTrue(deal.hasOffBookStations === false, 'Should have no off-book stations');
   });
 
   test('buildDeal: agency deal (no stations)', () => {
@@ -316,6 +322,7 @@
     });
 
     assertEqual(deal.dealType, 'agency');
+    assertEqual(deal.mediaType, 'AgencyOther', 'Agency deal should default to AgencyOther media type');
     assertEqual(deal.customerName, 'Test Agency Inc.');
     assertEqual(deal.stations.length, 0);
     assertGreaterThan(deal.totalAnnual, 0, 'Should have total value');
@@ -324,8 +331,8 @@
   });
 
   test('buildDeal: mixed payment deal', () => {
-    const stations = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', null, { data: nielsenData });
-    const stationKeys = stations.slice(0, 2).map(s =>
+    const response = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', null, { data: nielsenData });
+    const stationKeys = response.results.slice(0, 2).map(s =>
       `${s.parent}|${s.market}|${s.stationCallSign}`
     );
 
@@ -409,6 +416,139 @@
     const toplineValue = deal.productValues['topline'];
     assertGreaterThan(toplineValue.annual, 126000, 'Multi-market TopLine should be > $126K base');
     assertEqual(toplineValue.breakdown.numMarkets, 3, 'Should have 3 markets');
+  });
+
+  // ============================================================================
+  // TV Deal Tests (Test D)
+  // ============================================================================
+
+  test('buildDeal: TV deal is forced cash-only', () => {
+    // Create a TV deal with off-book stations
+    const tvStations = [
+      DealTools.createOffBookStation({ callSign: 'WLS-TV', market: 'Chicago', parent: 'ABC Stations' }),
+      DealTools.createOffBookStation({ callSign: 'WABC-TV', market: 'New York', parent: 'ABC Stations' })
+    ];
+
+    const deal = DealTools.buildDeal({
+      dealType: 'broadcast',
+      mediaType: 'TV',
+      parent: 'ABC Stations',
+      markets: ['Chicago', 'New York'],
+      stations: tvStations,
+      products: ['topicpulse', 'prep_plus'],
+      pricingType: 'barter',  // Should be forced to cash
+      data: nielsenData,
+      rateCard
+    });
+
+    assertEqual(deal.mediaType, 'TV', 'Should be TV media type');
+    assertEqual(deal.pricingType, 'cash', 'TV deal should be forced to cash');
+    assertTrue(deal.barterAllocation === null, 'TV deal should have no barter allocation');
+    assertTrue(deal.hasOffBookStations, 'Should have off-book stations');
+    assertEqual(deal.offBookStationCount, 2, 'Should have 2 off-book stations');
+    assertEqual(deal.stationDetails.every(s => s.inBook === false), true, 'All stations should be off-book');
+  });
+
+  test('validateDeal: TV deal gets correct warnings', () => {
+    const tvDeal = {
+      dealType: 'broadcast',
+      mediaType: 'TV',
+      parent: 'ABC Stations',
+      stations: ['WLS-TV', 'WABC-TV'],
+      products: ['topicpulse'],
+      pricingType: 'cash',
+      hasOffBookStations: true,
+      offBookStationCount: 2,
+      inBookStationCount: 0
+    };
+
+    const issues = DealTools.validateDeal(tvDeal);
+    assertTrue(issues.some(i => i.message.includes('TV deal')), 'Should mention TV deal');
+    assertTrue(issues.some(i => i.message.includes('cash only') || i.message.includes('no barter')), 'Should mention cash only');
+  });
+
+  // ============================================================================
+  // Mixed In-Book/Off-Book Tests (Test E)
+  // ============================================================================
+
+  test('buildDeal: mixed in-book and off-book stations', () => {
+    // Get an in-book station
+    const response = DealTools.lookupStations('iHeartMedia, Inc.', 'New York [PPM+D]', 'WLTW', { data: nielsenData });
+    const inBookStation = response.results[0];
+
+    // Create an off-book station
+    const offBookStation = DealTools.createOffBookStation({
+      callSign: 'KNEW-FM',
+      market: 'New York',
+      parent: 'iHeartMedia, Inc.'
+    });
+
+    const deal = DealTools.buildDeal({
+      dealType: 'broadcast',
+      parent: 'iHeartMedia, Inc.',
+      markets: ['New York [PPM+D]'],
+      stations: [
+        `${inBookStation.parent}|${inBookStation.market}|${inBookStation.stationCallSign}`,
+        offBookStation  // Pass the off-book station object directly
+      ],
+      products: ['topicpulse'],
+      pricingType: 'barter',
+      cpm: 2.0,
+      data: nielsenData,
+      rateCard
+    });
+
+    assertTrue(deal.hasMixedStations, 'Should have mixed stations');
+    assertEqual(deal.inBookStationCount, 1, 'Should have 1 in-book station');
+    assertEqual(deal.offBookStationCount, 1, 'Should have 1 off-book station');
+
+    // Barter should only be allocated to in-book station
+    assertTrue(deal.barterAllocation !== null, 'Should have barter allocation');
+    const inBookAllocation = deal.barterAllocation.perStation.find(s => !s.isOffBook);
+    const offBookAllocation = deal.barterAllocation.perStation.find(s => s.isOffBook);
+
+    assertGreaterThan(inBookAllocation.annualValue, 0, 'In-book station should have barter value');
+    assertEqual(offBookAllocation.annualValue, 0, 'Off-book station should have zero barter value');
+  });
+
+  test('validateDeal: mixed stations get correct info messages', () => {
+    const mixedDeal = {
+      dealType: 'broadcast',
+      mediaType: 'Radio',
+      parent: 'iHeartMedia, Inc.',
+      stations: ['station1', 'station2'],
+      products: ['topicpulse'],
+      pricingType: 'barter',
+      hasMixedStations: true,
+      hasOffBookStations: true,
+      inBookStationCount: 1,
+      offBookStationCount: 1
+    };
+
+    const issues = DealTools.validateDeal(mixedDeal);
+    assertTrue(issues.some(i => i.message.includes('Mixed deal')), 'Should mention mixed deal');
+    assertTrue(issues.some(i => i.message.includes('off-book') && i.message.includes('cash only')),
+      'Should mention off-book stations are cash only');
+  });
+
+  // ============================================================================
+  // createOffBookStation helper tests
+  // ============================================================================
+
+  test('createOffBookStation: creates proper off-book station object', () => {
+    const station = DealTools.createOffBookStation({
+      callSign: 'TEST-TV',
+      market: 'Test Market',
+      parent: 'Test Parent'
+    });
+
+    assertEqual(station.stationCallSign, 'TEST-TV');
+    assertEqual(station.market, 'Test Market');
+    assertEqual(station.parent, 'Test Parent');
+    assertEqual(station.format, 'Unknown');
+    assertEqual(station.primeAQH, null, 'Off-book station should have null primeAQH');
+    assertEqual(station.rosAQH, null, 'Off-book station should have null rosAQH');
+    assertEqual(station.inBook, false);
   });
 
   // ============================================================================

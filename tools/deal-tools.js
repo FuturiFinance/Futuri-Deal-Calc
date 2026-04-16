@@ -87,6 +87,12 @@
   const BARTER_EXCLUDED_PRODUCTS = ['topline_cx_war_room'];
   const CASH_ONLY_PRODUCTS = ['topline_cx_war_room'];
 
+  const MEDIA_TYPES = {
+    RADIO: 'Radio',
+    TV: 'TV',
+    AGENCY_OTHER: 'AgencyOther'
+  };
+
   const DEFAULT_PRODUCTS = [
     { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV', pricingType: 'tiered' },
     { id: 'topline_cx_war_room', name: 'TopLine CX War Room', cash: 1000, barter: null, industry: 'Radio/TV', cashOnly: true, pricingType: 'per_station' },
@@ -262,12 +268,17 @@
    * Fuzzy match parent company name
    * @param {string} query - Search query (partial name, typos OK)
    * @param {object} options - { data: nielsenData }
-   * @returns {Array<{parentId: string, parentName: string, marketCount: number, stationCount: number}>}
+   * @returns {{results: Array<{parentId: string, parentName: string, marketCount: number, stationCount: number, inBook: boolean}>, canCreateNew: boolean}}
    */
   function lookupParent(query, options) {
     const data = getNielsenData(options);
+
+    // If no data loaded, return empty results with canCreateNew flag
     if (!data || !data.stations) {
-      throw new Error('Nielsen data not loaded. Call loadNielsenBook() first or pass data in options.');
+      return {
+        results: [],
+        canCreateNew: true  // Allow creating off-book parent
+      };
     }
 
     // Build parent index
@@ -292,6 +303,7 @@
           parentName: parentName,
           marketCount: stats.markets.size,
           stationCount: stats.stationCount,
+          inBook: true,
           _score: score
         });
       }
@@ -300,11 +312,19 @@
     // Sort by score descending
     results.sort((a, b) => b._score - a._score);
 
-    // Remove internal score field
-    return results.map(r => {
+    // Remove internal score field and return with canCreateNew flag
+    const cleanResults = results.map(r => {
       const { _score, ...rest } = r;
       return rest;
     });
+
+    // canCreateNew is true if no exact match found (score < 100)
+    const hasExactMatch = results.some(r => r._score === 100);
+
+    return {
+      results: cleanResults,
+      canCreateNew: !hasExactMatch  // Allow creating if no exact match
+    };
   }
 
   // ============================================================================
@@ -366,13 +386,19 @@
    * @param {string|null} parentId - Filter by parent company (optional)
    * @param {string|null} marketName - Filter by market (optional)
    * @param {string|null} query - Search query (optional)
-   * @param {object} options - { data: nielsenData }
-   * @returns {Array<{stationCallSign: string, market: string, parent: string, format: string, primeAQH: number, rosAQH: number}>}
+   * @param {object} options - { data: nielsenData, allowCreate: boolean }
+   * @returns {{results: Array<{stationCallSign: string, market: string, parent: string, format: string, primeAQH: number|null, rosAQH: number|null, inBook: boolean}>, canCreateNew: boolean}}
    */
   function lookupStations(parentId, marketName, query, options) {
+    options = options || {};
     const data = getNielsenData(options);
+
+    // If no data loaded, return empty results with canCreateNew
     if (!data || !data.stations) {
-      throw new Error('Nielsen data not loaded. Call loadNielsenBook() first or pass data in options.');
+      return {
+        results: [],
+        canCreateNew: true  // Allow creating off-book stations
+      };
     }
 
     let stations = data.stations;
@@ -389,14 +415,40 @@
     }
 
     // Map to output format
-    return stations.map(s => ({
+    const results = stations.map(s => ({
       stationCallSign: s.station,
       market: s.market,
       parent: s.parent,
       format: s.format || '',
       primeAQH: s.primeAQH || 0,
-      rosAQH: s.rosAQH || 0
+      rosAQH: s.rosAQH || 0,
+      inBook: true
     }));
+
+    // canCreateNew based on allowCreate flag or if no results
+    const canCreateNew = options.allowCreate === true || results.length === 0;
+
+    return {
+      results,
+      canCreateNew
+    };
+  }
+
+  /**
+   * Create an off-book station entry (for manual entry of TV/unknown stations)
+   * @param {object} stationData - { callSign, market, parent, format? }
+   * @returns {object} Station object with inBook: false
+   */
+  function createOffBookStation(stationData) {
+    return {
+      stationCallSign: stationData.callSign,
+      market: stationData.market || 'Unknown',
+      parent: stationData.parent || 'Unknown',
+      format: stationData.format || 'Unknown',
+      primeAQH: null,  // null indicates off-book, no AQH data
+      rosAQH: null,
+      inBook: false
+    };
   }
 
   // ============================================================================
@@ -804,6 +856,13 @@
   // ============================================================================
 
   /**
+   * Check if a station is off-book (no AQH data)
+   */
+  function isOffBookStation(station) {
+    return station.primeAQH === null || station.primeAQH === undefined;
+  }
+
+  /**
    * Build complete deal object matching existing proposal structure
    * @param {object} config - Complete deal configuration
    * @returns {object} Deal object
@@ -811,8 +870,19 @@
   function buildDeal(config) {
     const c = config;
     const dealType = c.dealType || 'broadcast';
-    const pricingType = c.pricingType || 'cash';
+    let mediaType = c.mediaType || MEDIA_TYPES.RADIO;
+    let pricingType = c.pricingType || 'cash';
     const cpm = c.cpm || 2.0;
+
+    // Infer mediaType from dealType if not specified
+    if (dealType === 'agency' && !c.mediaType) {
+      mediaType = MEDIA_TYPES.AGENCY_OTHER;
+    }
+
+    // TV deals are always cash-only
+    if (mediaType === MEDIA_TYPES.TV) {
+      pricingType = 'cash';
+    }
 
     // Get station details
     const stationDetails = (c.stations || []).map(s => {
@@ -828,13 +898,23 @@
             st.station === parts.station
           );
           if (found) {
-            return { ...found, key: s };
+            return { ...found, key: s, inBook: true };
           }
         }
-        return { ...parts, primeAQH: 0, rosAQH: 0, key: s };
+        // Off-book station (not found in Nielsen data)
+        return { ...parts, primeAQH: null, rosAQH: null, key: s, inBook: false };
       }
-      return s;
+      // Station passed as object - check for inBook flag or AQH presence
+      if (s.inBook === false || s.primeAQH === null) {
+        return { ...s, inBook: false };
+      }
+      return { ...s, inBook: true };
     });
+
+    // Check for mixed in-book / off-book stations
+    const inBookStations = stationDetails.filter(s => s.inBook !== false && !isOffBookStation(s));
+    const offBookStations = stationDetails.filter(s => s.inBook === false || isOffBookStation(s));
+    const hasMixedStations = inBookStations.length > 0 && offBookStations.length > 0;
 
     // Calculate product values
     const productValues = {};
@@ -875,16 +955,33 @@
       totalCashAnnual = totalAnnual;
     }
 
-    // Calculate barter minutes
+    // Calculate barter minutes (only for in-book stations with AQH data)
     let barterAllocation = null;
-    if (pricingType === 'barter' || pricingType === 'mixed') {
-      const stationsForBarter = stationDetails.map(s => ({
+    const effectiveBarterPricingType = (mediaType === MEDIA_TYPES.TV) ? 'cash' : pricingType;
+
+    if ((effectiveBarterPricingType === 'barter' || effectiveBarterPricingType === 'mixed') && mediaType !== MEDIA_TYPES.TV) {
+      // Only include in-book stations with AQH data for barter
+      const stationsForBarter = inBookStations.map(s => ({
         callSign: s.station,
         primeAQH: s.primeAQH || 0,
         rosAQH: s.rosAQH || 0
       }));
 
       barterAllocation = calculateBarterMinutes(totalBarterTargetAnnual, stationsForBarter, cpm);
+
+      // Add off-book stations to allocation with 0 minutes (cash-only)
+      if (offBookStations.length > 0) {
+        offBookStations.forEach(s => {
+          barterAllocation.perStation.push({
+            callSign: s.station,
+            primeMinsPerDay: 0,
+            rosMinsPerDay: 0,
+            annualValue: 0,
+            isOffBook: true,
+            note: 'Off-book station (no AQH) - cash only'
+          });
+        });
+      }
 
       // Apply manual overrides if provided
       if (c.manualMinutes) {
@@ -924,11 +1021,13 @@
     const deal = {
       // Customer/Selection
       dealType,
+      mediaType,
       parent: c.parent || null,
       customerName: c.customerName || null,
       customerLocation: c.customerLocation || null,
       markets: c.markets || [],
       stations: c.stations || [],
+      stationDetails,  // Include full station details with inBook flags
 
       // Pricing
       pricingType,
@@ -938,6 +1037,12 @@
       productCashValues: c.productCashValues || {},
       productAssignments: c.productAssignments || {},
       cpm,
+
+      // Off-book tracking
+      hasOffBookStations: offBookStations.length > 0,
+      hasMixedStations,
+      inBookStationCount: inBookStations.length,
+      offBookStationCount: offBookStations.length,
 
       // Product configs
       toplineConfig: c.toplineConfig || null,
@@ -1003,6 +1108,43 @@
 
     if (!deal.products || deal.products.length === 0) {
       issues.push({ severity: 'error', message: 'At least one product is required' });
+    }
+
+    // TV deal validations
+    if (deal.mediaType === MEDIA_TYPES.TV) {
+      if (deal.pricingType !== 'cash') {
+        issues.push({
+          severity: 'warning',
+          message: 'TV deals should be cash-only. Barter pricing will be ignored.'
+        });
+      }
+      issues.push({
+        severity: 'info',
+        message: 'TV deal - no barter allocation (cash only)'
+      });
+    }
+
+    // Off-book station validations
+    if (deal.hasOffBookStations) {
+      issues.push({
+        severity: 'info',
+        message: `${deal.offBookStationCount} off-book station(s) detected - no AQH data available`
+      });
+
+      if ((deal.pricingType === 'barter' || deal.pricingType === 'mixed') && deal.offBookStationCount > 0) {
+        issues.push({
+          severity: 'warning',
+          message: 'Off-book stations cannot receive barter allocation (no AQH). They will be cash-only.'
+        });
+      }
+    }
+
+    // Mixed in-book/off-book validation
+    if (deal.hasMixedStations) {
+      issues.push({
+        severity: 'info',
+        message: `Mixed deal: ${deal.inBookStationCount} in-book stations (can receive barter), ${deal.offBookStationCount} off-book (cash only)`
+      });
     }
 
     // Check for missing product assignments
@@ -1106,6 +1248,8 @@
     // Helpers (exposed for testing)
     calculateValueFromMinutes,
     calculateMinutesFromValue,
+    createOffBookStation,
+    isOffBookStation,
 
     // Constants (exposed for reference)
     BARTER_FORMULA,
@@ -1113,7 +1257,8 @@
     TOPLINE_PRICING,
     CONTENT_AUTOMATION_PRICING,
     SPOTON_PRICING,
-    DEFAULT_PRODUCTS
+    DEFAULT_PRODUCTS,
+    MEDIA_TYPES
   };
 
 }));

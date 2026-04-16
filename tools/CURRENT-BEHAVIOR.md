@@ -3,11 +3,49 @@
 This document describes how the existing Deal Calculator app works. This is a reference for building standalone tool functions that replicate this behavior exactly.
 
 ## Table of Contents
-1. [Station Data Lookup](#station-data-lookup)
-2. [Product Price Calculation](#product-price-calculation)
-3. [Barter Minutes Calculation](#barter-minutes-calculation)
-4. [Deal Object Structure](#deal-object-structure)
-5. [Gap to Value Calculation](#gap-to-value-calculation)
+1. [Deal Types and Media Types](#deal-types-and-media-types)
+2. [Station Data Lookup](#station-data-lookup)
+3. [Product Price Calculation](#product-price-calculation)
+4. [Barter Minutes Calculation](#barter-minutes-calculation)
+5. [Deal Object Structure](#deal-object-structure)
+6. [Gap to Value Calculation](#gap-to-value-calculation)
+
+---
+
+## Deal Types and Media Types
+
+### Current UI Behavior
+
+The existing UI has a **Deal Type** toggle with two options:
+- `broadcast` (default) - Select parent company, markets, and stations from Nielsen book
+- `agency` - Enter customer name manually, flat pricing without station multiplication
+
+The UI also has a **Nielsen book type** selector for uploads:
+- `radio` (default)
+- `tv`
+
+### Media Type Concept (Sprint 1 Extension)
+
+For the tools API, we introduce a `mediaType` field to distinguish:
+- `Radio` - Stations from Nielsen book with AQH data, supports barter
+- `TV` - Stations entered manually, no AQH data, cash-only
+- `AgencyOther` - Customer-based deal, flat pricing
+
+### Default Values
+- **Deal Type**: `broadcast` (from UI line 805)
+- **Media Type**: `Radio` (inferred - landing page says "Radio", all examples use radio data)
+
+### Off-Book Stations
+
+Stations are considered "off-book" when:
+1. `primeAQH` is `null`, `undefined`, or missing
+2. Station is manually entered (not found in Nielsen book)
+3. Media type is TV (always no AQH)
+
+Off-book stations:
+- Cannot receive barter allocation (no AQH for formula)
+- Must be handled as cash-only for their assigned products
+- Should trigger validation warnings
 
 ---
 

@@ -1,8 +1,8 @@
 # Test Results
 
-Generated: 2026-04-16
+Generated: 2026-04-16 (Updated with TV/Off-Book support)
 
-**Total: 24 | Passed: 24 | Failed: 0**
+**Total: 29 | Passed: 29 | Failed: 0**
 
 ---
 
@@ -16,8 +16,11 @@ Generated: 2026-04-16
 | getProductCatalog | 1 | PASS |
 | calculateProductPrice | 5 | PASS |
 | calculateBarterMinutes | 5 | PASS |
-| buildDeal | 5 | PASS |
-| validateDeal | 2 | PASS |
+| buildDeal (standard) | 5 | PASS |
+| buildDeal (TV) | 1 | PASS |
+| buildDeal (mixed stations) | 1 | PASS |
+| validateDeal | 4 | PASS |
+| createOffBookStation | 1 | PASS |
 
 ---
 
@@ -153,14 +156,14 @@ Generated: 2026-04-16
 
 #### Test: broadcast deal with multiple stations
 - **Input:** iHeartMedia, NYC, 3 stations, [topicpulse, prep_plus], cash
-- **Expected:** Complete deal object with parent, stations, products, totals
-- **Actual:** dealType = "broadcast", 3 stations, cashAnnual = totalAnnual
+- **Expected:** Complete deal object with parent, stations, products, totals, mediaType = "Radio"
+- **Actual:** dealType = "broadcast", mediaType = "Radio", 3 stations, cashAnnual = totalAnnual
 - **Status:** PASS
 
 #### Test: agency deal (no stations)
 - **Input:** dealType = "agency", customerName = "Test Agency Inc.", 2 products
-- **Expected:** No stations, flat pricing (count = 1)
-- **Actual:** stations.length = 0, productValues count = 1
+- **Expected:** No stations, flat pricing (count = 1), mediaType = "AgencyOther"
+- **Actual:** stations.length = 0, mediaType = "AgencyOther", productValues count = 1
 - **Status:** PASS
 
 #### Test: mixed payment deal
@@ -183,6 +186,48 @@ Generated: 2026-04-16
 
 ---
 
+### Tool 7b: buildDeal TV Support (Test D)
+
+#### Test: TV deal is forced cash-only
+- **Input:** mediaType = "TV", pricingType = "barter" (should be forced to cash)
+- **Expected:** pricingType = "cash", barterAllocation = null, hasOffBookStations = true
+- **Actual:** pricingType = "cash", no barter allocation, 2 off-book stations
+- **Status:** PASS
+
+#### Test: validateDeal TV deal gets correct warnings
+- **Input:** TV deal object
+- **Expected:** Info message about TV deal being cash only
+- **Actual:** Issues include "TV deal" and "cash only" mentions
+- **Status:** PASS
+
+---
+
+### Tool 7c: buildDeal Mixed Stations (Test E)
+
+#### Test: mixed in-book and off-book stations
+- **Input:** 1 in-book station (WLTW-FM), 1 off-book station (KNEW-FM)
+- **Expected:** hasMixedStations = true, barter only to in-book station
+- **Actual:** inBookStationCount = 1, offBookStationCount = 1, barter allocated correctly
+- **Status:** PASS
+
+#### Test: validateDeal mixed stations get correct info messages
+- **Input:** Deal with hasMixedStations = true
+- **Expected:** Info message about mixed deal stations
+- **Actual:** Issues include "Mixed deal" mention
+- **Status:** PASS
+
+---
+
+### Helper: createOffBookStation
+
+#### Test: creates proper off-book station object
+- **Input:** callSign = "TEST-TV", market = "Test Market", parent = "Test Parent"
+- **Expected:** Station with inBook = false, primeAQH = null, rosAQH = null
+- **Actual:** All fields correct, format = "Unknown"
+- **Status:** PASS
+
+---
+
 ### Tool 8: validateDeal (Low Risk)
 
 #### Test: catches missing required fields
@@ -195,6 +240,18 @@ Generated: 2026-04-16
 - **Input:** Deal with barter target $100K but only $50K allocated
 - **Expected:** Warning about gap to value (50% short)
 - **Actual:** Warning message includes "Gap" and shortage amount
+- **Status:** PASS
+
+#### Test: TV deal gets correct warnings
+- **Input:** TV deal with mediaType = "TV"
+- **Expected:** Info messages about TV/cash-only
+- **Actual:** Correct TV and cash-only messaging
+- **Status:** PASS
+
+#### Test: mixed stations get correct info messages
+- **Input:** Deal with hasMixedStations = true
+- **Expected:** Info about in-book vs off-book handling
+- **Actual:** Messages explain mixed station behavior
 - **Status:** PASS
 
 ---
