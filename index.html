@@ -767,9 +767,16 @@
       <h1 style="margin-bottom:4px;">Futuri Media Deal Calculator</h1>
       <div class="muted" style="font-size:11px;">
         <span style="opacity:.7;">v3.2 (Google-only)</span>
+        <span id="stagingIndicator" style="display:none; margin-left:8px; background:#ff9800; color:#000; padding:2px 6px; border-radius:4px; font-weight:700; font-size:10px;">STAGING</span>
         <span style="margin:0 8px;">•</span>
         <span style="opacity:.7;">Radio dataset: upload required for Nielsen book testing</span>
       </div>
+      <script>
+        // Show STAGING indicator if using staging Firebase
+        if (window._isStaging) {
+          document.getElementById('stagingIndicator').style.display = 'inline';
+        }
+      </script>
     </div>
   </header>
 
@@ -1670,7 +1677,8 @@
       query, orderBy, limit, serverTimestamp
     } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-    const firebaseConfig = {
+    // Production Firebase config (GitHub Pages)
+    const PRODUCTION_FIREBASE_CONFIG = {
       apiKey: "AIzaSyAYZcQGPWjokOiCD-kC9F7QB64Bm-SMmpE",
       authDomain: "deal-calculator-bf40d.firebaseapp.com",
       projectId: "deal-calculator-bf40d",
@@ -1678,6 +1686,29 @@
       messagingSenderId: "1068500491090",
       appId: "1:1068500491090:web:6654b26d72ad40b1eb388b"
     };
+
+    // Staging Firebase config (Vercel and localhost)
+    const STAGING_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyDQDcJmZobA7MVVM_hlvDduHinKAafM2cA",
+      authDomain: "futuri-deal-calc-staging.firebaseapp.com",
+      projectId: "futuri-deal-calc-staging",
+      storageBucket: "futuri-deal-calc-staging.firebasestorage.app",
+      messagingSenderId: "815632407825",
+      appId: "1:815632407825:web:15a18875145c3eabeac0b0"
+    };
+
+    // Detect environment based on hostname
+    const isStagingEnvironment =
+      window.location.hostname.includes('vercel.app') ||
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1';
+
+    const firebaseConfig = isStagingEnvironment
+      ? STAGING_FIREBASE_CONFIG
+      : PRODUCTION_FIREBASE_CONFIG;
+
+    // Expose staging flag globally for UI indicator
+    window._isStaging = isStagingEnvironment;
 
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
