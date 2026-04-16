@@ -3,8 +3,7 @@
   "version": "1.0.0",
   "description": "Futuri Deal Calculator with AI-powered pricing assistant",
   "scripts": {
-    "test:tools": "node tools/deal-tools.test.js",
-    "dev": "vercel dev"
+    "test:tools": "node tools/deal-tools.test.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0"
