@@ -444,3 +444,118 @@ Complete workflow now working:
 5. User reviews form → clicks Generate Proposal → proposal renders
 
 No more double-prompts. No more manual Apply button clicks.
+
+---
+
+## Round 5 Testing - Deal Type Question & Agency Workflow (2026-04-16)
+
+### Changes Made
+
+1. **Rule 0: Always Ask Broadcast or Agency First**
+   - If deal type is explicit (mentions parent company or "agency deal"), go directly to workflow
+   - If ambiguous, ask "Is this a Broadcast or Agency/Other deal?"
+
+2. **Agency/Other Workflow - Simplified**
+   - Max 2 turns before building
+   - Defaults: Cash, 1 market, 12 months
+   - Ask station count ONE time for all per-station products
+
+3. **applyDealConfig Fixed for Agency**
+   - Fixed field IDs: agencyCustomerName, agencyCustomerLocation
+   - Added stationCount, termMonths, customPrices handling
+
+### Test 17: Broadcast Deal (Known Parent)
+**Prompt**: "Capitol Broadcasting wants TopLine Enterprise on WRAL-FM. Full barter. 36 month term."
+
+**Expected**: Recognize as Broadcast, full lookup workflow
+
+**Actual Result**: ✅ PASS
+```
+Tool calls: lookup_parent, lookup_stations, calculate_product_price, calculate_barter_minutes
+
+TopLine Enterprise: $42,000/year (barter)
+WRAL-FM: 4 prime + 4 ROS minutes/day
+
+"Would you like me to build the deal and apply it to the calculator?"
+```
+
+### Test 18: Agency Deal (Full Info - 2 Turns)
+**Prompt**: "TopLine Access and TopicPulse for PMP Marketing. 10% off rate card. 36 month cash deal. 5 stations."
+
+**Expected**: Recognize as Agency, build in 2 turns max
+
+**Turn 1 Result**: ✅ PASS
+```
+Tool calls: calculate_product_price, calculate_product_price
+
+TopLine Access: $37,800/year (10% off $42K)
+TopicPulse: $750/month × 5 stations = $3,750/month
+
+"Would you like me to build the deal and apply it to the calculator?"
+```
+
+**Turn 2 (user says "yes")**: ✅ PASS
+```
+Tool calls: build_deal, validate_deal
+
+JSON config includes:
+- dealType: "agency"
+- customerName: "PMP Marketing"
+- stationCount: 5
+- customPrices: { topline: 37800, topicpulse: 675 }
+- termMonths: 36
+
+"Done! Applied to calculator."
+```
+
+### Test 19: Agency Deal (Minimal Info - 1 Turn!)
+**Prompt**: "Agency deal for Acme Corp. Just TopLine Enterprise."
+
+**Expected**: Use defaults, build immediately
+
+**Actual Result**: ✅ PASS - Built in 1 turn!
+```
+Tool calls: calculate_product_price, build_deal, validate_deal
+
+TopLine Enterprise: $30,000/year × 1 market
+Payment: Cash (default)
+Term: 36 months (default)
+
+JSON config with customerName: "Acme Corp", tier: "enterprise"
+"Done! Applied to calculator."
+```
+
+### Test 20: Ambiguous Deal (Asks for Clarification)
+**Prompt**: "Can you make a TopLine deal for PMP Marketing?"
+
+**Expected**: Ask "Broadcast or Agency?"
+
+**Actual Result**: ✅ PASS
+```
+Tool calls: none
+
+"Is this a Broadcast deal (radio/TV stations) or an Agency/Other deal?"
+```
+
+---
+
+## Final Summary
+
+**All 20 tests passed.**
+
+Complete workflows now working:
+
+**Broadcast:**
+1. User mentions parent company or says "broadcast"
+2. Claude: lookup → price → barter → summary → "Build?"
+3. User: "yes" → build → apply → "Done!"
+
+**Agency/Other:**
+1. User says "agency deal" or just gives customer name
+2. If minimal info → Claude builds immediately (1 turn)
+3. If needs clarification → ask ONE question → build (2 turns max)
+4. Defaults: Cash, 1 market, 12 months
+
+**Ambiguous:**
+1. Claude asks: "Broadcast or Agency/Other?"
+2. User answers → correct workflow follows
