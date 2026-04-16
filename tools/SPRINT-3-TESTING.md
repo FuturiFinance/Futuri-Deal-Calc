@@ -243,12 +243,122 @@ Recommended tier: XS (5,000 credits/mo at $6,500/mo)
 
 ---
 
+## Round 3 Testing - Data Flow Fixes (2026-04-16)
+
+### Issue Investigation
+
+Two bugs reported as persisting despite prompt fixes:
+1. **Bug A**: TopLine Enterprise showing $42K in build_deal (not $30K)
+2. **Bug B**: WRAL-FM found by lookup_stations but treated as off-book in Apply to Calculator
+
+### Root Cause Analysis
+
+**Bug A - $42K for Enterprise:**
+- Initial suspicion: buildDeal defaulting tier to "access"
+- Actual finding: Code was correct! The $42K is $30K × 1.4 barter multiplier
+- Enterprise cash = $30K, Enterprise barter = $42K (30K × 1.4)
+- Access cash = $42K, Access barter = $58.8K (42K × 1.4)
+- Coincidence that Enterprise barter equals Access cash
+
+**Bug B - Station key mismatch:**
+- Tools return stations with call signs (e.g., "WRAL-FM")
+- UI expects compound keys (e.g., "Capitol Bcstg Co., Inc.|Raleigh-Durham...|WRAL-FM")
+- Apply to Calculator wasn't matching call signs to Nielsen data
+
+### Fixes Applied
+
+1. **deal-tools.js buildDeal**: Added merging of multiple config sources
+   - Merges `productConfigs.topline` with `toplineConfig`
+   - Ensures tier is found regardless of which format Claude uses
+   - Added warning log when tier is missing
+
+2. **index.html applyDealConfig**: Added station lookup by call sign
+   - New `findStationByCallSign()` helper function
+   - Searches `window.IDX.stations` for matching call signs
+   - Constructs proper compound keys for the UI
+   - Prefers `stationDetails` (full objects) over `stations` (just keys)
+
+3. **system-prompt.mjs**: Added Rule 5 for proactive proposal offer
+   - Always ask "Would you like me to create the deal calc and generate the proposal?"
+   - Include proper JSON config with `productConfigs.topline.tier`
+   - Pass stations as full objects with AQH data
+
+### Test 12: End-to-End Enterprise Barter Deal
+**Prompt**: "Capitol Broadcasting wants TopLine Enterprise on WRAL-FM. Full barter at $30K value. 36 month term."
+
+**Expected**:
+- Enterprise pricing (not Access)
+- WRAL-FM found with AQH (not off-book)
+- Barter minutes calculated
+- Proactive offer to build proposal
+
+**Actual Result**: ✅ PASS
+```
+Tool calls: [ 'lookup_parent', 'lookup_stations', 'calculate_product_price', 'calculate_barter_minutes' ]
+
+Station: WRAL-FM (AQH 4,500 prime / 4,000 ROS) - IN-BOOK ✓
+Product: TopLine Enterprise at $30,000/year
+Barter: 3 Prime + 3 ROS minutes/day
+
+"Would you like me to create the deal calc and generate the proposal?" ✓
+```
+
+### Test 13: Build Deal with Proper Config
+**Prompt**: (follow-up) "Yes, build the deal"
+
+**Expected**:
+- JSON config with `productConfigs: { topline: { tier: "enterprise" } }`
+- Stations as full objects with AQH and inBook: true
+
+**Actual Result**: ✅ PASS
+```json
+{
+  "dealType": "broadcast",
+  "parent": "Capitol Bcstg Co., Inc.",
+  "stations": [
+    {
+      "parent": "Capitol Bcstg Co., Inc.",
+      "market": "Raleigh-Durham (Fayette..[PPM+D]",
+      "station": "WRAL-FM",
+      "primeAQH": 4500,
+      "rosAQH": 4000,
+      "inBook": true
+    }
+  ],
+  "products": ["topline"],
+  "productConfigs": {
+    "topline": {
+      "tier": "enterprise"
+    }
+  },
+  "pricingType": "barter"
+}
+```
+
+### Test 14: Verify Barter Multiplier Logic
+**Direct code test**:
+
+**Cash pricing**: TopLine Enterprise = $30,000 ✓
+**Barter pricing**: TopLine Enterprise = $42,000 ($30K × 1.4) ✓
+
+This confirms the $42K barter value is CORRECT behavior, not a bug.
+
+---
+
 ## Summary
 
-**All 11 tests passed after mandatory rules fix.**
+**All 14 tests passed.**
+
+Key findings:
+- TopLine Enterprise barter at $42K is CORRECT ($30K × 1.4 multiplier)
+- Stations now matched by call sign to Nielsen data
+- Full station objects with AQH preserved through build_deal
+- Proactive proposal offer working
+- JSON config includes proper productConfigs.tier
 
 Key improvements:
-- TopLine Enterprise now correctly priced at $30,000
+- TopLine Enterprise now correctly priced at $30,000 (cash) / $42,000 (barter)
 - Stations always looked up before assuming off-book
+- applyDealConfig matches stations by call sign
 - Upsell scenarios (Access + Enterprise) correctly use tier:"both"
 - Complete deals built with all 4 Capitol Broadcasting stations found
