@@ -8936,12 +8936,20 @@ window.ChatPanel = (function() {
             if (productId) {
               window.productState.selectedProducts.add(productId);
 
-              // Set custom price if provided
+              // Set custom price if provided (from product object or customPrices map)
               if (typeof p === 'object' && p.customPrice) {
                 window.productState.customPrices.set(productId, p.customPrice);
               }
             }
           });
+
+          // Also apply customPrices from config root (for discounted prices)
+          if (config.customPrices) {
+            Object.entries(config.customPrices).forEach(([productId, price]) => {
+              window.productState.customPrices.set(productId, price);
+              console.log(`[ApplyDealConfig] Set custom price for ${productId}: ${price}`);
+            });
+          }
 
           // Update products UI
           window.renderProducts?.();
@@ -8958,16 +8966,44 @@ window.ChatPanel = (function() {
         }
       }
 
-      // Set customer info for agency deals
+      // Set customer info for agency deals (correct field IDs)
       if (config.customerName) {
         window.state.customerName = config.customerName;
-        const nameInput = document.getElementById('customerName');
-        if (nameInput) nameInput.value = config.customerName;
+        // Try both possible IDs
+        const nameInput = document.getElementById('agencyCustomerName') || document.getElementById('customerName');
+        if (nameInput) {
+          nameInput.value = config.customerName;
+          nameInput.dispatchEvent(new Event('input'));
+        }
+        console.log(`[ApplyDealConfig] Set customer name: ${config.customerName}`);
       }
       if (config.customerLocation) {
         window.state.customerLocation = config.customerLocation;
-        const locInput = document.getElementById('customerLocation');
-        if (locInput) locInput.value = config.customerLocation;
+        const locInput = document.getElementById('agencyCustomerLocation') || document.getElementById('customerLocation');
+        if (locInput) {
+          locInput.value = config.customerLocation;
+          locInput.dispatchEvent(new Event('input'));
+        }
+      }
+
+      // For Agency deals, set station count if provided (for per-station products)
+      if (config.dealType === 'agency' && config.stationCount) {
+        window.productState.agencyStationCount = config.stationCount;
+        console.log(`[ApplyDealConfig] Set agency station count: ${config.stationCount}`);
+      }
+
+      // Set term months if provided
+      if (config.termMonths) {
+        if (window.state.dealMeta) {
+          window.state.dealMeta.termMonths = config.termMonths;
+        }
+        // Update term selector if exists
+        const termSelect = document.getElementById('termMonths');
+        if (termSelect) {
+          termSelect.value = config.termMonths;
+          termSelect.dispatchEvent(new Event('change'));
+        }
+        console.log(`[ApplyDealConfig] Set term months: ${config.termMonths}`);
       }
 
       // Set TopLine tier if provided (from productConfigs or toplineConfig)
