@@ -2058,6 +2058,7 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
       });
       window.scrollTo(0,0);
     }
+    window.showView = showView; // Expose for chat panel navigation
 
     function applyRoleUI(){
       el("whois").textContent = `Role: ${CURRENT_ROLE}`;
@@ -8501,6 +8502,21 @@ window.ChatPanel = (function() {
   const sendBtn = () => document.getElementById('chatSend');
 
   function open() {
+    // If not on the deal calc view, navigate there first
+    const radioView = document.getElementById('radioView');
+    if (radioView && radioView.classList.contains('hidden')) {
+      // Navigate to deal calc (same as clicking "Go to Deal Calc")
+      window.showView?.('radioView');
+      // Show a brief message in chat
+      setTimeout(() => {
+        const welcomeMsg = messagesEl()?.querySelector('.chat-message.assistant');
+        if (welcomeMsg && !welcomeMsg.dataset.navNotice) {
+          welcomeMsg.dataset.navNotice = 'true';
+          welcomeMsg.innerHTML += '<br><br><em style="color: var(--muted); font-size: 11px;">Navigated to deal calculator.</em>';
+        }
+      }, 100);
+    }
+
     panel()?.classList.add('open');
     toggle()?.classList.add('hidden');
     inputEl()?.focus();
