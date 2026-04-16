@@ -478,10 +478,11 @@
       // Add tier options for tiered products
       if (p.id === 'topline') {
         result.tierOptions = {
-          access: { name: 'TopLine - Base', annualPerMarket: 42000 },
-          enterprise: { name: 'Enterprise', annualPerMarket: 30000 },
-          both: { name: 'Both', annualPerMarket: 72000 }
+          access: { name: 'TopLine Access (Base)', annualPerMarket: 42000, description: 'Base TopLine product' },
+          enterprise: { name: 'TopLine Enterprise', annualPerMarket: 30000, description: 'Enterprise tier - use tier:"enterprise"' },
+          both: { name: 'TopLine Both (Access + Enterprise)', annualPerMarket: 72000, description: 'Both tiers combined' }
         };
+        result.tierNote = 'IMPORTANT: When user says "TopLine Enterprise", use tier:"enterprise" ($30K/yr). Default "TopLine" alone means tier:"access" ($42K/yr).';
       } else if (p.id === 'content_automation') {
         result.tierOptions = CONTENT_AUTOMATION_PRICING.tiers;
       } else if (p.id === 'spoton') {
