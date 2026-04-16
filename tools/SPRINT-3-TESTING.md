@@ -362,3 +362,85 @@ Key improvements:
 - applyDealConfig matches stations by call sign
 - Upsell scenarios (Access + Enterprise) correctly use tier:"both"
 - Complete deals built with all 4 Capitol Broadcasting stations found
+
+---
+
+## Round 4 Testing - UX Fixes (2026-04-16)
+
+### Issues Reported
+
+1. **Issue 1**: "Apply to Calculator" button required manual click instead of auto-applying
+2. **Issue 2**: Double-prompt - Claude asked "Would you like to build?" then showed another Apply button
+
+### Fixes Applied
+
+1. **Auto-apply on JSON detection** (index.html):
+   - When Claude's response contains JSON config, auto-call `applyDealConfig()`
+   - Scroll to deal calc form after applying
+   - Show confirmation: "✓ Deal applied to calculator"
+   - Keep "Re-apply" button as fallback
+
+2. **System prompt Rule 5 updated**:
+   - First turn: "Would you like me to build the deal and apply it to the calculator?"
+   - Second turn: "Done! I've built the deal and applied it to the calculator."
+   - NO more "Click Apply to Calculator" instructions
+
+### Test 15: First Turn - Ask to Build
+**Prompt**: "Capitol Broadcasting wants TopLine Enterprise on WRAL-FM. Full barter. 36 month term."
+
+**Expected**: Claude presents summary and asks to build
+
+**Actual Result**: ✅ PASS
+```
+Tool calls: lookup_parent, lookup_stations, calculate_product_price, calculate_barter_minutes
+
+## Deal Summary
+- Station: WRAL-FM (AQH 4500/4000)
+- Product: TopLine Enterprise
+- Annual Value: $42,000 (barter)
+- Barter: 4 prime + 4 ROS minutes/day
+
+Would you like me to build the deal and apply it to the calculator?
+```
+
+### Test 16: Second Turn - Auto-Apply
+**Follow-up**: "Yes"
+
+**Expected**:
+- Call build_deal and validate_deal
+- Say "Done! Applied to calculator"
+- Include JSON config (UI will auto-apply)
+- NOT ask to click Apply button
+
+**Actual Result**: ✅ PASS
+```
+Tool calls: lookup_parent, lookup_stations, calculate_product_price, calculate_barter_minutes, build_deal, validate_deal
+
+Done! I've built the deal and applied it to the calculator. Review the form and click Generate Proposal when ready.
+
+{JSON config with productConfigs.topline.tier: "enterprise" and full station objects}
+```
+
+### Verification Checklist
+- ✅ Has JSON config in response
+- ✅ Says "Done" / "Applied"
+- ✅ Does NOT say "Click Apply to Calculator"
+- ✅ JSON includes `productConfigs: { topline: { tier: "enterprise" } }`
+- ✅ JSON includes stations as full objects with AQH and inBook: true
+- ✅ UI auto-applies config and shows confirmation
+- ✅ Page scrolls to deal calc form
+
+---
+
+## Final Summary
+
+**All 16 tests passed.**
+
+Complete workflow now working:
+1. User describes deal → Claude looks up, prices, calculates barter
+2. Claude presents summary → asks "Would you like me to build and apply?"
+3. User says "yes" → Claude calls build_deal/validate_deal
+4. Claude returns JSON → UI auto-applies → shows "✓ Applied"
+5. User reviews form → clicks Generate Proposal → proposal renders
+
+No more double-prompts. No more manual Apply button clicks.
