@@ -731,6 +731,35 @@
     .chat-apply-btn:hover {
       opacity: 0.9;
     }
+    .chat-apply-btn:disabled {
+      opacity: 0.7;
+      cursor: default;
+    }
+    .chat-apply-btn-secondary {
+      background: var(--muted);
+      font-size: 11px;
+      padding: 6px 12px;
+      margin-top: 6px;
+    }
+    .chat-apply-confirm {
+      margin-top: 12px;
+      padding: 10px 14px;
+      background: rgba(40, 167, 69, 0.1);
+      border: 1px solid var(--success);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .chat-apply-confirm .apply-success {
+      color: var(--success);
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .chat-apply-confirm .apply-hint {
+      color: var(--muted);
+      font-size: 11px;
+    }
     .chat-usage {
       margin-top: 8px;
       font-size: 11px;
@@ -8540,14 +8569,50 @@ window.ChatPanel = (function() {
       msgDiv.appendChild(toolsDiv);
     }
 
-    // Add apply button if deal config is present
+    // Handle deal config - show confirmation if auto-applied, or button if not
     if (extras.dealConfig) {
       lastDealConfig = extras.dealConfig;
-      const applyBtn = document.createElement('button');
-      applyBtn.className = 'chat-apply-btn';
-      applyBtn.textContent = 'Apply to Calculator';
-      applyBtn.onclick = () => applyDealConfig(extras.dealConfig);
-      msgDiv.appendChild(applyBtn);
+
+      if (extras.autoApplied) {
+        // Auto-apply succeeded - show confirmation
+        const confirmDiv = document.createElement('div');
+        confirmDiv.className = 'chat-apply-confirm';
+        confirmDiv.innerHTML = `
+          <span class="apply-success">✓ Deal applied to calculator</span>
+          <span class="apply-hint">Review the form on the left and click Generate Proposal when ready.</span>
+        `;
+        msgDiv.appendChild(confirmDiv);
+
+        // Still add button as fallback (smaller, secondary style)
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'chat-apply-btn chat-apply-btn-secondary';
+        applyBtn.textContent = 'Re-apply to Calculator';
+        applyBtn.onclick = () => {
+          applyDealConfig(extras.dealConfig);
+          const dealCalcForm = document.getElementById('dealCalcWrapper') || document.querySelector('.main-content');
+          if (dealCalcForm) {
+            dealCalcForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        };
+        msgDiv.appendChild(applyBtn);
+      } else {
+        // Auto-apply failed or didn't happen - show primary button
+        const applyBtn = document.createElement('button');
+        applyBtn.className = 'chat-apply-btn';
+        applyBtn.textContent = 'Apply to Calculator';
+        applyBtn.onclick = () => {
+          applyDealConfig(extras.dealConfig);
+          // Scroll to form
+          const dealCalcForm = document.getElementById('dealCalcWrapper') || document.querySelector('.main-content');
+          if (dealCalcForm) {
+            dealCalcForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+          // Update button to show success
+          applyBtn.textContent = '✓ Applied';
+          applyBtn.disabled = true;
+        };
+        msgDiv.appendChild(applyBtn);
+      }
     }
 
     // Add usage info if present
@@ -8652,6 +8717,7 @@ window.ChatPanel = (function() {
 
       // Try to extract deal config from response
       let dealConfig = null;
+      let autoApplied = false;
       try {
         // Look for JSON in the response
         const jsonMatch = textContent.match(/```json\s*([\s\S]*?)```/);
@@ -8659,6 +8725,25 @@ window.ChatPanel = (function() {
           const parsed = JSON.parse(jsonMatch[1]);
           if (parsed.stations || parsed.products || parsed.parent) {
             dealConfig = parsed;
+
+            // AUTO-APPLY the deal config immediately
+            try {
+              applyDealConfig(parsed);
+              autoApplied = true;
+
+              // Scroll to the top of the deal calc form after a short delay
+              setTimeout(() => {
+                const dealCalcForm = document.getElementById('dealCalcWrapper') || document.querySelector('.main-content');
+                if (dealCalcForm) {
+                  dealCalcForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }, 700);
+            } catch (applyErr) {
+              console.warn('[Chat] Auto-apply failed:', applyErr.message);
+              autoApplied = false;
+            }
           }
         }
       } catch (e) {
@@ -8672,7 +8757,8 @@ window.ChatPanel = (function() {
       addMessage(textContent, 'assistant', {
         toolCalls: data.toolCalls,
         usage: data.usage,
-        dealConfig: dealConfig
+        dealConfig: dealConfig,
+        autoApplied: autoApplied
       });
 
     } catch (err) {
