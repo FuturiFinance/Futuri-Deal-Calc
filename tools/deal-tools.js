@@ -921,8 +921,26 @@
     const productValues = {};
     let totalAnnual = 0;
 
+    // Merge product-specific configs (toplineConfig, etc.) into productConfigs
+    // This ensures tier is found regardless of which format Claude uses
+    const mergedProductConfigs = {
+      ...(c.productConfigs || {}),
+      topline: {
+        ...(c.productConfigs?.topline || {}),
+        ...(c.toplineConfig || {})
+      },
+      content_automation: {
+        ...(c.productConfigs?.content_automation || {}),
+        ...(c.contentAutomationConfig || {})
+      },
+      spoton: {
+        ...(c.productConfigs?.spoton || {}),
+        ...(c.spotonConfig || {})
+      }
+    };
+
     (c.products || []).forEach(productId => {
-      const productConfig = (c.productConfigs || {})[productId] || {};
+      const productConfig = mergedProductConfigs[productId] || {};
       const assignments = {
         stations: c.stations || [],
         markets: c.markets || []
@@ -934,6 +952,11 @@
         dealType,
         customPrice: (c.customPrices || {})[productId]
       };
+
+      // CRITICAL: For TopLine, log if tier is missing (helps debug)
+      if (productId === 'topline' && !extras.tier) {
+        console.warn('[buildDeal] TopLine tier not specified in config. Defaulting to access. Config received:', JSON.stringify(productConfig));
+      }
 
       const price = calculateProductPrice(productId, assignments, extras);
       productValues[productId] = price;
@@ -1045,12 +1068,13 @@
       inBookStationCount: inBookStations.length,
       offBookStationCount: offBookStations.length,
 
-      // Product configs
-      toplineConfig: c.toplineConfig || null,
-      contentAutomationConfig: c.contentAutomationConfig || null,
-      spotonConfig: c.spotonConfig || null,
+      // Product configs (merged from multiple sources)
+      toplineConfig: mergedProductConfigs.topline || null,
+      contentAutomationConfig: mergedProductConfigs.content_automation || null,
+      spotonConfig: mergedProductConfigs.spoton || null,
       fbGroupsConfig: c.fbGroupsConfig || null,
       faaiConfig: c.faaiConfig || null,
+      productConfigs: mergedProductConfigs,  // Include full merged configs
 
       // Calculated values
       totalAnnual,

@@ -8741,22 +8741,69 @@ window.ChatPanel = (function() {
       }
 
       // Set stations (after a delay to allow parent selection to populate)
-      if (config.stations && Array.isArray(config.stations)) {
+      // Prefer stationDetails (full data with AQH) over stations (just keys)
+      const stationsToProcess = config.stationDetails || config.stations || [];
+      if (stationsToProcess.length > 0) {
         setTimeout(() => {
           // Clear current stations
           window.state.stations.clear();
           window.state.markets.clear();
 
-          // Add stations from config
-          config.stations.forEach(st => {
-            let key;
+          // Helper to find station in Nielsen data by call sign
+          const findStationByCallSign = (callSign, parentName) => {
+            if (!window.IDX?.stations) return null;
+            const normalized = callSign.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+
+            // First try to find by parent + call sign
+            if (parentName && window.IDX.stationsByParent?.has(parentName)) {
+              const parentStations = window.IDX.stationsByParent.get(parentName);
+              const match = parentStations.find(s =>
+                s.station?.toUpperCase().replace(/[^A-Z0-9-]/g, '') === normalized
+              );
+              if (match) return match;
+            }
+
+            // Fallback: search all stations
+            return window.IDX.stations.find(s =>
+              s.station?.toUpperCase().replace(/[^A-Z0-9-]/g, '') === normalized
+            );
+          };
+
+          // Add stations from config (using stationDetails if available)
+          const parentName = config.parent || window.state.parent;
+          stationsToProcess.forEach(st => {
+            let key = null;
+            let stationData = null;
+
             if (typeof st === 'string') {
-              key = st;
+              // Could be full key or just call sign
+              if (st.includes('|')) {
+                key = st;
+              } else {
+                // Just a call sign - look it up in Nielsen data
+                stationData = findStationByCallSign(st, parentName);
+                if (stationData) {
+                  key = `${stationData.parent}|${stationData.market}|${stationData.station}`;
+                  console.log(`[ApplyDealConfig] Matched call sign "${st}" to key: ${key}`);
+                } else {
+                  console.warn(`[ApplyDealConfig] Could not find station "${st}" in Nielsen data`);
+                }
+              }
             } else if (st.key) {
               key = st.key;
-            } else if (st.station && st.market) {
-              key = `${config.parent || window.state.parent}|${st.market}|${st.station}`;
+            } else if (st.station) {
+              // Station object - look up by call sign if no full key
+              stationData = findStationByCallSign(st.station, st.parent || parentName);
+              if (stationData) {
+                key = `${stationData.parent}|${stationData.market}|${stationData.station}`;
+                console.log(`[ApplyDealConfig] Matched station object "${st.station}" to key: ${key}`);
+              } else if (st.market) {
+                // Construct key from provided data
+                key = `${st.parent || parentName}|${st.market}|${st.station}`;
+                console.warn(`[ApplyDealConfig] Station "${st.station}" not in Nielsen data, using constructed key`);
+              }
             }
+
             if (key) {
               window.state.stations.add(key);
               // Extract market from key
@@ -8819,6 +8866,40 @@ window.ChatPanel = (function() {
         window.state.customerLocation = config.customerLocation;
         const locInput = document.getElementById('customerLocation');
         if (locInput) locInput.value = config.customerLocation;
+      }
+
+      // Set TopLine tier if provided (from productConfigs or toplineConfig)
+      const toplineConfig = config.productConfigs?.topline || config.toplineConfig;
+      if (toplineConfig?.tier && window.productState) {
+        window.productState.toplineTier = toplineConfig.tier;
+        console.log(`[ApplyDealConfig] Set TopLine tier to: ${toplineConfig.tier}`);
+
+        // Update tier selector if it exists
+        setTimeout(() => {
+          const tierSelect = document.getElementById('toplineTier');
+          if (tierSelect) {
+            tierSelect.value = toplineConfig.tier;
+            tierSelect.dispatchEvent(new Event('change'));
+          }
+        }, 500);
+      }
+
+      // Set barter allocation if provided (from barterAllocation)
+      if (config.barterAllocation?.perStation && window.productState) {
+        window.productState.barterAllocation = config.barterAllocation;
+        console.log(`[ApplyDealConfig] Applied pre-calculated barter minutes:`, config.barterAllocation.total);
+
+        // Store manual minutes to prevent recalculation
+        if (!window.productState.manualMinutes) {
+          window.productState.manualMinutes = {};
+        }
+        config.barterAllocation.perStation.forEach(s => {
+          const key = `${config.parent || window.state.parent}|*|${s.callSign}`;
+          window.productState.manualMinutes[s.callSign] = {
+            prime: s.primeMinsPerDay,
+            ros: s.rosMinsPerDay
+          };
+        });
       }
 
       // Final update after all changes
