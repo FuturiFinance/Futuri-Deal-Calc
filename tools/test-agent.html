@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Deal Tools Test Agent</title>
+  <style>
+    :root {
+      --brand: #672477;
+      --bg: #f5f0f8;
+      --surface: #ffffff;
+      --text: #1b1326;
+      --muted: #6b6175;
+      --border: #e0d6e8;
+      --success: #16794c;
+      --error: #b42318;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 20px;
+      line-height: 1.5;
+    }
+
+    h1 {
+      color: var(--brand);
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .status-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .status-dot.loading { background: #f59e0b; }
+    .status-dot.ready { background: var(--success); }
+    .status-dot.error { background: var(--error); }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      padding: 10px 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px 8px 0 0;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+
+    .tab:hover {
+      background: var(--bg);
+    }
+
+    .tab.active {
+      background: var(--brand);
+      color: white;
+      border-color: var(--brand);
+    }
+
+    .tool-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 8px 8px 8px;
+      padding: 20px;
+    }
+
+    .tool-panel.active {
+      display: block;
+    }
+
+    .tool-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .tool-desc {
+      color: var(--muted);
+      font-size: 14px;
+      margin-bottom: 16px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(103, 36, 119, 0.1);
+    }
+
+    textarea {
+      min-height: 100px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      background: var(--brand);
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .output {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 640px) {
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .run-tests {
+      margin-bottom: 20px;
+      padding: 16px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .test-results {
+      margin-top: 12px;
+    }
+
+    .test-pass {
+      color: var(--success);
+    }
+
+    .test-fail {
+      color: var(--error);
+    }
+  </style>
+</head>
+<body>
+  <h1>Deal Tools Test Agent</h1>
+  <p class="subtitle">Interactive testing interface for tools/deal-tools.js</p>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <span class="status-dot loading" id="nielsenStatus"></span>
+      <span id="nielsenLabel">Loading Nielsen data...</span>
+    </div>
+    <div class="status-item">
+      <span class="status-dot loading" id="rateCardStatus"></span>
+      <span id="rateCardLabel">Loading rate card...</span>
+    </div>
+  </div>
+
+  <div class="run-tests">
+    <button class="btn" id="btnRunTests" disabled>Run All Tests</button>
+    <span id="testSummary" style="margin-left: 12px; color: var(--muted);"></span>
+    <div class="test-results" id="testResults"></div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tool="lookupParent">lookupParent</div>
+    <div class="tab" data-tool="lookupMarkets">lookupMarkets</div>
+    <div class="tab" data-tool="lookupStations">lookupStations</div>
+    <div class="tab" data-tool="getProductCatalog">getProductCatalog</div>
+    <div class="tab" data-tool="calculateProductPrice">calculateProductPrice</div>
+    <div class="tab" data-tool="calculateBarterMinutes">calculateBarterMinutes</div>
+    <div class="tab" data-tool="buildDeal">buildDeal</div>
+    <div class="tab" data-tool="validateDeal">validateDeal</div>
+  </div>
+
+  <!-- lookupParent -->
+  <div class="tool-panel active" id="panel-lookupParent">
+    <div class="tool-title">lookupParent(query)</div>
+    <div class="tool-desc">Fuzzy match parent company names. Returns matches sorted by quality.</div>
+    <div class="form-group">
+      <label for="parentQuery">Search Query</label>
+      <input type="text" id="parentQuery" placeholder="e.g. iHeart, Audacy, Spanish">
+    </div>
+    <button class="btn" onclick="runLookupParent()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-lookupParent">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- lookupMarkets -->
+  <div class="tool-panel" id="panel-lookupMarkets">
+    <div class="tool-title">lookupMarkets(parentId?, query?)</div>
+    <div class="tool-desc">List markets, optionally filtered by parent company.</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="marketParent">Parent Company (optional)</label>
+        <input type="text" id="marketParent" placeholder="e.g. iHeartMedia, Inc.">
+      </div>
+      <div class="form-group">
+        <label for="marketQuery">Market Query (optional)</label>
+        <input type="text" id="marketQuery" placeholder="e.g. New York">
+      </div>
+    </div>
+    <button class="btn" onclick="runLookupMarkets()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-lookupMarkets">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- lookupStations -->
+  <div class="tool-panel" id="panel-lookupStations">
+    <div class="tool-title">lookupStations(parentId?, marketName?, query?)</div>
+    <div class="tool-desc">List stations with AQH data, optionally filtered.</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="stationParent">Parent Company (optional)</label>
+        <input type="text" id="stationParent" placeholder="e.g. iHeartMedia, Inc.">
+      </div>
+      <div class="form-group">
+        <label for="stationMarket">Market (optional)</label>
+        <input type="text" id="stationMarket" placeholder="e.g. New York [PPM+D]">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="stationQuery">Station Query (optional)</label>
+      <input type="text" id="stationQuery" placeholder="e.g. WLTW">
+    </div>
+    <button class="btn" onclick="runLookupStations()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-lookupStations">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- getProductCatalog -->
+  <div class="tool-panel" id="panel-getProductCatalog">
+    <div class="tool-title">getProductCatalog()</div>
+    <div class="tool-desc">Get full product list with pricing information.</div>
+    <button class="btn" onclick="runGetProductCatalog()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-getProductCatalog">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- calculateProductPrice -->
+  <div class="tool-panel" id="panel-calculateProductPrice">
+    <div class="tool-title">calculateProductPrice(productId, assignments, extras)</div>
+    <div class="tool-desc">Calculate price for a product configuration.</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="priceProduct">Product ID</label>
+        <select id="priceProduct">
+          <option value="topline">topline</option>
+          <option value="content_automation">content_automation</option>
+          <option value="spoton">spoton</option>
+          <option value="topicpulse">topicpulse</option>
+          <option value="prep_plus">prep_plus</option>
+          <option value="post">post</option>
+          <option value="streaming">streaming</option>
+          <option value="mobile">mobile</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="pricePricingType">Pricing Type</label>
+        <select id="pricePricingType">
+          <option value="cash">Cash</option>
+          <option value="barter">Barter</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="priceExtras">Extras (JSON)</label>
+      <textarea id="priceExtras">{
+  "tier": "access",
+  "numberOfMarkets": 1,
+  "creditsPerMonth": 100
+}</textarea>
+      <div class="hint">Product-specific options: tier, numberOfMarkets, creditsPerMonth, customPrice, etc.</div>
+    </div>
+    <div class="form-group">
+      <label for="priceAssignments">Assignments (JSON)</label>
+      <textarea id="priceAssignments">{
+  "stations": ["Station1", "Station2"],
+  "markets": ["New York"]
+}</textarea>
+    </div>
+    <button class="btn" onclick="runCalculateProductPrice()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-calculateProductPrice">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- calculateBarterMinutes -->
+  <div class="tool-panel" id="panel-calculateBarterMinutes">
+    <div class="tool-title">calculateBarterMinutes(targetAnnualValue, stations, cpm)</div>
+    <div class="tool-desc">Calculate barter minutes needed to hit target value.</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="barterTarget">Target Annual Value ($)</label>
+        <input type="number" id="barterTarget" value="100000">
+      </div>
+      <div class="form-group">
+        <label for="barterCpm">CPM ($)</label>
+        <input type="number" id="barterCpm" value="2.00" step="0.01">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="barterStations">Stations (JSON array)</label>
+      <textarea id="barterStations">[
+  { "callSign": "WSKQ-FM", "primeAQH": 24800, "rosAQH": 21700 },
+  { "callSign": "WPAT-FM", "primeAQH": 12000, "rosAQH": 10600 }
+]</textarea>
+    </div>
+    <button class="btn" onclick="runCalculateBarterMinutes()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-calculateBarterMinutes">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- buildDeal -->
+  <div class="tool-panel" id="panel-buildDeal">
+    <div class="tool-title">buildDeal(config)</div>
+    <div class="tool-desc">Build complete deal object from configuration.</div>
+    <div class="form-group">
+      <label for="dealConfig">Deal Configuration (JSON)</label>
+      <textarea id="dealConfig" style="min-height: 250px;">{
+  "dealType": "broadcast",
+  "parent": "iHeartMedia, Inc.",
+  "markets": ["New York [PPM+D]"],
+  "stations": ["iHeartMedia, Inc.|New York [PPM+D]|WLTW-FM"],
+  "products": ["topicpulse", "prep_plus"],
+  "pricingType": "cash",
+  "cpm": 2.0,
+  "dealMeta": {
+    "termMonths": 36,
+    "autoRenewEnabled": true,
+    "autoRenewMonths": 12
+  }
+}</textarea>
+    </div>
+    <button class="btn" onclick="runBuildDeal()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-buildDeal">Results will appear here...</div>
+    </div>
+  </div>
+
+  <!-- validateDeal -->
+  <div class="tool-panel" id="panel-validateDeal">
+    <div class="tool-title">validateDeal(deal)</div>
+    <div class="tool-desc">Validate deal and return issues.</div>
+    <div class="form-group">
+      <label for="validateDealInput">Deal Object (JSON)</label>
+      <textarea id="validateDealInput" style="min-height: 200px;">{
+  "dealType": "broadcast",
+  "parent": "Test Company",
+  "stations": ["Test|Market|Station"],
+  "products": ["topicpulse"],
+  "pricingType": "barter",
+  "barterTargetAnnual": 100000,
+  "barterAllocation": {
+    "perStation": [{ "callSign": "Station", "primeMinsPerDay": 1, "rosMinsPerDay": 1, "annualValue": 80000 }],
+    "total": { "primeMinsPerDay": 1, "rosMinsPerDay": 1, "annualValue": 80000 }
+  }
+}</textarea>
+    </div>
+    <button class="btn" onclick="runValidateDeal()">Run</button>
+    <div class="form-group" style="margin-top: 16px;">
+      <label>Output</label>
+      <div class="output" id="output-validateDeal">Results will appear here...</div>
+    </div>
+  </div>
+
+  <script src="deal-tools.js"></script>
+  <script>
+    let nielsenData = null;
+    let rateCard = null;
+
+    // Load data
+    async function init() {
+      try {
+        // Load Nielsen data
+        const nielsenResponse = await fetch('../radio_data_fall2025.json');
+        nielsenData = await nielsenResponse.json();
+        DealTools.loadNielsenBook(nielsenData);
+        document.getElementById('nielsenStatus').className = 'status-dot ready';
+        document.getElementById('nielsenLabel').textContent = `Nielsen data loaded (${nielsenData.stations.length} stations)`;
+        window._testNielsenData = nielsenData;
+      } catch (e) {
+        document.getElementById('nielsenStatus').className = 'status-dot error';
+        document.getElementById('nielsenLabel').textContent = 'Failed to load Nielsen data';
+        console.error('Nielsen load error:', e);
+      }
+
+      try {
+        // Load rate card
+        const rateCardResponse = await fetch('../radio_rate_card.json');
+        rateCard = await rateCardResponse.json();
+        DealTools.loadRateCard(rateCard);
+        document.getElementById('rateCardStatus').className = 'status-dot ready';
+        document.getElementById('rateCardLabel').textContent = `Rate card loaded (${rateCard.products.length} products)`;
+        window._testRateCard = rateCard;
+      } catch (e) {
+        document.getElementById('rateCardStatus').className = 'status-dot error';
+        document.getElementById('rateCardLabel').textContent = 'Failed to load rate card';
+        console.error('Rate card load error:', e);
+      }
+
+      // Enable test button
+      document.getElementById('btnRunTests').disabled = false;
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tool-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById('panel-' + tab.dataset.tool).classList.add('active');
+      });
+    });
+
+    // Tool runners
+    function runLookupParent() {
+      const query = document.getElementById('parentQuery').value;
+      try {
+        const result = DealTools.lookupParent(query, { data: nielsenData });
+        document.getElementById('output-lookupParent').textContent = JSON.stringify(result.slice(0, 20), null, 2);
+      } catch (e) {
+        document.getElementById('output-lookupParent').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runLookupMarkets() {
+      const parent = document.getElementById('marketParent').value || null;
+      const query = document.getElementById('marketQuery').value || null;
+      try {
+        const result = DealTools.lookupMarkets(parent, query, { data: nielsenData });
+        document.getElementById('output-lookupMarkets').textContent = JSON.stringify(result.slice(0, 30), null, 2);
+      } catch (e) {
+        document.getElementById('output-lookupMarkets').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runLookupStations() {
+      const parent = document.getElementById('stationParent').value || null;
+      const market = document.getElementById('stationMarket').value || null;
+      const query = document.getElementById('stationQuery').value || null;
+      try {
+        const result = DealTools.lookupStations(parent, market, query, { data: nielsenData });
+        document.getElementById('output-lookupStations').textContent = JSON.stringify(result.slice(0, 30), null, 2);
+      } catch (e) {
+        document.getElementById('output-lookupStations').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runGetProductCatalog() {
+      try {
+        const result = DealTools.getProductCatalog({ rateCard });
+        document.getElementById('output-getProductCatalog').textContent = JSON.stringify(result, null, 2);
+      } catch (e) {
+        document.getElementById('output-getProductCatalog').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runCalculateProductPrice() {
+      const productId = document.getElementById('priceProduct').value;
+      const pricingType = document.getElementById('pricePricingType').value;
+      try {
+        const extras = JSON.parse(document.getElementById('priceExtras').value);
+        const assignments = JSON.parse(document.getElementById('priceAssignments').value);
+        extras.pricingType = pricingType;
+        extras.rateCard = rateCard;
+        const result = DealTools.calculateProductPrice(productId, assignments, extras);
+        document.getElementById('output-calculateProductPrice').textContent = JSON.stringify(result, null, 2);
+      } catch (e) {
+        document.getElementById('output-calculateProductPrice').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runCalculateBarterMinutes() {
+      const target = parseFloat(document.getElementById('barterTarget').value);
+      const cpm = parseFloat(document.getElementById('barterCpm').value);
+      try {
+        const stations = JSON.parse(document.getElementById('barterStations').value);
+        const result = DealTools.calculateBarterMinutes(target, stations, cpm);
+        document.getElementById('output-calculateBarterMinutes').textContent = JSON.stringify(result, null, 2);
+      } catch (e) {
+        document.getElementById('output-calculateBarterMinutes').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runBuildDeal() {
+      try {
+        const config = JSON.parse(document.getElementById('dealConfig').value);
+        config.data = nielsenData;
+        config.rateCard = rateCard;
+        const result = DealTools.buildDeal(config);
+        document.getElementById('output-buildDeal').textContent = JSON.stringify(result, null, 2);
+      } catch (e) {
+        document.getElementById('output-buildDeal').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    function runValidateDeal() {
+      try {
+        const deal = JSON.parse(document.getElementById('validateDealInput').value);
+        const result = DealTools.validateDeal(deal);
+        document.getElementById('output-validateDeal').textContent = JSON.stringify(result, null, 2);
+      } catch (e) {
+        document.getElementById('output-validateDeal').textContent = 'Error: ' + e.message;
+      }
+    }
+
+    // Run tests button
+    document.getElementById('btnRunTests').addEventListener('click', async () => {
+      const resultsDiv = document.getElementById('testResults');
+      const summarySpan = document.getElementById('testSummary');
+
+      resultsDiv.innerHTML = 'Running tests...';
+      summarySpan.textContent = '';
+
+      // Dynamically load and run tests
+      try {
+        const script = document.createElement('script');
+        script.src = 'deal-tools.test.js?' + Date.now();
+        document.body.appendChild(script);
+
+        // Wait for test results
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        if (window._testResults) {
+          const { results, passCount, failCount } = window._testResults;
+          summarySpan.textContent = `${passCount} passed, ${failCount} failed`;
+
+          let html = '<div style="margin-top: 12px;">';
+          results.forEach(r => {
+            const cls = r.status === 'PASS' ? 'test-pass' : 'test-fail';
+            const icon = r.status === 'PASS' ? '✓' : '✗';
+            html += `<div class="${cls}">${icon} ${r.name}${r.error ? ': ' + r.error : ''}</div>`;
+          });
+          html += '</div>';
+          resultsDiv.innerHTML = html;
+        }
+      } catch (e) {
+        resultsDiv.innerHTML = 'Error running tests: ' + e.message;
+      }
+    });
+
+    // Initialize
+    init();
+  </script>
+</body>
+</html>
