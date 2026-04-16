@@ -509,12 +509,34 @@
       });
     });
 
+    // Helper to format output robustly for any shape
+    function formatOutput(result, limit) {
+      // Handle { results, canCreateNew } shape
+      if (result && typeof result === 'object' && Array.isArray(result.results)) {
+        const limited = limit ? result.results.slice(0, limit) : result.results;
+        return JSON.stringify({
+          results: limited,
+          canCreateNew: result.canCreateNew,
+          _meta: { showing: limited.length, total: result.results.length }
+        }, null, 2);
+      }
+      // Handle plain array
+      if (Array.isArray(result)) {
+        const limited = limit ? result.slice(0, limit) : result;
+        return JSON.stringify(limited, null, 2) +
+          (limit && result.length > limit ? `\n\n// ... and ${result.length - limit} more` : '');
+      }
+      // Handle any other object
+      return JSON.stringify(result, null, 2);
+    }
+
     // Tool runners
     function runLookupParent() {
       const query = document.getElementById('parentQuery').value;
       try {
         const result = DealTools.lookupParent(query, { data: nielsenData });
-        document.getElementById('output-lookupParent').textContent = JSON.stringify(result.slice(0, 20), null, 2);
+        // Returns { results: [...], canCreateNew: boolean }
+        document.getElementById('output-lookupParent').textContent = formatOutput(result, 20);
       } catch (e) {
         document.getElementById('output-lookupParent').textContent = 'Error: ' + e.message;
       }
@@ -525,7 +547,8 @@
       const query = document.getElementById('marketQuery').value || null;
       try {
         const result = DealTools.lookupMarkets(parent, query, { data: nielsenData });
-        document.getElementById('output-lookupMarkets').textContent = JSON.stringify(result.slice(0, 30), null, 2);
+        // Returns plain array
+        document.getElementById('output-lookupMarkets').textContent = formatOutput(result, 30);
       } catch (e) {
         document.getElementById('output-lookupMarkets').textContent = 'Error: ' + e.message;
       }
@@ -537,7 +560,8 @@
       const query = document.getElementById('stationQuery').value || null;
       try {
         const result = DealTools.lookupStations(parent, market, query, { data: nielsenData });
-        document.getElementById('output-lookupStations').textContent = JSON.stringify(result.slice(0, 30), null, 2);
+        // Returns { results: [...], canCreateNew: boolean }
+        document.getElementById('output-lookupStations').textContent = formatOutput(result, 30);
       } catch (e) {
         document.getElementById('output-lookupStations').textContent = 'Error: ' + e.message;
       }
@@ -546,7 +570,8 @@
     function runGetProductCatalog() {
       try {
         const result = DealTools.getProductCatalog({ rateCard });
-        document.getElementById('output-getProductCatalog').textContent = JSON.stringify(result, null, 2);
+        // Returns array of products
+        document.getElementById('output-getProductCatalog').textContent = formatOutput(result);
       } catch (e) {
         document.getElementById('output-getProductCatalog').textContent = 'Error: ' + e.message;
       }
@@ -561,7 +586,8 @@
         extras.pricingType = pricingType;
         extras.rateCard = rateCard;
         const result = DealTools.calculateProductPrice(productId, assignments, extras);
-        document.getElementById('output-calculateProductPrice').textContent = JSON.stringify(result, null, 2);
+        // Returns { monthly, annual, breakdown }
+        document.getElementById('output-calculateProductPrice').textContent = formatOutput(result);
       } catch (e) {
         document.getElementById('output-calculateProductPrice').textContent = 'Error: ' + e.message;
       }
@@ -573,7 +599,8 @@
       try {
         const stations = JSON.parse(document.getElementById('barterStations').value);
         const result = DealTools.calculateBarterMinutes(target, stations, cpm);
-        document.getElementById('output-calculateBarterMinutes').textContent = JSON.stringify(result, null, 2);
+        // Returns { perStation, total }
+        document.getElementById('output-calculateBarterMinutes').textContent = formatOutput(result);
       } catch (e) {
         document.getElementById('output-calculateBarterMinutes').textContent = 'Error: ' + e.message;
       }
@@ -585,7 +612,8 @@
         config.data = nielsenData;
         config.rateCard = rateCard;
         const result = DealTools.buildDeal(config);
-        document.getElementById('output-buildDeal').textContent = JSON.stringify(result, null, 2);
+        // Returns full deal object
+        document.getElementById('output-buildDeal').textContent = formatOutput(result);
       } catch (e) {
         document.getElementById('output-buildDeal').textContent = 'Error: ' + e.message;
       }
@@ -595,7 +623,8 @@
       try {
         const deal = JSON.parse(document.getElementById('validateDealInput').value);
         const result = DealTools.validateDeal(deal);
-        document.getElementById('output-validateDeal').textContent = JSON.stringify(result, null, 2);
+        // Returns array of validation issues
+        document.getElementById('output-validateDeal').textContent = formatOutput(result);
       } catch (e) {
         document.getElementById('output-validateDeal').textContent = 'Error: ' + e.message;
       }
