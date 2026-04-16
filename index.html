@@ -8986,10 +8986,14 @@ window.ChatPanel = (function() {
         }
       }
 
-      // For Agency deals, set station count if provided (for per-station products)
-      if (config.dealType === 'agency' && config.stationCount) {
-        window.productState.agencyStationCount = config.stationCount;
-        console.log(`[ApplyDealConfig] Set agency station count: ${config.stationCount}`);
+      // For Agency deals, set license count if provided (for per-license products)
+      // Support both licenseCount and stationCount for backwards compatibility
+      const licenseCount = config.licenseCount || config.stationCount;
+      if (config.dealType === 'agency' && licenseCount) {
+        window.productState.agencyLicenseCount = licenseCount;
+        // Also set the legacy field for compatibility
+        window.productState.agencyStationCount = licenseCount;
+        console.log(`[ApplyDealConfig] Set agency license count: ${licenseCount}`);
       }
 
       // Set term months if provided

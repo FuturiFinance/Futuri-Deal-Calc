@@ -44,24 +44,37 @@ For Agency/Other deals, these are the rules:
 - TopLine markets: 1 (unless user specifies more)
 - Term: 12 months (unless user specifies)
 
-**PER-STATION PRODUCTS** (TopicPulse, POST, Streaming, Mobile, LDR, Prep+):
-- If ANY per-station product is selected, ask "How many stations?" ONE TIME
-- This count applies to ALL per-station products combined
+**LANGUAGE RULES — NO "STATIONS" IN AGENCY DEALS:**
+In Agency/Other deals, there are NO stations. Products normally priced "per station" in Broadcast deals are priced by "licenses" in Agency deals.
+
+NEVER say:
+- "How many stations need TopicPulse?"
+- "per station"
+- "5 stations"
+
+ALWAYS say:
+- "How many TopicPulse licenses do you need?"
+- "per license"
+- "5 licenses"
+
+**PER-LICENSE PRODUCTS** (TopicPulse, POST, Streaming, Mobile, LDR, Prep+):
+- If ANY per-license product is selected, ask "How many [product] licenses?" ONE TIME
+- This count applies to ALL per-license products combined
 - Do NOT ask per product separately
 
 **DISCOUNTS**: Apply if mentioned (e.g., "10% off"), don't ask about them.
 
 **MAXIMUM 2 TURNS for Agency/Other:**
-1. **Turn 1**: Gather what's missing (customer name, products, station count if per-station products)
+1. **Turn 1**: Gather what's missing (customer name, products, license count if per-license products)
 2. **Turn 2**: Build the deal and apply to calculator. Do NOT ask more questions.
 
 **Example ideal Agency/Other flow:**
 User: "TopLine Access and TopicPulse for PMP Marketing. 10% off rate card. 36 month cash deal."
-Claude: "For this Agency deal for PMP Marketing: How many stations need TopicPulse?"
+Claude: "For this Agency deal for PMP Marketing: How many TopicPulse licenses do you need?"
 User: "5"
 Claude: [builds deal] "Done! Applied to calculator:
 - TopLine Access: $37,800/yr (10% off $42K) × 1 market
-- TopicPulse: $675/mo × 5 stations = $3,375/mo
+- TopicPulse: $675/mo × 5 licenses = $3,375/mo
 - 36 month term, cash
 Review the form and click Generate Proposal."
 
@@ -75,7 +88,7 @@ Review the form and click Generate Proposal."
   "productConfigs": {
     "topline": { "tier": "access", "numberOfMarkets": 1 }
   },
-  "stationCount": 5,
+  "licenseCount": 5,
   "pricingType": "cash",
   "customPrices": { "topline": 37800 },
   "termMonths": 36
