@@ -82,6 +82,44 @@
     daysPerMonth: 30
   };
 
+  // Common broadcast industry abbreviations used in Nielsen data
+  const BROADCAST_ABBREVIATIONS = {
+    'broadcasting': 'bcstg',
+    'bcstg': 'broadcasting',
+    'company': 'co',
+    'co': 'company',
+    'corporation': 'corp',
+    'corp': 'corporation',
+    'incorporated': 'inc',
+    'inc': 'incorporated',
+    'communications': 'comm',
+    'comm': 'communications',
+    'entertainment': 'ent',
+    'ent': 'entertainment',
+    'enterprises': 'enters',
+    'enters': 'enterprises',
+    'group': 'grp',
+    'grp': 'group',
+    'media': 'med',
+    'med': 'media',
+    'network': 'net',
+    'net': 'network',
+    'radio': 'rad',
+    'rad': 'radio',
+    'television': 'tv',
+    'tv': 'television',
+    'limited': 'ltd',
+    'ltd': 'limited',
+    'association': 'assn',
+    'assn': 'association',
+    'university': 'univ',
+    'univ': 'university',
+    'national': 'natl',
+    'natl': 'national',
+    'international': 'intl',
+    'intl': 'international'
+  };
+
   const MARKET_LEVEL_PRODUCTS = ['topline', 'spoton'];
   const SPECIAL_PRODUCTS = ['topline', 'topline_cx_war_room', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'];
   const BARTER_EXCLUDED_PRODUCTS = ['topline_cx_war_room'];
@@ -214,6 +252,57 @@
   }
 
   /**
+   * Generate query variations with broadcast abbreviations expanded/contracted.
+   * Also generates partial matches (first word, first two words).
+   * @param {string} query - Original search query
+   * @returns {string[]} Array of query variations to try
+   */
+  function generateQueryVariations(query) {
+    if (!query) return [];
+
+    const variations = new Set();
+    const lowerQuery = query.toLowerCase().trim();
+    variations.add(lowerQuery);
+
+    // Split into words
+    const words = lowerQuery.split(/\s+/);
+
+    // Try replacing each word with its abbreviation/expansion
+    const expandedWords = words.map(word => {
+      if (BROADCAST_ABBREVIATIONS[word]) {
+        return [word, BROADCAST_ABBREVIATIONS[word]];
+      }
+      return [word];
+    });
+
+    // Generate all combinations of expanded/contracted words
+    function generateCombinations(wordArrays, current = []) {
+      if (current.length === wordArrays.length) {
+        variations.add(current.join(' '));
+        return;
+      }
+      for (const word of wordArrays[current.length]) {
+        generateCombinations(wordArrays, [...current, word]);
+      }
+    }
+    generateCombinations(expandedWords);
+
+    // Add partial matches (first word, first two words, etc.)
+    for (let i = 1; i < words.length; i++) {
+      const partial = words.slice(0, i).join(' ');
+      variations.add(partial);
+
+      // Also try abbreviated version of partial
+      const abbreviatedPartial = words.slice(0, i).map(w =>
+        BROADCAST_ABBREVIATIONS[w] || w
+      ).join(' ');
+      variations.add(abbreviatedPartial);
+    }
+
+    return Array.from(variations);
+  }
+
+  /**
    * Create station key
    */
   function makeStationKey(station) {
@@ -265,7 +354,8 @@
   // ============================================================================
 
   /**
-   * Fuzzy match parent company name
+   * Fuzzy match parent company name with abbreviation expansion.
+   * Tries multiple query variations to match Nielsen's abbreviated names.
    * @param {string} query - Search query (partial name, typos OK)
    * @param {object} options - { data: nielsenData }
    * @returns {{results: Array<{parentId: string, parentName: string, marketCount: number, stationCount: number, inBook: boolean}>, canCreateNew: boolean}}
@@ -293,28 +383,44 @@
       stats.stationCount++;
     });
 
-    // Score and filter
-    const results = [];
+    // Generate query variations (with abbreviations expanded/contracted)
+    const queryVariations = generateQueryVariations(query);
+
+    // Score each parent against all query variations, keep best score
+    const resultsMap = new Map();
     parentStats.forEach((stats, parentName) => {
-      const score = fuzzyScore(query, parentName);
-      if (score > 20) {  // Minimum threshold
-        results.push({
-          parentId: parentName,  // Using name as ID since that's what the app uses
+      let bestScore = 0;
+      let bestQuery = query;
+
+      // Try each query variation
+      for (const variation of queryVariations) {
+        const score = fuzzyScore(variation, parentName);
+        if (score > bestScore) {
+          bestScore = score;
+          bestQuery = variation;
+        }
+      }
+
+      if (bestScore > 20) {  // Minimum threshold
+        resultsMap.set(parentName, {
+          parentId: parentName,
           parentName: parentName,
           marketCount: stats.markets.size,
           stationCount: stats.stationCount,
           inBook: true,
-          _score: score
+          _score: bestScore,
+          _matchedQuery: bestQuery
         });
       }
     });
 
-    // Sort by score descending
+    // Convert to array and sort by score descending
+    const results = Array.from(resultsMap.values());
     results.sort((a, b) => b._score - a._score);
 
-    // Remove internal score field and return with canCreateNew flag
+    // Remove internal fields and return with canCreateNew flag
     const cleanResults = results.map(r => {
-      const { _score, ...rest } = r;
+      const { _score, _matchedQuery, ...rest } = r;
       return rest;
     });
 

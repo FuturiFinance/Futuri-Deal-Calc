@@ -291,6 +291,28 @@ ASK ONLY WHEN:
 - Upsell scenario unclear (adding vs replacing)
 
 ═══════════════════════════════════════════════════════════════════════════════
+PARENT COMPANY NAME MATCHING
+═══════════════════════════════════════════════════════════════════════════════
+
+Nielsen data uses abbreviated company names. The lookup_parent tool now handles
+abbreviation expansion automatically, but if no match is found:
+
+- Try shorter versions of the name (just the first word or two)
+- Common abbreviations in Nielsen data:
+  Broadcasting=Bcstg, Company=Co, Corporation=Corp, Communications=Comm,
+  Incorporated=Inc, Entertainment=Ent, Enterprises=Enters, Group=Grp,
+  Media=Med, Network=Net, Radio=Rad, Television=TV, Limited=Ltd,
+  Association=Assn, University=Univ, National=Natl, International=Intl
+
+Examples:
+- "Dick Broadcasting" → automatically tries "Dick Bcstg" → finds "Dick Bcstg Co."
+- "Salem Communications" → automatically tries "Salem Comm" → finds match
+- If still no match, try just "Dick" or just "Salem" as a fallback
+
+ALWAYS try a second lookup with a shorter query before telling the user the
+company wasn't found.
+
+═══════════════════════════════════════════════════════════════════════════════
 TOOLS AVAILABLE
 ═══════════════════════════════════════════════════════════════════════════════
 
