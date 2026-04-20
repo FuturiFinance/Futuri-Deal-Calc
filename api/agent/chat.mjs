@@ -190,6 +190,15 @@ async function executeTool(toolName, toolInput, DealTools, nielsenData, rateCard
         return { success: true, result };
       }
 
+      case "calculate_faai_price": {
+        const result = DealTools.calculateFAAIPrice(
+          toolInput.shows,
+          toolInput.minutes_per_day,
+          toolInput.margin
+        );
+        return { success: true, result };
+      }
+
       case "build_deal": {
         const config = {
           ...(toolInput.config || {}),

@@ -853,7 +853,81 @@
   }
 
   // ============================================================================
-  // TOOL 7: buildDeal
+  // TOOL 7: calculateFAAIPrice
+  // ============================================================================
+
+  /**
+   * Calculate FAAI (Futuri AI Voice) pricing based on shows and minutes per day.
+   * Uses dynamic formula based on character usage, ElevenLabs costs, and margin.
+   *
+   * Formula:
+   * - Monthly Characters = Shows × Minutes/day × 150 words × 5 chars × 30 days
+   * - ElevenLabs Cost = Monthly Characters / 1000 × $0.20
+   * - LLM Cost = ElevenLabs Cost × 25%
+   * - Total Cost = ElevenLabs + LLM
+   * - Cash Rate = Total Cost / (1 - margin)
+   * - Barter Rate = Cash Rate × 1.4
+   *
+   * @param {number} shows - Number of shows
+   * @param {number} minutesPerDay - Minutes of content per day per show
+   * @param {number} [margin=0.90] - Profit margin (default 90%)
+   * @returns {object} Pricing breakdown
+   */
+  function calculateFAAIPrice(shows, minutesPerDay, margin) {
+    // Validate inputs
+    shows = Number(shows) || 0;
+    minutesPerDay = Number(minutesPerDay) || 0;
+    margin = margin !== undefined ? Number(margin) : 0.90;
+
+    if (shows <= 0 || minutesPerDay <= 0) {
+      return {
+        error: "Shows and minutes per day must be positive numbers",
+        monthly: 0,
+        annual: 0,
+        barterMonthly: 0,
+        barterAnnual: 0
+      };
+    }
+
+    // Fixed constants
+    const WORDS_PER_MINUTE = 150;
+    const CHARS_PER_WORD = 5;
+    const DAYS_PER_MONTH = 30;
+    const ELEVENLABS_COST_PER_1K_CHARS = 0.20;
+    const LLM_COST_MULTIPLIER = 0.25;
+    const BARTER_MULTIPLIER = 1.4;
+
+    // Calculate monthly characters
+    const monthlyChars = shows * minutesPerDay * WORDS_PER_MINUTE * CHARS_PER_WORD * DAYS_PER_MONTH;
+
+    // Calculate costs
+    const elevenLabsCost = (monthlyChars / 1000) * ELEVENLABS_COST_PER_1K_CHARS;
+    const llmCost = elevenLabsCost * LLM_COST_MULTIPLIER;
+    const totalCost = elevenLabsCost + llmCost;
+
+    // Calculate rates
+    const cashRate = totalCost / (1 - margin);
+    const barterRate = cashRate * BARTER_MULTIPLIER;
+
+    return {
+      shows,
+      minutesPerDay,
+      margin,
+      monthlyCharacters: monthlyChars,
+      costs: {
+        elevenLabs: Math.round(elevenLabsCost * 100) / 100,
+        llm: Math.round(llmCost * 100) / 100,
+        total: Math.round(totalCost * 100) / 100
+      },
+      monthly: Math.round(cashRate * 100) / 100,
+      annual: Math.round(cashRate * 12 * 100) / 100,
+      barterMonthly: Math.round(barterRate * 100) / 100,
+      barterAnnual: Math.round(barterRate * 12 * 100) / 100
+    };
+  }
+
+  // ============================================================================
+  // TOOL 8: buildDeal
   // ============================================================================
 
   /**
@@ -1267,6 +1341,7 @@
     getProductCatalog,
     calculateProductPrice,
     calculateBarterMinutes,
+    calculateFAAIPrice,
     buildDeal,
     validateDeal,
 

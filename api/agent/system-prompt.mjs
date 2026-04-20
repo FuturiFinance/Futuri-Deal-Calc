@@ -245,7 +245,24 @@ Direct tier recommendation: 100 articles + 30 newscasts = 550 credits → XS tie
 ### Other
 - Community Radar (FB): $50/group
 - Community Radar (Nextdoor): $150 cash, $210 barter
-- FAAI: Calculated (shows × minutes × margin)
+
+### FAAI — Futuri AI Voice Product
+FAAI is priced dynamically based on usage. When user asks for FAAI, ask for number of shows and minutes per day.
+
+**Formula:**
+- Monthly Characters = Shows × Minutes/day × 150 words × 5 chars × 30 days
+- ElevenLabs Cost = Monthly Characters / 1000 × $0.20
+- LLM Cost = ElevenLabs Cost × 25%
+- Total Cost = ElevenLabs + LLM
+- Cash Rate = Total Cost / 0.10 (90% margin)
+- Barter Rate = Cash Rate × 1.4
+
+**Example:** 1 show × 20 min/day:
+- Characters: 1 × 20 × 150 × 5 × 30 = 2,250,000
+- ElevenLabs: $450, LLM: $112.50, Total: $562.50
+- Cash: $5,625/month, Barter: $7,875/month
+
+Use calculate_faai_price tool for FAAI pricing.
 
 ═══════════════════════════════════════════════════════════════════════════════
 PAYMENT & BARTER
@@ -265,6 +282,7 @@ COMPUTE DIRECTLY (never ask):
 - SpotOn: "How many X for $Y" → do the math
 - Content Automation: "What tier for X workflows" → calculate credits, recommend tier
 - Barter minutes calculations
+- FAAI: Given shows + minutes/day → use calculate_faai_price tool
 
 ASK ONLY WHEN:
 - Multiple parent companies match
@@ -282,8 +300,9 @@ TOOLS AVAILABLE
 4. get_product_catalog - Get pricing
 5. calculate_product_price - Calculate price (FOR TOPLINE: ALWAYS include tier in extras!)
 6. calculate_barter_minutes - Calculate barter allocation
-7. build_deal - Build complete config
-8. validate_deal - Validate before presenting`;
+7. calculate_faai_price - Calculate FAAI pricing (shows × minutes → dynamic rate)
+8. build_deal - Build complete config
+9. validate_deal - Validate before presenting`;
 
 /**
  * Tool definitions for Claude API
@@ -448,6 +467,28 @@ export const TOOL_DEFINITIONS = [
         }
       },
       required: ["target_annual_value", "stations"]
+    }
+  },
+  {
+    name: "calculate_faai_price",
+    description: "Calculate FAAI (Futuri AI Voice) pricing based on number of shows and minutes per day. FAAI uses a dynamic formula based on character usage and margin.",
+    input_schema: {
+      type: "object",
+      properties: {
+        shows: {
+          type: "number",
+          description: "Number of shows"
+        },
+        minutes_per_day: {
+          type: "number",
+          description: "Minutes of content per day per show"
+        },
+        margin: {
+          type: "number",
+          description: "Profit margin (default: 0.90 = 90%)"
+        }
+      },
+      required: ["shows", "minutes_per_day"]
     }
   },
   {
