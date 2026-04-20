@@ -9027,21 +9027,63 @@ window.ChatPanel = (function() {
       }
 
       // Set barter allocation if provided (from barterAllocation)
+      // Must run AFTER stations and products are set (they run at 300ms and 400ms)
       if (config.barterAllocation?.perStation && window.productState) {
-        window.productState.barterAllocation = config.barterAllocation;
-        console.log(`[ApplyDealConfig] Applied pre-calculated barter minutes:`, config.barterAllocation.total);
+        setTimeout(() => {
+          window.productState.barterAllocation = config.barterAllocation;
+          console.log(`[ApplyDealConfig] Applying pre-calculated barter minutes:`, config.barterAllocation.total);
 
-        // Store manual minutes to prevent recalculation
-        if (!window.productState.manualMinutes) {
-          window.productState.manualMinutes = {};
-        }
-        config.barterAllocation.perStation.forEach(s => {
-          const key = `${config.parent || window.state.parent}|*|${s.callSign}`;
-          window.productState.manualMinutes[s.callSign] = {
-            prime: s.primeMinsPerDay,
-            ros: s.rosMinsPerDay
-          };
-        });
+          // Ensure manualMinutes is a Map
+          if (!(window.productState.manualMinutes instanceof Map)) {
+            window.productState.manualMinutes = new Map();
+          }
+
+          // Build a map from callSign to full station key
+          const callSignToKey = new Map();
+          window.state.stations.forEach(stationKey => {
+            const parts = stationKey.split('|');
+            if (parts.length >= 3) {
+              const callSign = parts[2];
+              callSignToKey.set(callSign, stationKey);
+            }
+          });
+
+          // Get products that use barter (exclude cash-only products)
+          const cashOnlyProducts = ['topline_cx_war_room'];
+          const barterProducts = Array.from(window.productState.selectedProducts).filter(productId => {
+            return !cashOnlyProducts.includes(productId);
+          });
+
+          console.log(`[ApplyDealConfig] Barter products:`, barterProducts);
+
+          // Only apply pre-calculated minutes if there's exactly one barter product
+          // For multi-product deals, let the UI auto-calculate per-product allocations
+          if (barterProducts.length === 1) {
+            const productId = barterProducts[0];
+            console.log(`[ApplyDealConfig] Single barter product: ${productId}, applying pre-calculated minutes`);
+
+            // Apply barter minutes for each station to this product
+            config.barterAllocation.perStation.forEach(s => {
+              const stationKey = callSignToKey.get(s.callSign);
+              if (!stationKey) {
+                console.warn(`[ApplyDealConfig] Could not find station key for call sign: ${s.callSign}`);
+                return;
+              }
+
+              const manualKey = `${productId}:${stationKey}`;
+              window.productState.manualMinutes.set(manualKey, {
+                prime: s.primeMinsPerDay,
+                ros: s.rosMinsPerDay
+              });
+              console.log(`[ApplyDealConfig] Set barter minutes for ${s.callSign}: Prime=${s.primeMinsPerDay}, ROS=${s.rosMinsPerDay}`);
+            });
+          } else if (barterProducts.length > 1) {
+            console.log(`[ApplyDealConfig] Multiple barter products (${barterProducts.length}), letting UI auto-calculate per-product minutes`);
+          }
+
+          // Trigger barter recalculation to update UI
+          window.updateProductSummary?.();
+        }, 500);
       }
 
       // Final update after all changes
@@ -9049,7 +9091,7 @@ window.ChatPanel = (function() {
         window.updatePreview?.();
         window.updateProductSummary?.();
         addMessage('Deal configuration applied to calculator!', 'assistant');
-      }, 600);
+      }, 700);
 
     } catch (err) {
       console.error('Error applying deal config:', err);

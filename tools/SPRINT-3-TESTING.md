@@ -559,3 +559,56 @@ Complete workflows now working:
 **Ambiguous:**
 1. Claude asks: "Broadcast or Agency/Other?"
 2. User answers → correct workflow follows
+
+---
+
+## Round 7 Testing - Barter Minutes Pass-Through Fix (2026-04-20)
+
+### Issue: Barter Minutes Not Applying to Calculator
+
+**Problem**: Claude correctly calculated barter minutes per station (e.g., 2 Prime + 2 ROS for WKRR-FM) but when "Apply to Calculator" ran, every station got 1 Prime / 1 ROS instead of the calculated values.
+
+**Root Cause**: The `applyDealConfig()` function had several bugs:
+1. Set `manualMinutes` as a plain object instead of a Map
+2. Used call sign as key (e.g., `WKRR-FM`) instead of required format `productId:stationKey`
+3. Didn't map call signs to full station keys
+4. Didn't trigger barter UI recalculation after setting values
+
+### Fix Applied
+
+Updated `applyDealConfig()` in `index.html`:
+1. Initialize `manualMinutes` as a Map (not plain object)
+2. Build a lookup from call signs to full station keys (`parent|market|callSign`)
+3. Use correct key format: `productId:stationKey`
+4. Only apply pre-calculated minutes for single-product barter deals (multi-product lets UI auto-calculate)
+5. Trigger `updateProductSummary()` to refresh barter UI
+
+### Test: Dick Broadcasting Barter Deal
+
+**Prompt**: "Dick Broadcasting, all markets and stations, TopLine Enterprise at $100K barter value"
+
+**Expected**:
+1. Claude calculates per-station minutes (e.g., 2+2 for most stations)
+2. Click Apply to Calculator
+3. Each station shows the correct Prime and ROS minutes from Claude's calculation — not 1/1
+
+**Test Result**: PENDING - Ready for manual testing after deployment
+
+**Key Code Changes**:
+```javascript
+// Build call sign to station key map
+const callSignToKey = new Map();
+window.state.stations.forEach(stationKey => {
+  const parts = stationKey.split('|');
+  if (parts.length >= 3) {
+    callSignToKey.set(parts[2], stationKey);  // parts[2] is call sign
+  }
+});
+
+// Apply minutes with correct key format
+const manualKey = `${productId}:${stationKey}`;
+window.productState.manualMinutes.set(manualKey, {
+  prime: s.primeMinsPerDay,
+  ros: s.rosMinsPerDay
+});
+```
