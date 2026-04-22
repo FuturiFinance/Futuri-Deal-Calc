@@ -7280,6 +7280,42 @@ document.addEventListener("click", async (e) => {
     // Calculate total deal value at list price
     const totalAnnualValue = totalMonthlyAllStations * 12;
 
+    // === DEBUG: Capture TopLine calculation values ===
+    const debugInfo = {
+      toplineStateNumberOfMarkets: window.toplineState?.numberOfMarkets || 'undefined',
+      getTopLineAssignedMarketCountResult: typeof getTopLineAssignedMarketCount === 'function' ? getTopLineAssignedMarketCount() : 'function not found',
+      toplineStateTier: window.toplineState?.tier || 'undefined',
+      toplineStatePriceOverride: window.toplineState?.priceOverride || 'none',
+      calculateTopLineCostsTotalMonthly: 'N/A',
+      calculateTopLineCostsTotalAnnual: 'N/A',
+      calculateTopLineCostsNumberOfMarkets: 'N/A',
+      toplineMonthlyValueFromGetProductsForBarter: 'N/A',
+      barterMultiplier: (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0,
+      pricingType: pricingType,
+      dealType: window.state?.dealType || 'undefined',
+      productAssignmentsTopline: 'N/A',
+      productAssignmentsToplineSize: 'N/A',
+      allMarketsCount: getUniqueMarketsFromStations().length,
+      allMarkets: getUniqueMarketsFromStations().join(', ')
+    };
+
+    // Get calculateTopLineCosts values
+    if (window.productState?.selectedProducts?.has('topline')) {
+      try {
+        const costs = calculateTopLineCosts();
+        debugInfo.calculateTopLineCostsTotalMonthly = costs.totalMonthly;
+        debugInfo.calculateTopLineCostsTotalAnnual = costs.totalAnnual;
+        debugInfo.calculateTopLineCostsNumberOfMarkets = costs.numberOfMarkets;
+      } catch (e) {
+        debugInfo.calculateTopLineCostsError = e.message;
+      }
+
+      // Get product assignments for topline
+      const toplineAssignments = window.productState.productAssignments?.get('topline');
+      debugInfo.productAssignmentsTopline = toplineAssignments ? Array.from(toplineAssignments).join(', ') : 'not set (defaults to all)';
+      debugInfo.productAssignmentsToplineSize = toplineAssignments ? toplineAssignments.size : 'not set';
+    }
+
     // Calculate per-product breakdown
     // Sum cash values across all stations/markets for each product
     // Only include standard products (not TopLine, SpotOn, etc.)
@@ -7292,6 +7328,14 @@ document.addEventListener("click", async (e) => {
       const unitPrice = getProductUnitListPrice(p);
       const assignedStations = getAssignedStationsForProduct(p.id);
 
+      // DEBUG: Capture TopLine-specific values
+      if (p.id === 'topline') {
+        debugInfo.toplineMonthlyValueFromGetProductsForBarter = p.calculatedValue || 'not set';
+        debugInfo.toplineUnitPrice = unitPrice;
+        debugInfo.toplineAssignedStationsCount = assignedStations.length;
+        debugInfo.toplineIsSpecialProduct = p.isSpecialProduct;
+      }
+
       if (!assignedStations.length) return;
 
       // Calculate list price and cash for this product
@@ -7302,6 +7346,12 @@ document.addEventListener("click", async (e) => {
         // Special products: calculatedValue already includes all markets/stations
         // Do NOT multiply by market count again - just use the calculated value directly
         productListPriceTotal = unitPrice;  // This is already the total for all assigned markets
+
+        // DEBUG: Capture special product list price
+        if (p.id === 'topline') {
+          debugInfo.toplineProductListPriceTotal = productListPriceTotal;
+        }
+
         if (pricingType === 'mixed' && isMarketLevelProduct(p.id)) {
           const assignments = getProductAssignments(p.id);
           assignments.forEach(market => {
@@ -7446,6 +7496,43 @@ document.addEventListener("click", async (e) => {
           <strong>Covered:</strong> ${pricingType === 'mixed' ? 'Cash + Barter' : 'Barter'} fully covers the deal value.
         </div>
         `}
+
+        <!-- DEBUG OUTPUT - REMOVE AFTER FIXING -->
+        <div style="margin-top: 16px; padding: 12px; background: #fffbe6; border: 2px solid #faad14; border-radius: 8px; font-family: monospace; font-size: 11px; line-height: 1.6;">
+          <div style="font-weight: bold; font-size: 13px; color: #d48806; margin-bottom: 8px;">🔍 DEBUG — Barter Target Calculation</div>
+          <div><strong>Deal Type:</strong> ${debugInfo.dealType}</div>
+          <div><strong>Pricing Type:</strong> ${debugInfo.pricingType}</div>
+          <div><strong>Barter Multiplier:</strong> ${debugInfo.barterMultiplier}</div>
+          <div style="margin-top: 8px; border-top: 1px dashed #faad14; padding-top: 8px;"><strong style="color: #d48806;">TopLine State:</strong></div>
+          <div>• toplineState.numberOfMarkets: <strong>${debugInfo.toplineStateNumberOfMarkets}</strong></div>
+          <div>• toplineState.tier: <strong>${debugInfo.toplineStateTier}</strong></div>
+          <div>• toplineState.priceOverride: <strong>${debugInfo.toplineStatePriceOverride}</strong></div>
+          <div style="margin-top: 8px; border-top: 1px dashed #faad14; padding-top: 8px;"><strong style="color: #d48806;">Market Assignments:</strong></div>
+          <div>• getTopLineAssignedMarketCount(): <strong style="color: #1890ff;">${debugInfo.getTopLineAssignedMarketCountResult}</strong></div>
+          <div>• productAssignments.get('topline'): <strong>${debugInfo.productAssignmentsTopline}</strong></div>
+          <div>• productAssignments size: <strong>${debugInfo.productAssignmentsToplineSize}</strong></div>
+          <div>• All available markets (${debugInfo.allMarketsCount}): ${debugInfo.allMarkets}</div>
+          <div style="margin-top: 8px; border-top: 1px dashed #faad14; padding-top: 8px;"><strong style="color: #d48806;">calculateTopLineCosts() Output:</strong></div>
+          <div>• totalMonthly: <strong>${typeof debugInfo.calculateTopLineCostsTotalMonthly === 'number' ? '$' + debugInfo.calculateTopLineCostsTotalMonthly.toLocaleString() : debugInfo.calculateTopLineCostsTotalMonthly}</strong></div>
+          <div>• totalAnnual: <strong>${typeof debugInfo.calculateTopLineCostsTotalAnnual === 'number' ? '$' + debugInfo.calculateTopLineCostsTotalAnnual.toLocaleString() : debugInfo.calculateTopLineCostsTotalAnnual}</strong></div>
+          <div>• numberOfMarkets (from costs): <strong>${debugInfo.calculateTopLineCostsNumberOfMarkets}</strong></div>
+          <div style="margin-top: 8px; border-top: 1px dashed #faad14; padding-top: 8px;"><strong style="color: #d48806;">getProductsForBarter() Output for TopLine:</strong></div>
+          <div>• calculatedValue (monthlyValue): <strong style="color: #52c41a;">${typeof debugInfo.toplineMonthlyValueFromGetProductsForBarter === 'number' ? '$' + debugInfo.toplineMonthlyValueFromGetProductsForBarter.toLocaleString() : debugInfo.toplineMonthlyValueFromGetProductsForBarter}</strong></div>
+          <div>• unitPrice: <strong>${typeof debugInfo.toplineUnitPrice === 'number' ? '$' + debugInfo.toplineUnitPrice.toLocaleString() : debugInfo.toplineUnitPrice || 'N/A'}</strong></div>
+          <div>• isSpecialProduct: <strong>${debugInfo.toplineIsSpecialProduct || 'N/A'}</strong></div>
+          <div>• assignedStationsCount: <strong>${debugInfo.toplineAssignedStationsCount || 'N/A'}</strong></div>
+          <div>• productListPriceTotal: <strong>${typeof debugInfo.toplineProductListPriceTotal === 'number' ? '$' + debugInfo.toplineProductListPriceTotal.toLocaleString() : debugInfo.toplineProductListPriceTotal || 'N/A'}</strong></div>
+          <div style="margin-top: 8px; border-top: 1px dashed #faad14; padding-top: 8px;"><strong style="color: #d48806;">Final Values:</strong></div>
+          <div>• <strong>Barter Products Target (monthly):</strong> <span style="color: #f5222d; font-size: 13px;">${money(standardProductsListPriceMonthly)}</span></div>
+          <div>• <strong>Barter Products Target (annual):</strong> <span style="color: #f5222d; font-size: 13px;">${money(standardProductsListPriceAnnual)}</span></div>
+          <div>• <strong>Total Deal Value (monthly):</strong> <span style="color: #1890ff; font-size: 13px;">${money(totalMonthlyAllStations)}</span></div>
+          <div>• <strong>Total Deal Value (annual):</strong> <span style="color: #1890ff; font-size: 13px;">${money(totalAnnualValue)}</span></div>
+          <div style="margin-top: 8px; padding: 8px; background: ${standardProductsListPriceAnnual > totalAnnualValue * 1.1 ? '#fff1f0' : '#f6ffed'}; border-radius: 4px;">
+            <strong>Ratio:</strong> Barter Target / Deal Value = <strong>${(standardProductsListPriceAnnual / totalAnnualValue).toFixed(2)}x</strong>
+            ${standardProductsListPriceAnnual > totalAnnualValue * 1.1 ? '<span style="color: #f5222d;"> ⚠️ TARGET IS HIGHER THAN DEAL VALUE!</span>' : '<span style="color: #52c41a;"> ✓ OK</span>'}
+          </div>
+        </div>
+        <!-- END DEBUG OUTPUT -->
       </div>
     `;
   }
