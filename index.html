@@ -4337,47 +4337,48 @@ document.addEventListener("click", async (e) => {
     };
 
     function calculateTopLineCosts() {
+      // IMPORTANT: This function returns the CASH LIST PRICE (no barter multiplier).
+      // The 1.4x barter multiplier should be applied ONLY when calculating the Barter Products Target.
+      // This is the single source of truth for TopLine pricing - all other code should use this function.
       const s = window.toplineState;
       const p = TOPLINE_PRICING;
-      const pricingType = window.productState.pricingType;
-      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
-      // Base product (multiplied by number of markets)
+      // Base product (multiplied by number of markets) - NO barter multiplier
       const numMarkets = Math.max(1, s.numberOfMarkets || 1);
-      const baseAnnual = (p.tierPrices[s.tier] || 0) * numMarkets * multiplier;
+      const baseAnnual = (p.tierPrices[s.tier] || 0) * numMarkets;
 
       // Additional users (per deal, not per market)
       const additionalUsers = Math.max(0, s.usersNeeded - p.usersIncluded);
-      const usersAnnual = additionalUsers * p.additionalUserMonthly * 12 * multiplier;
+      const usersAnnual = additionalUsers * p.additionalUserMonthly * 12;
 
       // Additional accounts (per deal, not per market)
       const additionalAccounts = Math.max(0, s.accountsNeeded - p.accountsIncluded);
       const accountBlocks = Math.ceil(additionalAccounts / 5);
-      const accountsAnnual = accountBlocks * p.additionalAccountBlockMonthly * 12 * multiplier;
+      const accountsAnnual = accountBlocks * p.additionalAccountBlockMonthly * 12;
 
       // Base subtotal
       const baseSubtotal = baseAnnual + usersAnnual + accountsAnnual;
 
       // Attribution
-      const attributionAnnual = s.attributionEnabled ? p.attributionAnnual * multiplier : 0;
+      const attributionAnnual = s.attributionEnabled ? p.attributionAnnual : 0;
 
       // Integration services
-      const dataSetOneTime = s.dataSets * p.dataSetPrice * multiplier;  // No maintenance on data sets
-      const crmOneTime = s.crmIntegrationHours * p.crmHourly * multiplier;
+      const dataSetOneTime = s.dataSets * p.dataSetPrice;  // No maintenance on data sets
+      const crmOneTime = s.crmIntegrationHours * p.crmHourly;
       const crmMaintenance = crmOneTime * p.crmMaintenance;  // Only CRM has maintenance
       const integrationOneTime = dataSetOneTime + crmOneTime;
 
       // TV hard costs
-      const tvAnnual = s.tvEnabled ? p.tvHardCostsAnnual * multiplier : 0;
+      const tvAnnual = s.tvEnabled ? p.tvHardCostsAnnual : 0;
 
       // SpotOn (single credit input)
       const spotonCredits = s.spotonCredits || 0;
-      const spotonAnnual = spotonCredits * p.spotonPricePerCredit * 12 * multiplier;
+      const spotonAnnual = spotonCredits * p.spotonPricePerCredit * 12;
 
       // CHUY (Retail Locations and Unique Retailers)
-      const chuySetup = s.chuyLocations * p.chuyLocationSetup * multiplier;
-      const chuyLocationAnnual = s.chuyLocations * p.chuyLocationMonthly * 12 * multiplier;
-      const chuyRetailerAnnual = s.chuyRetailers * p.chuyRetailerMonthly * 12 * multiplier;
+      const chuySetup = s.chuyLocations * p.chuyLocationSetup;
+      const chuyLocationAnnual = s.chuyLocations * p.chuyLocationMonthly * 12;
+      const chuyRetailerAnnual = s.chuyRetailers * p.chuyRetailerMonthly * 12;
 
       // Totals
       const totalOneTime = integrationOneTime + chuySetup;
@@ -4388,6 +4389,7 @@ document.addEventListener("click", async (e) => {
       const isOverridden = (s.priceOverride && s.priceOverride > 0);
 
       return {
+        numberOfMarkets: numMarkets,
         baseAnnual,
         usersAnnual,
         accountsAnnual,
@@ -4404,8 +4406,8 @@ document.addEventListener("click", async (e) => {
         chuyLocationAnnual,
         chuyRetailerAnnual,
         totalOneTime,
-        totalAnnual,
-        totalMonthly: totalAnnual / 12,
+        totalAnnual,            // Cash list price (annual)
+        totalMonthly: totalAnnual / 12,  // Cash list price (monthly)
         calculatedAnnual,
         isOverridden
       };
@@ -6894,39 +6896,11 @@ document.addEventListener("click", async (e) => {
         let productName = p.name;
 
         if (p.id === 'topline') {
-          // Use getTopLineAssignedMarketCount() which respects:
-          // - Broadcast deals: market checkboxes are source of truth
-          // - Agency/Other deals: numberOfMarkets field is source of truth
-          const assignedMarkets = getTopLineAssignedMarketCount();
-
-          // Get per-market pricing from TopLine tier
-          const tier = window.toplineState?.tier || 'enterprise';
-          const pricingType = window.productState?.pricingType || 'barter';
-          const toplineProduct = window.PRODUCTS?.find(prod => prod.id === 'topline');
-
-          let perMarketAnnual = 0;
-          if (toplineProduct?.tierPrices?.[tier]) {
-            perMarketAnnual = toplineProduct.tierPrices[tier];
-          } else {
-            // Fallback to hardcoded prices
-            const tierPrices = { access: 20000, enterprise: 30000, both: 45000 };
-            perMarketAnnual = tierPrices[tier] || 30000;
-          }
-
-          // Apply barter multiplier if applicable
-          const multiplier = (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0;
-          const totalAnnual = perMarketAnnual * assignedMarkets * multiplier;
-
-          // Add add-ons (attribution, data sets, CRM hours, TV)
-          let addOns = 0;
-          if (window.toplineState?.attributionEnabled) addOns += 8400;
-          addOns += (window.toplineState?.dataSets || 0) * 3000;
-          addOns += (window.toplineState?.crmIntegrationHours || 0) * 150;
-          if (window.toplineState?.tvEnabled && window.state?.dealType === 'broadcast') {
-            addOns += 24000 * assignedMarkets;
-          }
-
-          monthlyValue = (totalAnnual + addOns) / 12;
+          // Use calculateTopLineCosts() - the single source of truth for TopLine pricing.
+          // This returns the CASH LIST PRICE and respects price override.
+          // The barter multiplier is applied later in updateGapToValue() for Barter Products Target.
+          const costs = calculateTopLineCosts();
+          monthlyValue = costs.totalMonthly;
         } else if (p.id === 'content_automation') {
           const costs = calculateContentAutomationCosts();
           monthlyValue = costs.enabled ? (costs.monthlyCost || 0) : 0;
@@ -7326,7 +7300,13 @@ document.addEventListener("click", async (e) => {
 
     const totalCashAnnual = totalCashMonthly * 12;
     const totalBarterTargetAnnual = totalBarterTargetMonthly * 12;  // What barter SHOULD cover
-    const standardProductsListPriceAnnual = standardProductsListPriceMonthly * 12;
+    const standardProductsListPriceAnnual = standardProductsListPriceMonthly * 12;  // Cash list price
+
+    // Apply barter multiplier for barter/mixed deals to get the Barter Products Target
+    // This is the premium for paying in trade instead of cash (1.4x = 40% markup)
+    const barterMultiplier = (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0;
+    const barterProductsTargetMonthly = standardProductsListPriceMonthly * barterMultiplier;
+    const barterProductsTargetAnnual = barterProductsTargetMonthly * 12;
 
     // Calculate barter component (value from allocated minutes)
     // Use the per-product per-station barter allocation
@@ -7355,13 +7335,13 @@ document.addEventListener("click", async (e) => {
     const totalValueMonthly = totalValueAnnual / 12;
 
     // Calculate gap: how much barter is allocated vs how much was needed
-    // Gap = Standard Products List Price - (Cash + Allocated Barter)
+    // Gap = Barter Products Target (with multiplier) - (Cash + Allocated Barter)
     // Positive gap = shortfall (need more barter), Negative gap = surplus (over-allocated)
-    const gap = standardProductsListPriceAnnual - totalValueAnnual;
+    const gap = barterProductsTargetAnnual - totalValueAnnual;
     const gapMonthly = gap / 12;
 
     // Determine status - shortfall if gap > 5% of target (with small tolerance)
-    const targetVariance = standardProductsListPriceAnnual > 0 ? Math.abs(gap / standardProductsListPriceAnnual) : 0;
+    const targetVariance = barterProductsTargetAnnual > 0 ? Math.abs(gap / barterProductsTargetAnnual) : 0;
     const isShortfall = gap > 100 && targetVariance > 0.05; // Allow 5% variance
 
     // Build per-product breakdown rows
@@ -7391,8 +7371,8 @@ document.addEventListener("click", async (e) => {
         </div>
 
         <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(100, 100, 100, 0.05);">
-          <span><strong>Barter Products Target</strong> (list price)</span>
-          <span style="font-weight: 700;">${money(standardProductsListPriceMonthly)}/mo • ${money(standardProductsListPriceAnnual)}/yr</span>
+          <span><strong>Barter Products Target</strong> (${barterMultiplier > 1 ? `${barterMultiplier}x barter rate` : 'list price'})</span>
+          <span style="font-weight: 700;">${money(barterProductsTargetMonthly)}/mo • ${money(barterProductsTargetAnnual)}/yr</span>
         </div>
 
         ${pricingType === 'mixed' ? `
@@ -8892,27 +8872,13 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     const tierName = window.toplineState?.tier === 'both' ? 'TopLine Access + Enterprise' :
                      window.toplineState?.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
 
-    // Use getTopLineAssignedMarketCount() which respects checkbox state for broadcast deals
-    const assignedMarketsCount = getTopLineAssignedMarketCount();
+    // Use calculateTopLineCosts() - the single source of truth for TopLine pricing
+    // This returns the CASH LIST PRICE and respects price override
+    const toplineCosts = calculateTopLineCosts();
+    const assignedMarketsCount = toplineCosts.numberOfMarkets;
+    const correctedListPrice = toplineCosts.totalAnnual;  // Cash list price (no barter multiplier)
 
-    // Calculate list price based on assigned market count
-    const tier = window.toplineState?.tier || 'enterprise';
-    const toplineProduct = window.PRODUCTS?.find(prod => prod.id === 'topline');
-    let perMarketAnnual = toplineProduct?.tierPrices?.[tier] || 30000;
-
-    // Apply barter multiplier if applicable
-    const multiplier = (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0;
-    let correctedListPrice = perMarketAnnual * assignedMarketsCount * multiplier;
-
-    // Add add-ons
-    if (window.toplineState?.attributionEnabled) correctedListPrice += 8400;
-    correctedListPrice += (window.toplineState?.dataSets || 0) * 3000;
-    correctedListPrice += (window.toplineState?.crmIntegrationHours || 0) * 150;
-    if (window.toplineState?.tvEnabled && window.state?.dealType === 'broadcast') {
-      correctedListPrice += 24000 * assignedMarketsCount;
-    }
-
-    console.log('[FinancialAllocation] TopLine:', { assignedMarketsCount, perMarketAnnual, correctedListPrice, multiplier });
+    console.log('[FinancialAllocation] TopLine:', { assignedMarketsCount, correctedListPrice, isOverridden: toplineCosts.isOverridden });
 
     if (pricingType === 'cash') {
       // Cash deal: show TopLine as one row
