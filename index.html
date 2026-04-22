@@ -8411,6 +8411,12 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   const pricingType = window.productState.pricingType;
   const cpm = Number(window.productState.cpm) || 2.0;
 
+  console.log('[FinancialAllocation] Starting generation...');
+  console.log('[FinancialAllocation] Deal type:', dealType);
+  console.log('[FinancialAllocation] Stations:', stations.length, stations.map(s => s.station));
+  console.log('[FinancialAllocation] Products:', products.length, products.map(p => p.name));
+  console.log('[FinancialAllocation] Pricing type:', pricingType);
+
   // Validation
   if (isAgencyDeal) {
     if (!products.length) return alert("Select at least one product.");
@@ -8424,7 +8430,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   el('proposalOutput').classList.add('hidden');
   el('financialAllocationOutput').classList.remove('hidden');
 
-  // Build allocation data: station × product breakdown
+  // Build allocation data
   const allocationRows = [];
   let totalCashAnnual = 0;
   let totalBarterValue = 0;
@@ -8433,110 +8439,91 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   let inventoryStationCount = 0;
   const marketBreakdown = new Map();
 
-  // Get barter allocation data
+  // Get barter allocation data from the barter section
   const barterAllocation = computeBarterAllocation();
+  console.log('[FinancialAllocation] Barter allocation:', barterAllocation);
+
   const barterByStation = new Map();
   barterAllocation.forEach(ba => {
     barterByStation.set(ba.station, ba);
   });
 
-  // Process each station
-  stations.forEach(st => {
-    const stationBarterData = barterByStation.get(st.station) || {
-      primeMinutesPerDay: 0,
-      rosMinutesPerDay: 0,
-      primeAQH: st.primeAQH || 0,
-      rosAQH: st.rosAQH || 0
-    };
+  // Determine if this is primarily a barter deal
+  const isBarter = pricingType === 'barter';
+  const isMixed = pricingType === 'mixed';
 
-    // Get products assigned to this station
-    const assignedProducts = products.filter(p => {
-      if (p.isSpecialProduct) return true; // Special products apply to all
-      const assignments = window.productState.stationAssignments.get(p.id);
-      return assignments && assignments.has(st.key);
-    });
+  // For barter/mixed deals: show each station's barter contribution
+  // For cash deals: show each station × product cash value
 
-    const isInventoryStation = assignedProducts.some(p => p.id === 'inventory_only');
-    const hasRealProducts = assignedProducts.some(p => p.id !== 'inventory_only');
+  // Process each product separately
+  products.forEach(p => {
+    console.log('[FinancialAllocation] Processing product:', p.name, 'isSpecial:', p.isSpecialProduct);
 
-    if (isInventoryStation && !hasRealProducts) {
-      inventoryStationCount++;
-    } else if (hasRealProducts) {
-      productStationCount++;
+    if (p.isSpecialProduct) {
+      // Handle special products (TopLine, SpotOn, etc.) separately
+      return;
     }
 
-    assignedProducts.forEach(p => {
-      // Calculate cash value for this station-product
+    // Get stations assigned to this product
+    const assignedStations = getAssignedStationsForProduct(p.id);
+    console.log('[FinancialAllocation] Assigned stations for', p.name, ':', assignedStations.length);
+
+    assignedStations.forEach(st => {
+      const stationBarterData = barterByStation.get(st.station) || {
+        primeMinutesPerDay: 0,
+        rosMinutesPerDay: 0,
+        primeAQH: st.primeAQH || 0,
+        rosAQH: st.rosAQH || 0
+      };
+
       let cashMonthly = 0;
       let cashAnnual = 0;
       let barterValue = 0;
       let listPriceAnnual = 0;
       let stationType = 'Product';
 
+      const unitPrice = p.cash || 0;
+      const barterPrice = p.barter || 0;
+      listPriceAnnual = (isBarter ? barterPrice : unitPrice) * 12;
+
+      // Get cash quoted for this product-station (for mixed deals)
+      const cashKey = getCashKey(p.id, st.key);
+      const quotedCash = window.productState.productCashValues?.get(cashKey) || 0;
+
       if (p.id === 'inventory_only') {
         stationType = 'Inventory';
-        // Inventory stations provide barter but no cash
-        cashMonthly = 0;
-        cashAnnual = 0;
-      } else if (p.isSpecialProduct) {
-        // Special products (TopLine, SpotOn, etc.) - handled separately
-        // Skip for now, we'll add them at the end
-        return;
-      } else {
-        // Standard per-station product
-        const unitPrice = p.cash || 0;
-        const barterPrice = p.barter || 0;
-        listPriceAnnual = (pricingType === 'barter' ? barterPrice : unitPrice) * 12;
-
-        // Get cash quoted for this product-station
-        const cashKey = getCashKey(p.id, st.key);
-        const quotedCash = window.productState.productCashValues?.get(cashKey) || 0;
-
-        if (pricingType === 'cash') {
-          cashMonthly = unitPrice;
-          cashAnnual = unitPrice * 12;
-          barterValue = 0;
-          stationType = 'Cash';
-        } else if (pricingType === 'barter') {
-          cashMonthly = 0;
-          cashAnnual = 0;
-          // Calculate barter value from minutes
-          const primeValue = calculateValueFromMinutes(
-            stationBarterData.primeMinutesPerDay,
-            stationBarterData.primeAQH,
-            cpm
-          );
-          const rosValue = calculateValueFromMinutes(
-            stationBarterData.rosMinutesPerDay,
-            stationBarterData.rosAQH,
-            cpm
-          );
-          barterValue = primeValue + rosValue;
-          stationType = 'Barter';
-        } else {
-          // Mixed
-          cashMonthly = quotedCash;
-          cashAnnual = quotedCash * 12;
-          const remainingValue = Math.max(0, listPriceAnnual - cashAnnual);
-          barterValue = remainingValue;
-          stationType = cashAnnual > 0 && barterValue > 0 ? 'Mixed' : (cashAnnual > 0 ? 'Cash' : 'Barter');
-        }
-      }
-
-      // For inventory stations, calculate barter value from their AQH
-      if (p.id === 'inventory_only') {
-        const primeValue = calculateValueFromMinutes(
-          stationBarterData.primeMinutesPerDay,
-          stationBarterData.primeAQH,
-          cpm
-        );
-        const rosValue = calculateValueFromMinutes(
-          stationBarterData.rosMinutesPerDay,
-          stationBarterData.rosAQH,
-          cpm
-        );
+        inventoryStationCount++;
+        // Inventory stations provide barter minutes but no product
+        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
         barterValue = primeValue + rosValue;
         listPriceAnnual = barterValue;
+      } else if (pricingType === 'cash') {
+        cashMonthly = unitPrice;
+        cashAnnual = unitPrice * 12;
+        barterValue = 0;
+        stationType = 'Cash';
+        productStationCount++;
+      } else if (pricingType === 'barter') {
+        cashMonthly = 0;
+        cashAnnual = 0;
+        // Calculate barter value from this station's allocated minutes
+        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        barterValue = primeValue + rosValue;
+        stationType = 'Barter';
+        productStationCount++;
+      } else {
+        // Mixed deal
+        cashMonthly = quotedCash;
+        cashAnnual = quotedCash * 12;
+        const remainingValue = Math.max(0, listPriceAnnual - cashAnnual);
+        // Calculate barter from minutes
+        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        barterValue = primeValue + rosValue;
+        stationType = cashAnnual > 0 && barterValue > 0 ? 'Mixed' : (cashAnnual > 0 ? 'Cash' : 'Barter');
+        productStationCount++;
       }
 
       totalCashAnnual += cashAnnual;
@@ -8567,42 +8554,89 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     });
   });
 
-  // Add special products (TopLine, Content Automation, SpotOn, FAAI)
+  // For barter/mixed deals with TopLine: show per-station barter contributions
   const specialProducts = [];
 
   if (window.productState.selectedProducts.has('topline')) {
     const costs = calculateTopLineCosts();
     const tierName = costs.tier === 'both' ? 'TopLine Access + Enterprise' :
                      costs.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
-    let cashAnnual = 0;
-    let barterValue = 0;
 
     if (pricingType === 'cash') {
-      cashAnnual = costs.totalAnnual;
-    } else if (pricingType === 'barter') {
-      barterValue = costs.totalAnnual * 1.4; // Barter multiplier
+      // Cash deal: show TopLine as one row
+      totalCashAnnual += costs.totalAnnual;
+      totalListPrice += costs.totalAnnual;
+      specialProducts.push({
+        station: '— All Markets —',
+        market: `${costs.numberOfMarkets || 1} market(s)`,
+        product: tierName,
+        productId: 'topline',
+        cashMonthly: costs.totalAnnual / 12,
+        cashAnnual: costs.totalAnnual,
+        barterValue: 0,
+        primeMinutes: 0,
+        rosMinutes: 0,
+        stationType: 'Cash',
+        listPriceAnnual: costs.totalAnnual
+      });
     } else {
-      // Mixed - assume cash for special products unless overridden
-      cashAnnual = costs.totalAnnual;
+      // Barter/Mixed deal: show per-station barter contributions for TopLine
+      const toplineBarterTarget = costs.totalAnnual * 1.4;
+      totalListPrice += costs.totalAnnual;
+
+      // Add summary row for TopLine product
+      specialProducts.push({
+        station: '— TopLine Product —',
+        market: `${costs.numberOfMarkets || 1} market(s)`,
+        product: tierName,
+        productId: 'topline',
+        cashMonthly: 0,
+        cashAnnual: 0,
+        barterValue: toplineBarterTarget,
+        primeMinutes: 0,
+        rosMinutes: 0,
+        stationType: 'Barter',
+        listPriceAnnual: costs.totalAnnual
+      });
+
+      // Show each station's contribution to the TopLine barter
+      stations.forEach(st => {
+        const stationBarterData = barterByStation.get(st.station) || {
+          primeMinutesPerDay: 0,
+          rosMinutesPerDay: 0,
+          primeAQH: st.primeAQH || 0,
+          rosAQH: st.rosAQH || 0
+        };
+
+        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        const stationBarterValue = primeValue + rosValue;
+
+        if (stationBarterValue > 0 || stationBarterData.primeMinutesPerDay > 0 || stationBarterData.rosMinutesPerDay > 0) {
+          totalBarterValue += stationBarterValue;
+
+          // Track by market
+          if (!marketBreakdown.has(st.market)) {
+            marketBreakdown.set(st.market, { cash: 0, barter: 0 });
+          }
+          marketBreakdown.get(st.market).barter += stationBarterValue;
+
+          allocationRows.push({
+            station: st.station,
+            market: st.market,
+            product: `${tierName} (barter)`,
+            productId: 'topline',
+            cashMonthly: 0,
+            cashAnnual: 0,
+            barterValue: stationBarterValue,
+            primeMinutes: stationBarterData.primeMinutesPerDay,
+            rosMinutes: stationBarterData.rosMinutesPerDay,
+            stationType: 'Barter',
+            listPriceAnnual: 0  // Don't double-count list price
+          });
+        }
+      });
     }
-
-    totalCashAnnual += cashAnnual;
-    totalBarterValue += barterValue;
-    totalListPrice += costs.totalAnnual;
-
-    specialProducts.push({
-      station: '— All Markets —',
-      market: `${costs.numberOfMarkets || 1} market(s)`,
-      product: tierName,
-      productId: 'topline',
-      cashMonthly: cashAnnual / 12,
-      cashAnnual,
-      barterValue,
-      primeMinutes: 0,
-      rosMinutes: 0,
-      stationType: cashAnnual > 0 ? 'Cash' : 'Barter',
-      listPriceAnnual: costs.totalAnnual
-    });
   }
 
   if (window.productState.selectedProducts.has('content_automation')) {
@@ -8679,6 +8713,8 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
   // Combine all rows
   const allRows = [...allocationRows, ...specialProducts];
+  console.log('[FinancialAllocation] Total rows:', allRows.length, 'allocation:', allocationRows.length, 'special:', specialProducts.length);
+  console.log('[FinancialAllocation] All rows:', allRows);
 
   // Build HTML table
   const tableHtml = `
