@@ -6815,7 +6815,14 @@ document.addEventListener("click", async (e) => {
 
         if (p.id === 'topline') {
           const costs = calculateTopLineCosts();
-          monthlyValue = costs.totalMonthly || 0;
+          // Bug fix: Use ASSIGNED market count, not the configured numberOfMarkets
+          // The configured numberOfMarkets is used for pricing display, but the actual
+          // barter target should only include markets that are actually assigned to TopLine
+          const configuredMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
+          const assignedMarkets = Math.max(1, getProductAssignments('topline').size);
+          // Calculate per-market price, then multiply by actually assigned markets
+          const perMarketMonthly = (costs.totalMonthly || 0) / configuredMarkets;
+          monthlyValue = perMarketMonthly * assignedMarkets;
         } else if (p.id === 'content_automation') {
           const costs = calculateContentAutomationCosts();
           monthlyValue = costs.enabled ? (costs.monthlyCost || 0) : 0;
@@ -7172,19 +7179,15 @@ document.addEventListener("click", async (e) => {
       let productListPriceTotal = 0;
 
       if (p.isSpecialProduct) {
-        // Special products: use calculated value and check for cash inputs
-        const isMarketLevel = isMarketLevelProduct(p.id);
-        if (isMarketLevel) {
+        // Special products: calculatedValue already includes all markets/stations
+        // Do NOT multiply by market count again - just use the calculated value directly
+        productListPriceTotal = unitPrice;  // This is already the total for all assigned markets
+        if (pricingType === 'mixed' && isMarketLevelProduct(p.id)) {
           const assignments = getProductAssignments(p.id);
           assignments.forEach(market => {
-            productListPriceTotal += unitPrice;
-            if (pricingType === 'mixed') {
-              const cashKey = getCashKey(p.id, market);
-              productCashTotal += window.productState.productCashValues.get(cashKey) || 0;
-            }
+            const cashKey = getCashKey(p.id, market);
+            productCashTotal += window.productState.productCashValues.get(cashKey) || 0;
           });
-        } else {
-          productListPriceTotal = unitPrice * assignedStations.length;
         }
       } else if (pricingType === 'mixed') {
         // Mixed: sum per-station cash
@@ -7507,6 +7510,10 @@ document.addEventListener("click", async (e) => {
           primeInput.step = '1';
           primeInput.value = String(primeMinutes);
           primeInput.style.cssText = 'width:60px; text-align:right;';
+          primeInput.dataset.barterType = 'prime';
+          primeInput.dataset.productId = p.id;
+          primeInput.dataset.stationKey = st.key;
+          primeInput.dataset.callSign = st.station;
 
           primeInput.onchange = () => {
             const v = parseFloat(primeInput.value);
@@ -7533,6 +7540,10 @@ document.addEventListener("click", async (e) => {
           rosInput.step = '1';
           rosInput.value = String(rosMinutes);
           rosInput.style.cssText = 'width:60px; text-align:right;';
+          rosInput.dataset.barterType = 'ros';
+          rosInput.dataset.productId = p.id;
+          rosInput.dataset.stationKey = st.key;
+          rosInput.dataset.callSign = st.station;
 
           rosInput.onchange = () => {
             const v = parseFloat(rosInput.value);
@@ -7763,6 +7774,78 @@ function computeBarterAllocationPerProduct() {
     console.error('computeBarterAllocationPerProduct error', e);
     return new Map();
   }
+}
+
+/**
+ * Read barter minutes directly from DOM input fields
+ * This is the source of truth - reads what the user sees in the barter section
+ * Returns a Map keyed by callSign with {primeMinutes, rosMinutes} for each station
+ *
+ * If DOM reading fails (inputs not found), falls back to computed values from state
+ */
+function readBarterMinutesFromDOM() {
+  const result = new Map();
+
+  // Find all barter prime inputs - try multiple selector patterns for robustness
+  let primeInputs = document.querySelectorAll('input[data-barter-type="prime"]');
+
+  // Debug logging
+  console.log('[readBarterMinutesFromDOM] Found prime inputs:', primeInputs.length);
+
+  primeInputs.forEach(input => {
+    const callSign = input.dataset.callSign;
+    console.log('[readBarterMinutesFromDOM] Prime input:', { callSign, value: input.value, dataset: input.dataset });
+    if (!callSign) return;
+
+    const primeValue = parseFloat(input.value) || 0;
+    const existing = result.get(callSign) || { primeMinutes: 0, rosMinutes: 0 };
+    existing.primeMinutes += primeValue;
+    result.set(callSign, existing);
+  });
+
+  // Find all barter ROS inputs
+  let rosInputs = document.querySelectorAll('input[data-barter-type="ros"]');
+
+  console.log('[readBarterMinutesFromDOM] Found ROS inputs:', rosInputs.length);
+
+  rosInputs.forEach(input => {
+    const callSign = input.dataset.callSign;
+    console.log('[readBarterMinutesFromDOM] ROS input:', { callSign, value: input.value, dataset: input.dataset });
+    if (!callSign) return;
+
+    const rosValue = parseFloat(input.value) || 0;
+    const existing = result.get(callSign) || { primeMinutes: 0, rosMinutes: 0 };
+    existing.rosMinutes += rosValue;
+    result.set(callSign, existing);
+  });
+
+  // If DOM reading found nothing, fall back to computed values from state
+  if (result.size === 0) {
+    console.log('[readBarterMinutesFromDOM] DOM reading found no inputs, falling back to computed values');
+    const barterPerProduct = computeBarterAllocationPerProduct();
+    const stations = getSelectedStationsDetailed();
+
+    stations.forEach(st => {
+      let totalPrime = 0;
+      let totalRos = 0;
+
+      barterPerProduct.forEach((stationMap, productId) => {
+        const stationBarter = stationMap.get(st.key);
+        if (stationBarter) {
+          totalPrime += stationBarter.primeMinutes || 0;
+          totalRos += stationBarter.rosMinutes || 0;
+        }
+      });
+
+      if (totalPrime > 0 || totalRos > 0) {
+        result.set(st.station, { primeMinutes: totalPrime, rosMinutes: totalRos });
+      }
+    });
+
+    console.log('[readBarterMinutesFromDOM] Fallback result:', Object.fromEntries(result));
+  }
+
+  return result;
 }
 
 // Legacy function for backwards compatibility - returns station-level totals
@@ -8574,13 +8657,14 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   let inventoryStationCount = 0;
   const marketBreakdown = new Map();
 
-  // Get barter allocation data from the barter section
-  const barterAllocation = computeBarterAllocation();
-  console.log('[FinancialAllocation] Barter allocation:', barterAllocation);
+  // Read barter minutes directly from DOM input fields - this is the source of truth
+  const barterFromDOM = readBarterMinutesFromDOM();
+  console.log('[FinancialAllocation] Barter from DOM:', Object.fromEntries(barterFromDOM));
 
-  const barterByStation = new Map();
-  barterAllocation.forEach(ba => {
-    barterByStation.set(ba.station, ba);
+  // Build a lookup map from callSign to station details (for AQH)
+  const stationDetailsByCallSign = new Map();
+  stations.forEach(st => {
+    stationDetailsByCallSign.set(st.station, st);
   });
 
   // Determine if this is primarily a barter deal
@@ -8604,12 +8688,13 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     console.log('[FinancialAllocation] Assigned stations for', p.name, ':', assignedStations.length);
 
     assignedStations.forEach(st => {
-      const stationBarterData = barterByStation.get(st.station) || {
-        primeMinutesPerDay: 0,
-        rosMinutesPerDay: 0,
-        primeAQH: st.primeAQH || 0,
-        rosAQH: st.rosAQH || 0
-      };
+      // Read barter minutes from DOM (source of truth)
+      const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
+      const primeAQH = Number(st.primeAQH) || 0;
+      const rosAQH = Number(st.rosAQH) || 0;
+
+      // Get PrecisionTrak data
+      const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
 
       let cashMonthly = 0;
       let cashAnnual = 0;
@@ -8629,8 +8714,8 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         stationType = 'Inventory';
         inventoryStationCount++;
         // Inventory stations provide barter minutes but no product
-        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
         barterValue = primeValue + rosValue;
         listPriceAnnual = barterValue;
       } else if (pricingType === 'cash') {
@@ -8642,9 +8727,9 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       } else if (pricingType === 'barter') {
         cashMonthly = 0;
         cashAnnual = 0;
-        // Calculate barter value from this station's allocated minutes
-        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        // Calculate barter value from DOM minutes
+        const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
         barterValue = primeValue + rosValue;
         stationType = 'Barter';
         productStationCount++;
@@ -8653,9 +8738,9 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         cashMonthly = quotedCash;
         cashAnnual = quotedCash * 12;
         const remainingValue = Math.max(0, listPriceAnnual - cashAnnual);
-        // Calculate barter from minutes
-        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        // Calculate barter from DOM minutes
+        const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
         barterValue = primeValue + rosValue;
         stationType = cashAnnual > 0 && barterValue > 0 ? 'Mixed' : (cashAnnual > 0 ? 'Cash' : 'Barter');
         productStationCount++;
@@ -8678,11 +8763,16 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         market: st.market,
         product: p.name,
         productId: p.id,
+        format: ptData?.format || '—',
+        simulcast: ptData?.simulcast || '—',
+        hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
+        primeAQH,
+        rosAQH,
         cashMonthly,
         cashAnnual,
         barterValue,
-        primeMinutes: stationBarterData.primeMinutesPerDay,
-        rosMinutes: stationBarterData.rosMinutesPerDay,
+        primeMinutes: domBarter.primeMinutes,
+        rosMinutes: domBarter.rosMinutes,
         stationType,
         listPriceAnnual
       });
@@ -8697,79 +8787,125 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     const tierName = costs.tier === 'both' ? 'TopLine Access + Enterprise' :
                      costs.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
 
+    // Get the number of ASSIGNED markets (not the configured numberOfMarkets)
+    const assignedMarkets = getProductAssignments('topline');
+    const assignedMarketsCount = Math.max(1, assignedMarkets.size);
+    const configuredMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
+
+    // Calculate corrected list price based on assigned markets
+    const perMarketAnnual = (costs.totalAnnual || 0) / configuredMarkets;
+    const correctedListPrice = perMarketAnnual * assignedMarketsCount;
+
+    console.log('[FinancialAllocation] TopLine:', { configuredMarkets, assignedMarketsCount, perMarketAnnual, correctedListPrice, assignedMarkets: Array.from(assignedMarkets) });
+
     if (pricingType === 'cash') {
       // Cash deal: show TopLine as one row
-      totalCashAnnual += costs.totalAnnual;
-      totalListPrice += costs.totalAnnual;
+      totalCashAnnual += correctedListPrice;
+      totalListPrice += correctedListPrice;
       specialProducts.push({
         station: '— All Markets —',
-        market: `${costs.numberOfMarkets || 1} market(s)`,
+        market: `${assignedMarketsCount} market(s)`,
         product: tierName,
         productId: 'topline',
-        cashMonthly: costs.totalAnnual / 12,
-        cashAnnual: costs.totalAnnual,
+        format: '—',
+        simulcast: '—',
+        hd: '—',
+        primeAQH: 0,
+        rosAQH: 0,
+        cashMonthly: correctedListPrice / 12,
+        cashAnnual: correctedListPrice,
         barterValue: 0,
         primeMinutes: 0,
         rosMinutes: 0,
         stationType: 'Cash',
-        listPriceAnnual: costs.totalAnnual
+        listPriceAnnual: correctedListPrice
       });
     } else {
       // Barter/Mixed deal: show per-station barter contributions for TopLine
-      const toplineBarterTarget = costs.totalAnnual * 1.4;
-      totalListPrice += costs.totalAnnual;
+      // The summary row should show the SUM of individual station barter values, not a pre-calculated target
+      // We'll calculate this after processing all stations
+      totalListPrice += correctedListPrice;
+      let toplineStationBarterTotal = 0;
+      let toplinePrimeMinutesTotal = 0;
+      let toplineRosMinutesTotal = 0;
 
-      // Add summary row for TopLine product
-      specialProducts.push({
-        station: '— TopLine Product —',
-        market: `${costs.numberOfMarkets || 1} market(s)`,
-        product: tierName,
-        productId: 'topline',
-        cashMonthly: 0,
-        cashAnnual: 0,
-        barterValue: toplineBarterTarget,
-        primeMinutes: 0,
-        rosMinutes: 0,
-        stationType: 'Barter',
-        listPriceAnnual: costs.totalAnnual
-      });
+      // Get stations that are in assigned TopLine markets
+      const toplineStations = getAssignedStationsForProduct('topline');
+      console.log('[FinancialAllocation] TopLine stations:', toplineStations.length, toplineStations.map(s => s.station));
 
-      // Show each station's contribution to the TopLine barter
-      stations.forEach(st => {
-        const stationBarterData = barterByStation.get(st.station) || {
-          primeMinutesPerDay: 0,
-          rosMinutesPerDay: 0,
-          primeAQH: st.primeAQH || 0,
-          rosAQH: st.rosAQH || 0
-        };
+      // Show each station's contribution to the TopLine barter - read from DOM
+      toplineStations.forEach(st => {
+        const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
+        const primeAQH = Number(st.primeAQH) || 0;
+        const rosAQH = Number(st.rosAQH) || 0;
 
-        const primeValue = calculateValueFromMinutes(stationBarterData.primeMinutesPerDay, stationBarterData.primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(stationBarterData.rosMinutesPerDay, stationBarterData.rosAQH, cpm);
+        console.log('[FinancialAllocation] TopLine station barter:', { station: st.station, domBarter, primeAQH, rosAQH });
+
+        // Get PrecisionTrak data
+        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
+
+        const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
         const stationBarterValue = primeValue + rosValue;
 
-        if (stationBarterValue > 0 || stationBarterData.primeMinutesPerDay > 0 || stationBarterData.rosMinutesPerDay > 0) {
-          totalBarterValue += stationBarterValue;
+        console.log('[FinancialAllocation] TopLine station value:', { station: st.station, primeValue, rosValue, stationBarterValue });
 
-          // Track by market
-          if (!marketBreakdown.has(st.market)) {
-            marketBreakdown.set(st.market, { cash: 0, barter: 0 });
-          }
-          marketBreakdown.get(st.market).barter += stationBarterValue;
+        // Track this station's contribution to TopLine barter total
+        toplineStationBarterTotal += stationBarterValue;
+        toplinePrimeMinutesTotal += domBarter.primeMinutes;
+        toplineRosMinutesTotal += domBarter.rosMinutes;
 
-          allocationRows.push({
-            station: st.station,
-            market: st.market,
-            product: `${tierName} (barter)`,
-            productId: 'topline',
-            cashMonthly: 0,
-            cashAnnual: 0,
-            barterValue: stationBarterValue,
-            primeMinutes: stationBarterData.primeMinutesPerDay,
-            rosMinutes: stationBarterData.rosMinutesPerDay,
-            stationType: 'Barter',
+        // Always add station row if it has barter minutes OR if it's a selected station with AQH
+        // This ensures all stations show even if their calculated value is $0
+        totalBarterValue += stationBarterValue;
+
+        // Track by market
+        if (!marketBreakdown.has(st.market)) {
+          marketBreakdown.set(st.market, { cash: 0, barter: 0 });
+        }
+        marketBreakdown.get(st.market).barter += stationBarterValue;
+
+        allocationRows.push({
+          station: st.station,
+          market: st.market,
+          product: `${tierName} (barter)`,
+          productId: 'topline',
+          format: ptData?.format || '—',
+          simulcast: ptData?.simulcast || '—',
+          hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
+          primeAQH,
+          rosAQH,
+          cashMonthly: 0,
+          cashAnnual: 0,
+          barterValue: stationBarterValue,
+          primeMinutes: domBarter.primeMinutes,
+          rosMinutes: domBarter.rosMinutes,
+          stationType: 'Barter',
             listPriceAnnual: 0  // Don't double-count list price
           });
         }
+      });
+
+      // Add summary row for TopLine product - shows the actual sum of individual station barter values
+      console.log('[FinancialAllocation] TopLine summary:', { toplineStationBarterTotal, toplinePrimeMinutesTotal, toplineRosMinutesTotal, correctedListPrice });
+
+      specialProducts.push({
+        station: '— TopLine Product —',
+        market: `${assignedMarketsCount} market(s)`,
+        product: tierName,
+        productId: 'topline',
+        format: '—',
+        simulcast: '—',
+        hd: '—',
+        primeAQH: 0,
+        rosAQH: 0,
+        cashMonthly: 0,
+        cashAnnual: 0,
+        barterValue: toplineStationBarterTotal,  // Sum of individual station values, not a pre-calculated target
+        primeMinutes: toplinePrimeMinutesTotal,
+        rosMinutes: toplineRosMinutesTotal,
+        stationType: 'Barter',
+        listPriceAnnual: correctedListPrice
       });
     }
   }
@@ -8784,6 +8920,11 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         market: '—',
         product: `Content Automation (${costs.tierName})`,
         productId: 'content_automation',
+        format: '—',
+        simulcast: '—',
+        hd: '—',
+        primeAQH: 0,
+        rosAQH: 0,
         cashMonthly: costs.monthlyCost,
         cashAnnual: costs.annualCost,
         barterValue: 0,
@@ -8804,6 +8945,11 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       market: '—',
       product: `SpotOn (${costs.credits} credits)`,
       productId: 'spoton',
+      format: '—',
+      simulcast: '—',
+      hd: '—',
+      primeAQH: 0,
+      rosAQH: 0,
       cashMonthly: costs.monthlyCost,
       cashAnnual: costs.annualCost,
       barterValue: 0,
@@ -8836,6 +8982,11 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       market: '—',
       product: `FAAI (${costs.shows || 1} show × ${costs.minutesPerDay || 20} min)`,
       productId: 'faai',
+      format: '—',
+      simulcast: '—',
+      hd: '—',
+      primeAQH: 0,
+      rosAQH: 0,
       cashMonthly: cashAnnual / 12,
       cashAnnual,
       barterValue,
@@ -8851,33 +9002,43 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   console.log('[FinancialAllocation] Total rows:', allRows.length, 'allocation:', allocationRows.length, 'special:', specialProducts.length);
   console.log('[FinancialAllocation] All rows:', allRows);
 
-  // Build HTML table
+  // Build HTML table with all columns
   const tableHtml = `
-    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
       <thead>
         <tr style="background:#4a90d9;color:white;">
-          <th style="padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Station</th>
-          <th style="padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Market</th>
-          <th style="padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Product</th>
-          <th style="padding:8px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Mo</th>
-          <th style="padding:8px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Yr</th>
-          <th style="padding:8px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Barter Value/Yr</th>
-          <th style="padding:8px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Barter Mins (P/R)</th>
-          <th style="padding:8px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Type</th>
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Station</th>
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Market</th>
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Product</th>
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Format</th>
+          <th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Simulcast</th>
+          <th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">HD</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Prime AQH</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">ROS AQH</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Mo</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Yr</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Barter Val/Yr</th>
+          <th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Mins (P/R)</th>
+          <th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Type</th>
         </tr>
       </thead>
       <tbody>
         ${allRows.map((row, idx) => `
           <tr style="background:${idx % 2 === 0 ? 'rgba(74,144,217,0.03)' : 'transparent'};">
-            <td style="padding:6px 8px;border:1px solid var(--input-edge);">${escapeHtml(row.station)}</td>
-            <td style="padding:6px 8px;border:1px solid var(--input-edge);">${escapeHtml(row.market)}</td>
-            <td style="padding:6px 8px;border:1px solid var(--input-edge);">${escapeHtml(row.product)}</td>
-            <td style="padding:6px 8px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashMonthly)}</td>
-            <td style="padding:6px 8px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashAnnual)}</td>
-            <td style="padding:6px 8px;text-align:right;border:1px solid var(--input-edge);color:${row.barterValue > 0 ? 'var(--brand)' : 'var(--text-muted)'};">${money(row.barterValue)}</td>
-            <td style="padding:6px 8px;text-align:center;border:1px solid var(--input-edge);">${row.primeMinutes > 0 || row.rosMinutes > 0 ? `${row.primeMinutes}/${row.rosMinutes}` : '—'}</td>
-            <td style="padding:6px 8px;text-align:center;border:1px solid var(--input-edge);">
-              <span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(row.station)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(row.market)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(row.product)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(row.format || '—')}">${escapeHtml(row.format || '—')}</td>
+            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">${escapeHtml(row.simulcast || '—')}</td>
+            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);max-width:80px;overflow:hidden;text-overflow:ellipsis;" title="${escapeHtml(row.hd || '—')}">${escapeHtml(row.hd || '—')}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${row.primeAQH > 0 ? 'inherit' : 'var(--text-muted)'};">${row.primeAQH > 0 ? row.primeAQH.toLocaleString() : '—'}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${row.rosAQH > 0 ? 'inherit' : 'var(--text-muted)'};">${row.rosAQH > 0 ? row.rosAQH.toLocaleString() : '—'}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashMonthly)}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashAnnual)}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${row.barterValue > 0 ? 'var(--brand)' : 'var(--text-muted)'};">${money(row.barterValue)}</td>
+            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">${row.primeMinutes > 0 || row.rosMinutes > 0 ? `${row.primeMinutes}/${row.rosMinutes}` : '—'}</td>
+            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">
+              <span style="padding:2px 5px;border-radius:4px;font-size:9px;font-weight:600;
                 background:${row.stationType === 'Inventory' ? '#e3f2fd' : row.stationType === 'Barter' ? 'rgba(103,36,119,0.1)' : row.stationType === 'Mixed' ? '#fff3e0' : '#e8f5e9'};
                 color:${row.stationType === 'Inventory' ? '#1976d2' : row.stationType === 'Barter' ? 'var(--brand)' : row.stationType === 'Mixed' ? '#e65100' : '#2e7d32'};">
                 ${row.stationType}
@@ -8989,8 +9150,23 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
 
   const { rows, summary } = window.lastFinancialAllocation;
 
-  // Build CSV content
-  const headers = ['Station', 'Market', 'Product', 'Cash/Mo', 'Cash/Yr', 'Barter Value/Yr', 'Barter Mins (P)', 'Barter Mins (R)', 'Type'];
+  // Build CSV content with all columns including PrecisionTrak and AQH data
+  const headers = [
+    'Station',
+    'Market',
+    'Product',
+    'Format',
+    'Simulcast',
+    'HD',
+    'Prime AQH',
+    'ROS AQH',
+    'Cash/Mo',
+    'Cash/Yr',
+    'Barter Value/Yr',
+    'Barter Mins (P)',
+    'Barter Mins (R)',
+    'Type'
+  ];
   const csvRows = [headers.join(',')];
 
   rows.forEach(row => {
@@ -8998,6 +9174,11 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
       `"${row.station}"`,
       `"${row.market}"`,
       `"${row.product}"`,
+      `"${row.format || '—'}"`,
+      `"${row.simulcast || '—'}"`,
+      `"${row.hd || '—'}"`,
+      row.primeAQH || 0,
+      row.rosAQH || 0,
       row.cashMonthly.toFixed(2),
       row.cashAnnual.toFixed(2),
       row.barterValue.toFixed(2),
@@ -9020,6 +9201,15 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
   csvRows.push(`Product Stations,${summary.productStationCount}`);
   csvRows.push(`Inventory Stations,${summary.inventoryStationCount}`);
   csvRows.push(`Total Stations,${summary.totalStations}`);
+
+  // Add market breakdown
+  if (summary.marketBreakdown && Object.keys(summary.marketBreakdown).length > 0) {
+    csvRows.push('');
+    csvRows.push('BARTER ALLOCATION BY MARKET');
+    Object.entries(summary.marketBreakdown).forEach(([market, data]) => {
+      csvRows.push(`"${market}",${data.cash.toFixed(2)},${data.barter.toFixed(2)},${(data.cash + data.barter).toFixed(2)}`);
+    });
+  }
 
   const csvContent = csvRows.join('\n');
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
