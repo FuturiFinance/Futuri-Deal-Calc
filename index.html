@@ -1660,6 +1660,7 @@
 
         <div class="row" style="margin-bottom:12px;">
           <button class="btn primary" id="btnGenerateProposal" type="button">Generate Proposal</button>
+          <button class="btn" id="btnGenerateFinancialAllocation" type="button" style="background:var(--input);border:1px solid #4a90d9;">Generate Financial Allocation</button>
           <button class="btn" id="btnScreenshotProposal" type="button">Copy as Image</button>
         </div>
 
@@ -1669,6 +1670,22 @@
             <span class="badge" id="proposalMode">Cash Deal</span>
           </div>
           <div id="proposalTable" style="overflow-x:auto;"></div>
+        </div>
+
+        <!-- Financial Allocation Output (Internal Use) -->
+        <div id="financialAllocationOutput" class="hidden" style="border-radius:10px;padding:16px;margin-top:12px;background:linear-gradient(135deg, rgba(74,144,217,0.05) 0%, rgba(74,144,217,0.02) 100%);border:1px solid rgba(74,144,217,0.2);">
+          <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <span style="background:#4a90d9;color:white;font-size:10px;font-weight:600;padding:2px 8px;border-radius:4px;margin-right:8px;">INTERNAL</span>
+              <strong style="color:#4a90d9;">Financial Allocation</strong>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn" id="btnCopyAllocationImage" type="button" style="font-size:12px;padding:4px 12px;">Copy as Image</button>
+              <button class="btn" id="btnExportAllocationExcel" type="button" style="font-size:12px;padding:4px 12px;">Export to Excel</button>
+            </div>
+          </div>
+          <div id="financialAllocationTable" style="overflow-x:auto;"></div>
+          <div id="financialAllocationSummary" style="margin-top:16px;"></div>
         </div>
       </section>
 
@@ -6229,6 +6246,22 @@ document.addEventListener("click", async (e) => {
         alert("Could not copy image. Your browser may not support clipboard image copying, or try again.");
       }
     };
+
+    // Financial Allocation button handler
+    el('btnGenerateFinancialAllocation').onclick = () => {
+      console.log('Generate Financial Allocation clicked');
+      generateFinancialAllocation();
+    };
+
+    // Financial Allocation copy as image
+    el('btnCopyAllocationImage').onclick = () => {
+      copyFinancialAllocationAsImage();
+    };
+
+    // Financial Allocation export to Excel/CSV
+    el('btnExportAllocationExcel').onclick = () => {
+      exportFinancialAllocationToExcel();
+    };
   }
 
   /**********************
@@ -8363,6 +8396,523 @@ window.generateProposal = function generateProposal() {
   el('proposalTable').innerHTML = lines.join("\n");
   el('proposalSection').classList.remove('hidden');
 }
+
+// ============================================================================
+// FINANCIAL ALLOCATION VIEW (Internal Use)
+// ============================================================================
+
+window.generateFinancialAllocation = function generateFinancialAllocation() {
+  if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
+
+  const dealType = window.state?.dealType || 'broadcast';
+  const isAgencyDeal = (dealType === 'agency');
+  const stations = getSelectedStationsDetailed();
+  const products = getSelectedProductsDetailed();
+  const pricingType = window.productState.pricingType;
+  const cpm = Number(window.productState.cpm) || 2.0;
+
+  // Validation
+  if (isAgencyDeal) {
+    if (!products.length) return alert("Select at least one product.");
+  } else {
+    if (!window.state.parent) return alert("Select a parent company first.");
+    if (!stations.length) return alert("Select at least one station.");
+    if (!products.length) return alert("Select at least one product.");
+  }
+
+  // Hide proposal output, show allocation output
+  el('proposalOutput').classList.add('hidden');
+  el('financialAllocationOutput').classList.remove('hidden');
+
+  // Build allocation data: station × product breakdown
+  const allocationRows = [];
+  let totalCashAnnual = 0;
+  let totalBarterValue = 0;
+  let totalListPrice = 0;
+  let productStationCount = 0;
+  let inventoryStationCount = 0;
+  const marketBreakdown = new Map();
+
+  // Get barter allocation data
+  const barterAllocation = computeBarterAllocation();
+  const barterByStation = new Map();
+  barterAllocation.forEach(ba => {
+    barterByStation.set(ba.station, ba);
+  });
+
+  // Process each station
+  stations.forEach(st => {
+    const stationBarterData = barterByStation.get(st.station) || {
+      primeMinutesPerDay: 0,
+      rosMinutesPerDay: 0,
+      primeAQH: st.primeAQH || 0,
+      rosAQH: st.rosAQH || 0
+    };
+
+    // Get products assigned to this station
+    const assignedProducts = products.filter(p => {
+      if (p.isSpecialProduct) return true; // Special products apply to all
+      const assignments = window.productState.stationAssignments.get(p.id);
+      return assignments && assignments.has(st.key);
+    });
+
+    const isInventoryStation = assignedProducts.some(p => p.id === 'inventory_only');
+    const hasRealProducts = assignedProducts.some(p => p.id !== 'inventory_only');
+
+    if (isInventoryStation && !hasRealProducts) {
+      inventoryStationCount++;
+    } else if (hasRealProducts) {
+      productStationCount++;
+    }
+
+    assignedProducts.forEach(p => {
+      // Calculate cash value for this station-product
+      let cashMonthly = 0;
+      let cashAnnual = 0;
+      let barterValue = 0;
+      let listPriceAnnual = 0;
+      let stationType = 'Product';
+
+      if (p.id === 'inventory_only') {
+        stationType = 'Inventory';
+        // Inventory stations provide barter but no cash
+        cashMonthly = 0;
+        cashAnnual = 0;
+      } else if (p.isSpecialProduct) {
+        // Special products (TopLine, SpotOn, etc.) - handled separately
+        // Skip for now, we'll add them at the end
+        return;
+      } else {
+        // Standard per-station product
+        const unitPrice = p.cash || 0;
+        const barterPrice = p.barter || 0;
+        listPriceAnnual = (pricingType === 'barter' ? barterPrice : unitPrice) * 12;
+
+        // Get cash quoted for this product-station
+        const cashKey = getCashKey(p.id, st.key);
+        const quotedCash = window.productState.productCashValues?.get(cashKey) || 0;
+
+        if (pricingType === 'cash') {
+          cashMonthly = unitPrice;
+          cashAnnual = unitPrice * 12;
+          barterValue = 0;
+          stationType = 'Cash';
+        } else if (pricingType === 'barter') {
+          cashMonthly = 0;
+          cashAnnual = 0;
+          // Calculate barter value from minutes
+          const primeValue = calculateValueFromMinutes(
+            stationBarterData.primeMinutesPerDay,
+            stationBarterData.primeAQH,
+            cpm
+          );
+          const rosValue = calculateValueFromMinutes(
+            stationBarterData.rosMinutesPerDay,
+            stationBarterData.rosAQH,
+            cpm
+          );
+          barterValue = primeValue + rosValue;
+          stationType = 'Barter';
+        } else {
+          // Mixed
+          cashMonthly = quotedCash;
+          cashAnnual = quotedCash * 12;
+          const remainingValue = Math.max(0, listPriceAnnual - cashAnnual);
+          barterValue = remainingValue;
+          stationType = cashAnnual > 0 && barterValue > 0 ? 'Mixed' : (cashAnnual > 0 ? 'Cash' : 'Barter');
+        }
+      }
+
+      // For inventory stations, calculate barter value from their AQH
+      if (p.id === 'inventory_only') {
+        const primeValue = calculateValueFromMinutes(
+          stationBarterData.primeMinutesPerDay,
+          stationBarterData.primeAQH,
+          cpm
+        );
+        const rosValue = calculateValueFromMinutes(
+          stationBarterData.rosMinutesPerDay,
+          stationBarterData.rosAQH,
+          cpm
+        );
+        barterValue = primeValue + rosValue;
+        listPriceAnnual = barterValue;
+      }
+
+      totalCashAnnual += cashAnnual;
+      totalBarterValue += barterValue;
+      totalListPrice += listPriceAnnual;
+
+      // Track by market
+      if (!marketBreakdown.has(st.market)) {
+        marketBreakdown.set(st.market, { cash: 0, barter: 0 });
+      }
+      const marketData = marketBreakdown.get(st.market);
+      marketData.cash += cashAnnual;
+      marketData.barter += barterValue;
+
+      allocationRows.push({
+        station: st.station,
+        market: st.market,
+        product: p.name,
+        productId: p.id,
+        cashMonthly,
+        cashAnnual,
+        barterValue,
+        primeMinutes: stationBarterData.primeMinutesPerDay,
+        rosMinutes: stationBarterData.rosMinutesPerDay,
+        stationType,
+        listPriceAnnual
+      });
+    });
+  });
+
+  // Add special products (TopLine, Content Automation, SpotOn, FAAI)
+  const specialProducts = [];
+
+  if (window.productState.selectedProducts.has('topline')) {
+    const costs = calculateTopLineCosts();
+    const tierName = costs.tier === 'both' ? 'TopLine Access + Enterprise' :
+                     costs.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
+    let cashAnnual = 0;
+    let barterValue = 0;
+
+    if (pricingType === 'cash') {
+      cashAnnual = costs.totalAnnual;
+    } else if (pricingType === 'barter') {
+      barterValue = costs.totalAnnual * 1.4; // Barter multiplier
+    } else {
+      // Mixed - assume cash for special products unless overridden
+      cashAnnual = costs.totalAnnual;
+    }
+
+    totalCashAnnual += cashAnnual;
+    totalBarterValue += barterValue;
+    totalListPrice += costs.totalAnnual;
+
+    specialProducts.push({
+      station: '— All Markets —',
+      market: `${costs.numberOfMarkets || 1} market(s)`,
+      product: tierName,
+      productId: 'topline',
+      cashMonthly: cashAnnual / 12,
+      cashAnnual,
+      barterValue,
+      primeMinutes: 0,
+      rosMinutes: 0,
+      stationType: cashAnnual > 0 ? 'Cash' : 'Barter',
+      listPriceAnnual: costs.totalAnnual
+    });
+  }
+
+  if (window.productState.selectedProducts.has('content_automation')) {
+    const costs = calculateContentAutomationCosts();
+    if (costs.enabled) {
+      totalCashAnnual += costs.annualCost;
+      totalListPrice += costs.annualCost;
+      specialProducts.push({
+        station: '— Account Level —',
+        market: '—',
+        product: `Content Automation (${costs.tierName})`,
+        productId: 'content_automation',
+        cashMonthly: costs.monthlyCost,
+        cashAnnual: costs.annualCost,
+        barterValue: 0,
+        primeMinutes: 0,
+        rosMinutes: 0,
+        stationType: 'Cash',
+        listPriceAnnual: costs.annualCost
+      });
+    }
+  }
+
+  if (window.productState.selectedProducts.has('spoton')) {
+    const costs = calculateSpotOnCosts();
+    totalCashAnnual += costs.annualCost;
+    totalListPrice += costs.annualCost;
+    specialProducts.push({
+      station: '— Account Level —',
+      market: '—',
+      product: `SpotOn (${costs.credits} credits)`,
+      productId: 'spoton',
+      cashMonthly: costs.monthlyCost,
+      cashAnnual: costs.annualCost,
+      barterValue: 0,
+      primeMinutes: 0,
+      rosMinutes: 0,
+      stationType: 'Cash',
+      listPriceAnnual: costs.annualCost
+    });
+  }
+
+  if (window.productState.selectedProducts.has('faai')) {
+    const costs = calculateFaaiCosts();
+    let cashAnnual = 0;
+    let barterValue = 0;
+
+    if (pricingType === 'cash') {
+      cashAnnual = costs.annualCost;
+    } else if (pricingType === 'barter') {
+      barterValue = costs.annualCost * 1.4;
+    } else {
+      cashAnnual = costs.annualCost;
+    }
+
+    totalCashAnnual += cashAnnual;
+    totalBarterValue += barterValue;
+    totalListPrice += costs.annualCost;
+
+    specialProducts.push({
+      station: '— Account Level —',
+      market: '—',
+      product: `FAAI (${costs.shows || 1} show × ${costs.minutesPerDay || 20} min)`,
+      productId: 'faai',
+      cashMonthly: cashAnnual / 12,
+      cashAnnual,
+      barterValue,
+      primeMinutes: 0,
+      rosMinutes: 0,
+      stationType: cashAnnual > 0 ? 'Cash' : 'Barter',
+      listPriceAnnual: costs.annualCost
+    });
+  }
+
+  // Combine all rows
+  const allRows = [...allocationRows, ...specialProducts];
+
+  // Build HTML table
+  const tableHtml = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="background:#4a90d9;color:white;">
+          <th style="padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Station</th>
+          <th style="padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Market</th>
+          <th style="padding:8px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Product</th>
+          <th style="padding:8px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Mo</th>
+          <th style="padding:8px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Yr</th>
+          <th style="padding:8px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Barter Value/Yr</th>
+          <th style="padding:8px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Barter Mins (P/R)</th>
+          <th style="padding:8px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${allRows.map((row, idx) => `
+          <tr style="background:${idx % 2 === 0 ? 'rgba(74,144,217,0.03)' : 'transparent'};">
+            <td style="padding:6px 8px;border:1px solid var(--input-edge);">${escapeHtml(row.station)}</td>
+            <td style="padding:6px 8px;border:1px solid var(--input-edge);">${escapeHtml(row.market)}</td>
+            <td style="padding:6px 8px;border:1px solid var(--input-edge);">${escapeHtml(row.product)}</td>
+            <td style="padding:6px 8px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashMonthly)}</td>
+            <td style="padding:6px 8px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashAnnual)}</td>
+            <td style="padding:6px 8px;text-align:right;border:1px solid var(--input-edge);color:${row.barterValue > 0 ? 'var(--brand)' : 'var(--text-muted)'};">${money(row.barterValue)}</td>
+            <td style="padding:6px 8px;text-align:center;border:1px solid var(--input-edge);">${row.primeMinutes > 0 || row.rosMinutes > 0 ? `${row.primeMinutes}/${row.rosMinutes}` : '—'}</td>
+            <td style="padding:6px 8px;text-align:center;border:1px solid var(--input-edge);">
+              <span style="padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;
+                background:${row.stationType === 'Inventory' ? '#e3f2fd' : row.stationType === 'Barter' ? 'rgba(103,36,119,0.1)' : row.stationType === 'Mixed' ? '#fff3e0' : '#e8f5e9'};
+                color:${row.stationType === 'Inventory' ? '#1976d2' : row.stationType === 'Barter' ? 'var(--brand)' : row.stationType === 'Mixed' ? '#e65100' : '#2e7d32'};">
+                ${row.stationType}
+              </span>
+            </td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  el('financialAllocationTable').innerHTML = tableHtml;
+
+  // Build summary section
+  const totalAllocated = totalCashAnnual + totalBarterValue;
+  const gap = totalListPrice - totalAllocated;
+  const gapPercent = totalListPrice > 0 ? Math.abs(gap / totalListPrice * 100).toFixed(1) : 0;
+  const tiesOut = Math.abs(gap) < 1;
+
+  let gapMessage = '';
+  if (!tiesOut) {
+    if (gap > 0) {
+      gapMessage = `<span style="color:#d32f2f;">Barter under-allocated by ${money(gap)} (${gapPercent}%)</span>`;
+    } else {
+      gapMessage = `<span style="color:#2e7d32;">Barter over-allocated by ${money(Math.abs(gap))} (${gapPercent}%)</span>`;
+    }
+  }
+
+  const marketRows = Array.from(marketBreakdown.entries())
+    .filter(([market]) => market && market !== '—')
+    .map(([market, data]) => {
+      const marketTotal = data.cash + data.barter;
+      const marketPercent = totalAllocated > 0 ? (marketTotal / totalAllocated * 100).toFixed(1) : 0;
+      return `<div style="display:flex;justify-content:space-between;padding:4px 0;">
+        <span>${escapeHtml(market)}:</span>
+        <span>${money(marketTotal)} (${marketPercent}%)</span>
+      </div>`;
+    }).join('');
+
+  const summaryHtml = `
+    <div style="background:rgba(74,144,217,0.05);border:1px solid rgba(74,144,217,0.2);border-radius:8px;padding:16px;font-size:13px;">
+      <div style="font-weight:600;margin-bottom:12px;color:#4a90d9;border-bottom:1px solid rgba(74,144,217,0.2);padding-bottom:8px;">
+        DEAL VALUE RECONCILIATION
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div style="display:flex;justify-content:space-between;">
+          <span>Total Deal Value (list price):</span>
+          <strong>${money(totalListPrice)}/yr</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding-left:12px;color:var(--text-muted);">
+          <span>Cash Component:</span>
+          <span>${money(totalCashAnnual)}/yr</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding-left:12px;color:var(--brand);">
+          <span>Barter Component:</span>
+          <span>${money(totalBarterValue)}/yr</span>
+        </div>
+        <div style="border-top:1px dashed var(--input-edge);margin:8px 0;"></div>
+        <div style="display:flex;justify-content:space-between;">
+          <span>Total Allocated:</span>
+          <strong>${money(totalAllocated)}/yr ${tiesOut ? '<span style="color:#2e7d32;">✓ Ties out</span>' : ''}</strong>
+        </div>
+        ${gapMessage ? `<div style="margin-top:4px;">${gapMessage}</div>` : ''}
+      </div>
+
+      ${marketRows ? `
+        <div style="margin-top:16px;font-weight:600;color:#4a90d9;border-bottom:1px solid rgba(74,144,217,0.2);padding-bottom:8px;">
+          Barter Allocation by Market
+        </div>
+        <div style="margin-top:8px;">
+          ${marketRows}
+        </div>
+      ` : ''}
+
+      <div style="margin-top:16px;display:flex;gap:24px;font-size:12px;color:var(--text-muted);">
+        <span>Product Stations: <strong>${productStationCount}</strong></span>
+        <span>Inventory Stations: <strong>${inventoryStationCount}</strong></span>
+        <span>Total Stations: <strong>${stations.length}</strong></span>
+      </div>
+    </div>
+  `;
+
+  el('financialAllocationSummary').innerHTML = summaryHtml;
+
+  // Store allocation data for export
+  window.lastFinancialAllocation = {
+    rows: allRows,
+    summary: {
+      totalListPrice,
+      totalCashAnnual,
+      totalBarterValue,
+      totalAllocated,
+      gap,
+      tiesOut,
+      productStationCount,
+      inventoryStationCount,
+      totalStations: stations.length,
+      marketBreakdown: Object.fromEntries(marketBreakdown)
+    }
+  };
+};
+
+// Export financial allocation to CSV/Excel
+window.exportFinancialAllocationToExcel = function exportFinancialAllocationToExcel() {
+  if (!window.lastFinancialAllocation) {
+    alert('Generate a financial allocation first.');
+    return;
+  }
+
+  const { rows, summary } = window.lastFinancialAllocation;
+
+  // Build CSV content
+  const headers = ['Station', 'Market', 'Product', 'Cash/Mo', 'Cash/Yr', 'Barter Value/Yr', 'Barter Mins (P)', 'Barter Mins (R)', 'Type'];
+  const csvRows = [headers.join(',')];
+
+  rows.forEach(row => {
+    csvRows.push([
+      `"${row.station}"`,
+      `"${row.market}"`,
+      `"${row.product}"`,
+      row.cashMonthly.toFixed(2),
+      row.cashAnnual.toFixed(2),
+      row.barterValue.toFixed(2),
+      row.primeMinutes,
+      row.rosMinutes,
+      `"${row.stationType}"`
+    ].join(','));
+  });
+
+  // Add summary rows
+  csvRows.push('');
+  csvRows.push('DEAL VALUE RECONCILIATION');
+  csvRows.push(`Total Deal Value (list price),${summary.totalListPrice.toFixed(2)}`);
+  csvRows.push(`Cash Component,${summary.totalCashAnnual.toFixed(2)}`);
+  csvRows.push(`Barter Component,${summary.totalBarterValue.toFixed(2)}`);
+  csvRows.push(`Total Allocated,${summary.totalAllocated.toFixed(2)}`);
+  csvRows.push(`Gap,${summary.gap.toFixed(2)}`);
+  csvRows.push(`Ties Out,${summary.tiesOut ? 'Yes' : 'No'}`);
+  csvRows.push('');
+  csvRows.push(`Product Stations,${summary.productStationCount}`);
+  csvRows.push(`Inventory Stations,${summary.inventoryStationCount}`);
+  csvRows.push(`Total Stations,${summary.totalStations}`);
+
+  const csvContent = csvRows.join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  link.setAttribute('download', `financial_allocation_${new Date().toISOString().slice(0,10)}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+};
+
+// Copy financial allocation as image
+window.copyFinancialAllocationAsImage = async function copyFinancialAllocationAsImage() {
+  const outputEl = el('financialAllocationOutput');
+  if (!outputEl || outputEl.classList.contains('hidden')) {
+    alert('Generate a financial allocation first.');
+    return;
+  }
+
+  try {
+    // Use html2canvas if available, otherwise alert
+    if (typeof html2canvas === 'undefined') {
+      // Fallback: copy as text
+      const text = outputEl.innerText;
+      await navigator.clipboard.writeText(text);
+      alert('Copied as text (html2canvas not loaded for image copy).');
+      return;
+    }
+
+    const canvas = await html2canvas(outputEl, {
+      backgroundColor: '#ffffff',
+      scale: 2
+    });
+
+    canvas.toBlob(async (blob) => {
+      if (blob) {
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({ 'image/png': blob })
+          ]);
+          // Show success feedback
+          const btn = el('btnCopyAllocationImage');
+          const originalText = btn.textContent;
+          btn.textContent = '✓ Copied!';
+          btn.style.background = 'var(--success)';
+          btn.style.color = 'white';
+          setTimeout(() => {
+            btn.textContent = originalText;
+            btn.style.background = '';
+            btn.style.color = '';
+          }, 2000);
+        } catch (err) {
+          console.error('Clipboard write failed:', err);
+          alert('Could not copy image. Try right-clicking and saving instead.');
+        }
+      }
+    }, 'image/png');
+  } catch (err) {
+    console.error('html2canvas error:', err);
+    alert('Could not generate image. Please try again.');
+  }
+};
 
 // OPTIONAL: if you want copy-to-clipboard to match this new proposal view,
 // replace buildProposalText() too. If you don’t care, you can leave your current one.

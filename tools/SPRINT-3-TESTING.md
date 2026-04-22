@@ -612,3 +612,68 @@ window.productState.manualMinutes.set(manualKey, {
   ros: s.rosMinsPerDay
 });
 ```
+
+---
+
+## Round 8 - Financial Allocation View (2026-04-20)
+
+### Feature: Internal Financial Breakdown
+
+Added a new "Generate Financial Allocation" button next to "Generate Proposal" that shows an internal finance view breaking down deal value by station × product.
+
+**What was added:**
+
+1. **Generate Financial Allocation button** - Blue-styled button next to Generate Proposal
+2. **Station × Product breakdown table** showing:
+   - Station, Market, Product
+   - Cash/Mo, Cash/Yr, Barter Value/Yr
+   - Barter Minutes (Prime/ROS)
+   - Station Type (Product, Inventory, Cash, Barter, Mixed)
+
+3. **Inventory Station handling** - Stations with "Inventory Only" product show:
+   - Their barter contribution (from AQH × minutes × CPM)
+   - Labeled as "Inventory" type
+
+4. **Deal Value Reconciliation summary**:
+   - Total Deal Value (list price)
+   - Cash Component / Barter Component
+   - Total Allocated with tie-out check (✓ or gap warning)
+   - Barter Allocation by Market (percentages)
+   - Product/Inventory/Total station counts
+
+5. **Export features**:
+   - "Copy as Image" - Uses html2canvas to copy to clipboard
+   - "Export to Excel" - Downloads CSV file with all data
+
+6. **System prompt update** - Rule 6 tells Claude how to direct users to the Financial Allocation view
+
+**Styling:**
+- Blue theme (distinct from purple proposal)
+- "INTERNAL" badge at top
+- Alternating row colors
+- Color-coded station type badges
+
+### Test: Financial Allocation View
+
+**Setup**:
+1. Build a Dick Broadcasting deal with TopLine Enterprise at $100K barter, multiple markets
+2. Add 2 inventory stations (stations providing barter but not getting a product)
+3. Click "Generate Financial Allocation"
+
+**Expected**:
+- Every station has a row with its product and value
+- Inventory stations show "Inventory" type with their barter contribution
+- Total ties out to deal value (or shows gap)
+- Market breakdown shows percentages
+- Copy as Image works
+- Export to Excel downloads CSV
+
+**Test Result**: PENDING - Ready for manual testing after deployment
+
+### Test: AI Agent Financial Allocation
+
+**Prompt**: "Show me the financial breakdown" or "Where does the money go?"
+
+**Expected**: Claude explains the Financial Allocation feature and directs user to click the button.
+
+**Test Result**: PENDING

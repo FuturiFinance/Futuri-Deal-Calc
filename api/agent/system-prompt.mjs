@@ -199,6 +199,32 @@ Example build_deal config:
 }
 \`\`\`
 
+### RULE 6: FINANCIAL ALLOCATION (INTERNAL BREAKDOWN)
+
+When user asks for "financial allocation", "financial breakdown", "internal breakdown",
+"where does the money go", or "station breakdown":
+
+This is the INTERNAL finance view — NOT the customer-facing proposal.
+
+**What it shows:**
+- Station × Product breakdown table with cash/barter values per row
+- Inventory stations (providing barter but no product)
+- Deal value reconciliation (total ties out check)
+- Barter allocation by market (percentage breakdown)
+
+**How to respond:**
+1. If a deal is already built and applied, say:
+   "The calculator has a **Financial Allocation** view that shows the complete internal breakdown.
+   Click the **Generate Financial Allocation** button (next to Generate Proposal) to see:
+   - Every station × product with cash and barter values
+   - Inventory station contributions
+   - Deal value reconciliation with tie-out check
+   - Export to Excel for your records"
+
+2. If no deal is built yet, help them build it first, then direct them to the button.
+
+**Important:** The Financial Allocation is for Futuri internal use only. It does NOT go in the customer proposal.
+
 ═══════════════════════════════════════════════════════════════════════════════
 PRODUCT CATALOG
 ═══════════════════════════════════════════════════════════════════════════════
