@@ -2613,18 +2613,28 @@ async function refreshExpandedAdminUsers(){
         filtered.forEach(d => {
           const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
           const label = when ? when.toLocaleString() : "(pending)";
+          const dealLink = d.id ? generateDealLink(uid, d.id) : null;
           const row = document.createElement("div");
           row.className = "el";
           row.innerHTML = `
             <div>
-              <strong>${d.name || "Deal"}</strong>
+              <strong>${escapeHtml(d.name || "Deal")}</strong>
               <div class="muted" style="font-size:11px">${label}</div>
-              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${escapeHtml(d.payload.parent)}</div>` : ""}
               ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
             </div>
-            <button class="btn" type="button">Load</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${dealLink ? `<button class="btn copy-link-btn" type="button" title="Copy shareable link" style="padding:6px 10px; font-size:12px;">🔗</button>` : ''}
+              <button class="btn load-btn" type="button">Load</button>
+            </div>
           `;
-          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          row.querySelector(".load-btn").onclick = () => loadDeal(d.payload);
+          if (dealLink) {
+            row.querySelector(".copy-link-btn").onclick = (e) => {
+              e.stopPropagation();
+              copyToClipboard(dealLink, e.target);
+            };
+          }
           dealsBox.appendChild(row);
         });
       }
@@ -2656,18 +2666,28 @@ function refreshAdminPreviews(){
         preview.forEach(d => {
           const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
           const label = when ? when.toLocaleString() : "(pending)";
+          const dealLink = d.id ? generateDealLink(uid, d.id) : null;
           const row = document.createElement("div");
           row.className = "el";
           row.innerHTML = `
             <div>
-              <strong>${d.name || "Deal"}</strong>
+              <strong>${escapeHtml(d.name || "Deal")}</strong>
               <div class="muted" style="font-size:11px">${label}</div>
-              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+              ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${escapeHtml(d.payload.parent)}</div>` : ""}
               ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
             </div>
-            <button class="btn" type="button">Load</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${dealLink ? `<button class="btn copy-link-btn" type="button" title="Copy shareable link" style="padding:6px 10px; font-size:12px;">🔗</button>` : ''}
+              <button class="btn load-btn" type="button">Load</button>
+            </div>
           `;
-          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          row.querySelector(".load-btn").onclick = () => loadDeal(d.payload);
+          if (dealLink) {
+            row.querySelector(".copy-link-btn").onclick = (e) => {
+              e.stopPropagation();
+              copyToClipboard(dealLink, e.target);
+            };
+          }
           dealsBox.appendChild(row);
         });
       }
@@ -2855,11 +2875,240 @@ function loadDeal(payload){
   const notesEl = el("dealNotes");
   if (notesEl) notesEl.value = payload.notes || "";
 
-  alert("Deal Loaded (Radio view).");
+  // Show brief status instead of alert (less intrusive)
+  const statusEl = el("myDealsStatus");
+  if (statusEl) {
+    statusEl.textContent = "Deal loaded!";
+    setTimeout(() => (statusEl.textContent = ""), 2000);
+  }
 }
 
 /**
- * ✅ UPDATED: Save deal with hard error handling + optional console diagnostics
+ * Generate a shareable URL for a deal
+ * Format: #deal/{userId}/{dealId}
+ */
+function generateDealLink(userId, dealId) {
+  const baseUrl = window.location.origin + window.location.pathname;
+  return `${baseUrl}#deal/${userId}/${dealId}`;
+}
+
+/**
+ * Copy text to clipboard and show feedback
+ */
+async function copyToClipboard(text, feedbackEl = null) {
+  try {
+    await navigator.clipboard.writeText(text);
+    if (feedbackEl) {
+      const originalText = feedbackEl.textContent;
+      feedbackEl.textContent = 'Copied!';
+      setTimeout(() => { feedbackEl.textContent = originalText; }, 1500);
+    }
+    return true;
+  } catch (err) {
+    console.error('Copy failed:', err);
+    // Fallback for older browsers
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      if (feedbackEl) {
+        const originalText = feedbackEl.textContent;
+        feedbackEl.textContent = 'Copied!';
+        setTimeout(() => { feedbackEl.textContent = originalText; }, 1500);
+      }
+      return true;
+    } catch (e) {
+      alert('Copy failed. Please copy manually: ' + text);
+      return false;
+    } finally {
+      document.body.removeChild(textArea);
+    }
+  }
+}
+
+/**
+ * Load a deal by user ID and deal ID (for shareable links)
+ */
+async function loadDealById(userId, dealId) {
+  const { db, doc, getDoc } = window.fb;
+
+  // Try each read collection
+  for (const colName of DEALS_READ_COLLECTIONS) {
+    try {
+      const docRef = doc(db, "users", userId, colName, dealId);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        if (data.payload) {
+          loadDeal(data.payload);
+          // Show notice with deal name
+          const dealName = data.name || 'Untitled Deal';
+          showDealLoadedNotice(dealName);
+          return true;
+        }
+      }
+    } catch (err) {
+      console.warn(`Failed to load deal from ${colName}:`, err);
+    }
+  }
+
+  alert('Deal not found. It may have been deleted or you may not have access.');
+  return false;
+}
+
+/**
+ * Show a brief notice when a deal is loaded from a link
+ */
+function showDealLoadedNotice(dealName) {
+  const notice = document.createElement('div');
+  notice.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--brand, #672477);
+    color: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    z-index: 10000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideDown 0.3s ease;
+  `;
+  notice.textContent = `Loaded deal: ${dealName}`;
+  document.body.appendChild(notice);
+  setTimeout(() => {
+    notice.style.opacity = '0';
+    notice.style.transition = 'opacity 0.3s';
+    setTimeout(() => notice.remove(), 300);
+  }, 3000);
+}
+
+/**
+ * Parse the URL hash for a deal link and return { userId, dealId } or null
+ */
+function parseDealLinkFromHash() {
+  const hash = window.location.hash;
+  if (!hash) return null;
+
+  // Format: #deal/{userId}/{dealId}
+  const match = hash.match(/^#deal\/([^\/]+)\/([^\/]+)$/);
+  if (match) {
+    return { userId: match[1], dealId: match[2] };
+  }
+  return null;
+}
+
+/**
+ * Store pending deal link in localStorage (survives sign-in redirect)
+ */
+function storePendingDealLink(userId, dealId) {
+  localStorage.setItem('pendingDealLink', JSON.stringify({ userId, dealId }));
+}
+
+/**
+ * Get and clear pending deal link from localStorage
+ */
+function getPendingDealLink() {
+  const stored = localStorage.getItem('pendingDealLink');
+  if (stored) {
+    localStorage.removeItem('pendingDealLink');
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
+ * Check URL hash for deal link and load if present (called after sign-in)
+ */
+async function checkAndLoadDealFromUrl() {
+  // First check localStorage (for post-redirect)
+  let dealLink = getPendingDealLink();
+
+  // If not in localStorage, check URL hash
+  if (!dealLink) {
+    dealLink = parseDealLinkFromHash();
+  }
+
+  if (dealLink) {
+    // Clear the hash from URL (optional - keeps URL clean)
+    // window.history.replaceState(null, '', window.location.pathname);
+
+    await loadDealById(dealLink.userId, dealLink.dealId);
+  }
+}
+
+/**
+ * Show shareable link modal after saving a deal
+ */
+function showShareableLinkModal(dealLink, dealName) {
+  // Create modal overlay
+  const overlay = document.createElement('div');
+  overlay.style.cssText = `
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    background: var(--surface, white);
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  `;
+  modal.innerHTML = `
+    <h3 style="margin: 0 0 16px 0; color: var(--brand, #672477);">Deal Saved!</h3>
+    <p style="margin: 0 0 12px 0; color: var(--text-muted, #666);">
+      Share this link to let others view "${escapeHtml(dealName)}":
+    </p>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <input type="text" readonly value="${escapeHtml(dealLink)}"
+        style="flex: 1; padding: 10px 12px; border: 1px solid var(--edge, #ddd); border-radius: 6px; font-size: 13px; background: var(--surface-2, #f5f5f5);"
+        onclick="this.select()" />
+      <button class="btn" id="copyLinkBtn" type="button" style="white-space: nowrap;">Copy Link</button>
+    </div>
+    <div style="margin-top: 16px; text-align: right;">
+      <button class="btn" id="closeLinkModal" type="button" style="background: var(--surface-2, #eee); color: var(--text, #333);">Close</button>
+    </div>
+  `;
+
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  // Wire up buttons
+  modal.querySelector('#copyLinkBtn').onclick = () => {
+    copyToClipboard(dealLink, modal.querySelector('#copyLinkBtn'));
+  };
+
+  modal.querySelector('#closeLinkModal').onclick = () => {
+    overlay.remove();
+  };
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) overlay.remove();
+  };
+
+  // Auto-select the input
+  setTimeout(() => modal.querySelector('input').select(), 100);
+}
+
+/**
+ * ✅ UPDATED: Save deal with hard error handling + shareable link
  */
 async function saveDeal(){
   if (!CURRENT_USER) return alert("Not signed in.");
@@ -2882,7 +3131,8 @@ async function saveDeal(){
   statusEl.innerHTML = '<span class="loading-spinner"></span>Saving...';
 
   try{
-    await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
+    // Capture the document reference to get the ID
+    const docRef = await addDoc(collection(db, "users", CURRENT_USER.uid, DEALS_WRITE_COLLECTION), {
       type: "deal",
       name,
       payload,
@@ -2894,6 +3144,11 @@ async function saveDeal(){
 
     if (!el("myDealsView").classList.contains("hidden")) await renderMyDeals();
     if (!el("allDealsView").classList.contains("hidden") && can("view_all_deals")) await renderAllUsersDeals();
+
+    // Show shareable link modal
+    const dealLink = generateDealLink(CURRENT_USER.uid, docRef.id);
+    showShareableLinkModal(dealLink, name);
+
   }catch(err){
     console.error("SAVE DEAL FAILED:", err);
     statusEl.textContent = "";
@@ -3112,19 +3367,29 @@ async function renderMyDeals(){
     filtered.forEach(d => {
       const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
       const label = when ? when.toLocaleString() : "(pending)";
+      const dealLink = d.id ? generateDealLink(CURRENT_USER.uid, d.id) : null;
 
       const row = document.createElement("div");
       row.className = "el";
       row.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <strong>${d.name || "Untitled Deal"}</strong>
+          <strong>${escapeHtml(d.name || "Untitled Deal")}</strong>
           <div class="muted" style="font-size:11px">${label}</div>
-          ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+          ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${escapeHtml(d.payload.parent)}</div>` : ""}
           ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
         </div>
-        <button class="btn" type="button">Load</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          ${dealLink ? `<button class="btn copy-link-btn" type="button" title="Copy shareable link" style="padding:6px 10px; font-size:12px;">🔗</button>` : ''}
+          <button class="btn load-btn" type="button">Load</button>
+        </div>
       `;
-      row.querySelector("button").onclick = () => loadDeal(d.payload);
+      row.querySelector(".load-btn").onclick = () => loadDeal(d.payload);
+      if (dealLink) {
+        row.querySelector(".copy-link-btn").onclick = (e) => {
+          e.stopPropagation();
+          copyToClipboard(dealLink, e.target);
+        };
+      }
       root.appendChild(row);
     });
     return;
@@ -3153,19 +3418,29 @@ async function renderMyDeals(){
     previewList.forEach(d => {
       const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
       const label = when ? when.toLocaleString() : "(pending)";
+      const dealLink = d.id ? generateDealLink(CURRENT_USER.uid, d.id) : null;
 
       const row = document.createElement("div");
       row.className = "el";
       row.innerHTML = `
         <div style="display:flex; flex-direction:column; gap:4px;">
-          <strong>${d.name || "Untitled Deal"}</strong>
+          <strong>${escapeHtml(d.name || "Untitled Deal")}</strong>
           <div class="muted" style="font-size:11px">${label}</div>
-          ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
+          ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${escapeHtml(d.payload.parent)}</div>` : ""}
           ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
         </div>
-        <button class="btn" type="button">Load</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          ${dealLink ? `<button class="btn copy-link-btn" type="button" title="Copy shareable link" style="padding:6px 10px; font-size:12px;">🔗</button>` : ''}
+          <button class="btn load-btn" type="button">Load</button>
+        </div>
       `;
-      row.querySelector("button").onclick = () => loadDeal(d.payload);
+      row.querySelector(".load-btn").onclick = () => loadDeal(d.payload);
+      if (dealLink) {
+        row.querySelector(".copy-link-btn").onclick = (e) => {
+          e.stopPropagation();
+          copyToClipboard(dealLink, e.target);
+        };
+      }
       root.appendChild(row);
     });
   }catch(err){
@@ -3292,6 +3567,7 @@ async function renderAllUsersDeals(){
         preview.forEach(d => {
           const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
           const label = when ? when.toLocaleString() : "(pending)";
+          const dealLink = d.id ? generateDealLink(uid, d.id) : null;
           const row = document.createElement("div");
           row.className = "el";
           row.innerHTML = `
@@ -3301,9 +3577,18 @@ async function renderAllUsersDeals(){
               ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
               ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
             </div>
-            <button class="btn" type="button">Load</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${dealLink ? `<button class="btn copy-link-btn" type="button" title="Copy shareable link" style="padding:6px 10px; font-size:12px;">🔗</button>` : ''}
+              <button class="btn load-btn" type="button">Load</button>
+            </div>
           `;
-          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          row.querySelector(".load-btn").onclick = () => loadDeal(d.payload);
+          if (dealLink) {
+            row.querySelector(".copy-link-btn").onclick = (e) => {
+              e.stopPropagation();
+              copyToClipboard(dealLink, e.target);
+            };
+          }
           dealsBox.appendChild(row);
         });
       }
@@ -3325,6 +3610,7 @@ async function renderAllUsersDeals(){
         else prev.forEach(d => {
           const when = d.createdAt?.toDate ? d.createdAt.toDate() : null;
           const label = when ? when.toLocaleString() : "(pending)";
+          const dealLink = d.id ? generateDealLink(uid, d.id) : null;
           const row = document.createElement("div");
           row.className = "el";
           row.innerHTML = `
@@ -3334,9 +3620,18 @@ async function renderAllUsersDeals(){
               ${d.payload?.parent ? `<div class="muted" style="font-size:11px">Parent: ${d.payload.parent}</div>` : ""}
               ${d.payload?.pricingType ? `<div class="muted" style="font-size:11px">Pricing: ${d.payload.pricingType}</div>` : ""}
             </div>
-            <button class="btn" type="button">Load</button>
+            <div style="display:flex; gap:8px; align-items:center;">
+              ${dealLink ? `<button class="btn copy-link-btn" type="button" title="Copy shareable link" style="padding:6px 10px; font-size:12px;">🔗</button>` : ''}
+              <button class="btn load-btn" type="button">Load</button>
+            </div>
           `;
-          row.querySelector("button").onclick = () => loadDeal(d.payload);
+          row.querySelector(".load-btn").onclick = () => loadDeal(d.payload);
+          if (dealLink) {
+            row.querySelector(".copy-link-btn").onclick = (e) => {
+              e.stopPropagation();
+              copyToClipboard(dealLink, e.target);
+            };
+          }
           dealsBox.appendChild(row);
         });
         return;
@@ -3418,6 +3713,12 @@ async function renderAllUsersDeals(){
         if (btn.dataset.busy === "1") return;
         btn.dataset.busy = "1";
         btn.disabled = true;
+
+        // Store any pending deal link before sign-in (survives redirect)
+        const pendingDeal = parseDealLinkFromHash();
+        if (pendingDeal) {
+          storePendingDealLink(pendingDeal.userId, pendingDeal.dealId);
+        }
 
         try{
           await signInWithPopup(auth, provider);
@@ -3654,6 +3955,9 @@ async function renderAllUsersDeals(){
 
 
         showView("landing");
+
+        // Check for shared deal link in URL and load if present
+        await checkAndLoadDealFromUrl();
       });
     });
   </script>
