@@ -4337,13 +4337,18 @@ document.addEventListener("click", async (e) => {
     };
 
     function calculateTopLineCosts() {
-      // IMPORTANT: This function returns the CASH LIST PRICE (no barter multiplier).
-      // The 1.4x barter multiplier should be applied ONLY when calculating the Barter Products Target.
-      // This is the single source of truth for TopLine pricing - all other code should use this function.
+      // This is the single source of truth for TopLine pricing.
+      // Returns both cash list price AND deal value (which includes barter multiplier when applicable).
+      //
+      // Deal Value Logic:
+      // - Price Override set: dealValue = override (NO multiplier applied)
+      // - No override + barter/mixed: dealValue = calculated × 1.4
+      // - No override + cash: dealValue = calculated (no multiplier)
       const s = window.toplineState;
       const p = TOPLINE_PRICING;
+      const pricingType = window.productState?.pricingType || 'cash';
 
-      // Base product (multiplied by number of markets) - NO barter multiplier
+      // Base product (multiplied by number of markets)
       const numMarkets = Math.max(1, s.numberOfMarkets || 1);
       const baseAnnual = (p.tierPrices[s.tier] || 0) * numMarkets;
 
@@ -4382,11 +4387,23 @@ document.addEventListener("click", async (e) => {
 
       // Totals
       const totalOneTime = integrationOneTime + chuySetup;
-      const calculatedAnnual = baseSubtotal + attributionAnnual + crmMaintenance + tvAnnual + spotonAnnual + chuyLocationAnnual + chuyRetailerAnnual;
+      const calculatedCashAnnual = baseSubtotal + attributionAnnual + crmMaintenance + tvAnnual + spotonAnnual + chuyLocationAnnual + chuyRetailerAnnual;
 
-      // Use price override if set, otherwise use calculated value
-      const totalAnnual = (s.priceOverride && s.priceOverride > 0) ? s.priceOverride : calculatedAnnual;
+      // Determine if override is set
       const isOverridden = (s.priceOverride && s.priceOverride > 0);
+
+      // Calculate deal value based on override and pricing type
+      let dealValueAnnual;
+      if (isOverridden) {
+        // Override IS the deal value - no multiplier applied
+        dealValueAnnual = s.priceOverride;
+      } else if (pricingType === 'barter' || pricingType === 'mixed') {
+        // Barter/mixed without override: apply 1.4x multiplier
+        dealValueAnnual = calculatedCashAnnual * BARTER_MULTIPLIER;
+      } else {
+        // Cash deal: no multiplier
+        dealValueAnnual = calculatedCashAnnual;
+      }
 
       return {
         numberOfMarkets: numMarkets,
@@ -4406,9 +4423,11 @@ document.addEventListener("click", async (e) => {
         chuyLocationAnnual,
         chuyRetailerAnnual,
         totalOneTime,
-        totalAnnual,            // Cash list price (annual)
-        totalMonthly: totalAnnual / 12,  // Cash list price (monthly)
-        calculatedAnnual,
+        cashAnnual: calculatedCashAnnual,      // Cash list price (for reference)
+        cashMonthly: calculatedCashAnnual / 12,
+        totalAnnual: dealValueAnnual,           // Deal value (used for Total Deal Value display)
+        totalMonthly: dealValueAnnual / 12,
+        calculatedAnnual: calculatedCashAnnual, // Alias for backwards compatibility
         isOverridden
       };
     }
@@ -4572,6 +4591,12 @@ document.addEventListener("click", async (e) => {
         // Price override (null if empty or 0)
         const overrideVal = parseFloat(priceOverrideEl?.value);
         s.priceOverride = (overrideVal > 0) ? overrideVal : null;
+
+        // Auto-recalculate barter minutes when TopLine config changes
+        // (markets, price override, tier, etc. all affect the deal value)
+        if (window.productState?.manualMinutes) {
+          window.productState.manualMinutes.clear();
+        }
 
         updateSpotonAllocation();
         updateTopLineSummary();
@@ -5721,6 +5746,8 @@ document.addEventListener("click", async (e) => {
             window.productState.selectedProducts.delete(product.id);
             window.productState.customPrices.delete(product.id);
           }
+          // Auto-recalculate barter minutes when product selection changes
+          window.productState.manualMinutes.clear();
           window.renderProducts();
           window.updateProductSummary();
         };
@@ -6143,6 +6170,9 @@ document.addEventListener("click", async (e) => {
         if (window.productState.pricingType !== 'mixed') {
           window.productState.productCashValues.clear();
         }
+
+        // Auto-recalculate barter minutes when pricing type changes
+        window.productState.manualMinutes.clear();
 
         if (window.productState.pricingType === 'mixed') el('cashValuesSection').classList.remove('hidden');
         else el('cashValuesSection').classList.add('hidden');
@@ -6897,8 +6927,10 @@ document.addEventListener("click", async (e) => {
 
         if (p.id === 'topline') {
           // Use calculateTopLineCosts() - the single source of truth for TopLine pricing.
-          // This returns the CASH LIST PRICE and respects price override.
-          // The barter multiplier is applied later in updateGapToValue() for Barter Products Target.
+          // totalMonthly is the DEAL VALUE which includes:
+          // - Barter multiplier (1.4x) for barter/mixed deals WITHOUT price override
+          // - Override value (no multiplier) when price override is set
+          // - Cash price for cash deals
           const costs = calculateTopLineCosts();
           monthlyValue = costs.totalMonthly;
         } else if (p.id === 'content_automation') {
@@ -7299,14 +7331,11 @@ document.addEventListener("click", async (e) => {
     });
 
     const totalCashAnnual = totalCashMonthly * 12;
-    const totalBarterTargetAnnual = totalBarterTargetMonthly * 12;  // What barter SHOULD cover
-    const standardProductsListPriceAnnual = standardProductsListPriceMonthly * 12;  // Cash list price
 
-    // Apply barter multiplier for barter/mixed deals to get the Barter Products Target
-    // This is the premium for paying in trade instead of cash (1.4x = 40% markup)
-    const barterMultiplier = (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0;
-    const barterProductsTargetMonthly = standardProductsListPriceMonthly * barterMultiplier;
-    const barterProductsTargetAnnual = barterProductsTargetMonthly * 12;
+    // Total Deal Value already includes the barter multiplier (from calculateTopLineCosts and getProductsForBarter)
+    // For barter/mixed deals, this IS the barter target - no separate "Barter Products Target" needed
+    const dealValueAnnual = totalAnnualValue;  // This comes from totalMonthlyAllStations * 12
+    const dealValueMonthly = totalMonthlyAllStations;
 
     // Calculate barter component (value from allocated minutes)
     // Use the per-product per-station barter allocation
@@ -7334,14 +7363,13 @@ document.addEventListener("click", async (e) => {
     const totalValueAnnual = totalCashAnnual + allocatedBarterAnnual;
     const totalValueMonthly = totalValueAnnual / 12;
 
-    // Calculate gap: how much barter is allocated vs how much was needed
-    // Gap = Barter Products Target (with multiplier) - (Cash + Allocated Barter)
-    // Positive gap = shortfall (need more barter), Negative gap = surplus (over-allocated)
-    const gap = barterProductsTargetAnnual - totalValueAnnual;
+    // Calculate gap: Total Deal Value - (Cash + Allocated Barter)
+    // Positive gap = shortfall (need more barter/cash), Negative gap = surplus (over-allocated)
+    const gap = dealValueAnnual - totalValueAnnual;
     const gapMonthly = gap / 12;
 
     // Determine status - shortfall if gap > 5% of target (with small tolerance)
-    const targetVariance = barterProductsTargetAnnual > 0 ? Math.abs(gap / barterProductsTargetAnnual) : 0;
+    const targetVariance = dealValueAnnual > 0 ? Math.abs(gap / dealValueAnnual) : 0;
     const isShortfall = gap > 100 && targetVariance > 0.05; // Allow 5% variance
 
     // Build per-product breakdown rows
@@ -7362,17 +7390,14 @@ document.addEventListener("click", async (e) => {
       `;
     }
 
-    // Render
+    // Render - simplified display
+    // Barter: Total Deal Value, Barter Component, Gap to Value
+    // Mixed: Total Deal Value, Cash Component, Barter Component, Total Value, Gap to Value
     content.innerHTML = `
       <div style="display: grid; gap: 10px;">
         <div class="el" style="justify-content: space-between; padding: 10px 12px;">
-          <span><strong>Total Deal Value</strong> (all products)</span>
-          <span style="font-weight: 700;">${money(totalMonthlyAllStations)}/mo • ${money(totalAnnualValue)}/yr</span>
-        </div>
-
-        <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(100, 100, 100, 0.05);">
-          <span><strong>Barter Products Target</strong> (${barterMultiplier > 1 ? `${barterMultiplier}x barter rate` : 'list price'})</span>
-          <span style="font-weight: 700;">${money(barterProductsTargetMonthly)}/mo • ${money(barterProductsTargetAnnual)}/yr</span>
+          <span><strong>Total Deal Value</strong></span>
+          <span style="font-weight: 700;">${money(dealValueMonthly)}/mo • ${money(dealValueAnnual)}/yr</span>
         </div>
 
         ${pricingType === 'mixed' ? `
@@ -7387,10 +7412,12 @@ document.addEventListener("click", async (e) => {
           <span style="font-weight: 700; color: var(--brand);">${money(allocatedBarterMonthly)}/mo • ${money(allocatedBarterAnnual)}/yr</span>
         </div>
 
+        ${pricingType === 'mixed' ? `
         <div class="el" style="justify-content: space-between; padding: 10px 12px; background: rgba(0, 100, 200, 0.08); border-color: rgba(0, 100, 200, 0.2);">
-          <span><strong>Total Value</strong> (${pricingType === 'mixed' ? 'Cash + Barter' : 'Barter'})</span>
+          <span><strong>Total Value</strong> (Cash + Barter)</span>
           <span style="font-weight: 700; color: #0064c8;">${money(totalValueMonthly)}/mo • ${money(totalValueAnnual)}/yr</span>
         </div>
+        ` : ''}
 
         <div class="el" style="justify-content: space-between; padding: 10px 12px; border: 2px solid ${isShortfall ? 'var(--danger)' : 'var(--success)'}; background: ${isShortfall ? 'rgba(180, 35, 24, 0.08)' : 'rgba(22, 121, 76, 0.08)'};">
           <span><strong>${isShortfall ? '⚠️' : '✓'} Gap to Value</strong></span>
@@ -7403,7 +7430,7 @@ document.addEventListener("click", async (e) => {
 
         ${isShortfall ? `
         <div class="muted" style="font-size: 12px; padding: 10px; background: rgba(180, 35, 24, 0.06); border-radius: 10px; border: 1px solid rgba(180, 35, 24, 0.15);">
-          <strong>Shortfall:</strong> This deal has a ${money(gap)}/yr gap.
+          <strong>Shortfall:</strong> This deal has a ${money(Math.abs(gap))}/yr gap.
           Consider increasing barter minutes${pricingType === 'mixed' ? ' or cash component' : ''} to cover the full value.
         </div>
         ` : `
@@ -8873,10 +8900,13 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
                      window.toplineState?.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
 
     // Use calculateTopLineCosts() - the single source of truth for TopLine pricing
-    // This returns the CASH LIST PRICE and respects price override
+    // totalAnnual is the DEAL VALUE which includes:
+    // - Barter multiplier (1.4x) for barter/mixed deals WITHOUT price override
+    // - Override value (no multiplier) when price override is set
+    // - Cash price for cash deals
     const toplineCosts = calculateTopLineCosts();
     const assignedMarketsCount = toplineCosts.numberOfMarkets;
-    const correctedListPrice = toplineCosts.totalAnnual;  // Cash list price (no barter multiplier)
+    const correctedListPrice = toplineCosts.totalAnnual;  // Deal value
 
     console.log('[FinancialAllocation] TopLine:', { assignedMarketsCount, correctedListPrice, isOverridden: toplineCosts.isOverridden });
 
@@ -9043,20 +9073,22 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
   if (window.productState.selectedProducts.has('faai')) {
     const costs = calculateFaaiCosts();
+    // costs.annualCost already includes barter multiplier when pricing type is barter
     let cashAnnual = 0;
     let barterValue = 0;
 
     if (pricingType === 'cash') {
       cashAnnual = costs.annualCost;
     } else if (pricingType === 'barter') {
-      barterValue = costs.annualCost * 1.4;
+      barterValue = costs.annualCost;  // Already includes 1.4x from calculateFaaiCosts()
     } else {
-      cashAnnual = costs.annualCost;
+      // Mixed - use cash price
+      cashAnnual = costs.monthlyCash * 12;
     }
 
     totalCashAnnual += cashAnnual;
     totalBarterValue += barterValue;
-    totalListPrice += costs.annualCost;
+    totalListPrice += costs.annualCost;  // This is the deal value (with multiplier for barter)
 
     specialProducts.push({
       station: '— Account Level —',
