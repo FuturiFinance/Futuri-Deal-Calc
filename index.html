@@ -4105,6 +4105,54 @@ document.addEventListener("click", async (e) => {
       return Math.max(1, assignments.size);
     }
 
+    /**
+     * Get the number of markets assigned to TopLine.
+     * For Broadcast deals: uses the market checkboxes (productAssignments) as source of truth
+     * For Agency/Other deals: uses toplineState.numberOfMarkets (no checkboxes available)
+     *
+     * This ensures pricing, barter target, and financial allocation all use the same count.
+     */
+    function getTopLineAssignedMarketCount() {
+      const dealType = window.state?.dealType || 'broadcast';
+
+      // For non-broadcast deals, use the number field as source of truth
+      if (dealType !== 'broadcast') {
+        return Math.max(1, window.toplineState?.numberOfMarkets || 1);
+      }
+
+      // For broadcast deals, check if there are explicit assignments
+      const assignments = window.productState.productAssignments.get('topline');
+      if (assignments && assignments.size > 0) {
+        return assignments.size;
+      }
+
+      // If no explicit assignments, default to all available markets
+      const allMarkets = getUniqueMarketsFromStations();
+      return Math.max(1, allMarkets.length);
+    }
+
+    /**
+     * Sync TopLine's numberOfMarkets field with the actual checkbox count.
+     * Called when market checkboxes change.
+     */
+    function syncTopLineMarketsFromCheckboxes() {
+      const dealType = window.state?.dealType || 'broadcast';
+      if (dealType !== 'broadcast') return; // Only for broadcast deals
+
+      const marketCount = getTopLineAssignedMarketCount();
+
+      // Update toplineState
+      if (window.toplineState) {
+        window.toplineState.numberOfMarkets = marketCount;
+      }
+
+      // Update the input field if it exists
+      const marketsEl = document.getElementById('toplineMarkets');
+      if (marketsEl && parseInt(marketsEl.value) !== marketCount) {
+        marketsEl.value = marketCount;
+      }
+    }
+
     // Clean up product assignments to remove invalid stations/markets
     function cleanupProductAssignments() {
       const validStations = new Set(window.state.stations);
@@ -4475,7 +4523,43 @@ document.addEventListener("click", async (e) => {
       const syncState = () => {
         const s = window.toplineState;
         s.tier = tierEl.value;
-        s.numberOfMarkets = Math.max(1, parseInt(marketsEl.value) || 1);
+
+        // For broadcast deals: market checkboxes are source of truth
+        // For agency/other deals: number field is source of truth
+        const dealType = window.state?.dealType || 'broadcast';
+        const enteredMarkets = Math.max(1, parseInt(marketsEl.value) || 1);
+
+        if (dealType === 'broadcast' && window.productState?.selectedProducts?.has('topline')) {
+          // Get the actual checkbox count
+          const checkboxCount = getTopLineAssignedMarketCount();
+
+          // Show/hide warning if entered number doesn't match checkbox count
+          let warningEl = document.getElementById('toplineMarketsWarning');
+          if (!warningEl) {
+            warningEl = document.createElement('div');
+            warningEl.id = 'toplineMarketsWarning';
+            warningEl.style.cssText = 'color: #e67e22; font-size: 11px; margin-top: 4px;';
+            marketsEl.parentElement.appendChild(warningEl);
+          }
+
+          if (enteredMarkets !== checkboxCount) {
+            warningEl.textContent = `⚠ You entered ${enteredMarkets} but have ${checkboxCount} market${checkboxCount !== 1 ? 's' : ''} selected. Using ${checkboxCount}.`;
+            warningEl.style.display = 'block';
+          } else {
+            warningEl.style.display = 'none';
+          }
+
+          // Use checkbox count for pricing (source of truth)
+          s.numberOfMarkets = checkboxCount;
+        } else {
+          // Non-broadcast deals: number field is source of truth
+          s.numberOfMarkets = enteredMarkets;
+
+          // Hide warning if it exists
+          const warningEl = document.getElementById('toplineMarketsWarning');
+          if (warningEl) warningEl.style.display = 'none';
+        }
+
         s.usersNeeded = Math.max(1, parseInt(usersEl.value) || 5);
         s.accountsNeeded = Math.max(1, parseInt(accountsEl.value) || 220);
         s.attributionEnabled = attrEl.checked;
@@ -5777,6 +5861,12 @@ document.addEventListener("click", async (e) => {
       } else {
         window.productState.productAssignments.set(productId, new Set(Array.from(window.state.stations)));
       }
+
+      // If this is TopLine, sync the numberOfMarkets field with checkboxes
+      if (productId === 'topline') {
+        syncTopLineMarketsFromCheckboxes();
+      }
+
       window.renderProducts();
       window.updateProductSummary();
     };
@@ -5856,6 +5946,12 @@ document.addEventListener("click", async (e) => {
       } else {
         assignments.delete(value);
       }
+
+      // If this is TopLine, sync the numberOfMarkets field with checkboxes
+      if (productId === 'topline') {
+        syncTopLineMarketsFromCheckboxes();
+      }
+
       window.renderProducts();
       window.updateProductSummary();
     };
@@ -6814,15 +6910,39 @@ document.addEventListener("click", async (e) => {
         let productName = p.name;
 
         if (p.id === 'topline') {
-          const costs = calculateTopLineCosts();
-          // Bug fix: Use ASSIGNED market count, not the configured numberOfMarkets
-          // The configured numberOfMarkets is used for pricing display, but the actual
-          // barter target should only include markets that are actually assigned to TopLine
-          const configuredMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
-          const assignedMarkets = Math.max(1, getProductAssignments('topline').size);
-          // Calculate per-market price, then multiply by actually assigned markets
-          const perMarketMonthly = (costs.totalMonthly || 0) / configuredMarkets;
-          monthlyValue = perMarketMonthly * assignedMarkets;
+          // Use getTopLineAssignedMarketCount() which respects:
+          // - Broadcast deals: market checkboxes are source of truth
+          // - Agency/Other deals: numberOfMarkets field is source of truth
+          const assignedMarkets = getTopLineAssignedMarketCount();
+
+          // Get per-market pricing from TopLine tier
+          const tier = window.toplineState?.tier || 'enterprise';
+          const pricingType = window.productState?.pricingType || 'barter';
+          const toplineProduct = window.PRODUCTS?.find(prod => prod.id === 'topline');
+
+          let perMarketAnnual = 0;
+          if (toplineProduct?.tierPrices?.[tier]) {
+            perMarketAnnual = toplineProduct.tierPrices[tier];
+          } else {
+            // Fallback to hardcoded prices
+            const tierPrices = { access: 20000, enterprise: 30000, both: 45000 };
+            perMarketAnnual = tierPrices[tier] || 30000;
+          }
+
+          // Apply barter multiplier if applicable
+          const multiplier = (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0;
+          const totalAnnual = perMarketAnnual * assignedMarkets * multiplier;
+
+          // Add add-ons (attribution, data sets, CRM hours, TV)
+          let addOns = 0;
+          if (window.toplineState?.attributionEnabled) addOns += 8400;
+          addOns += (window.toplineState?.dataSets || 0) * 3000;
+          addOns += (window.toplineState?.crmIntegrationHours || 0) * 150;
+          if (window.toplineState?.tvEnabled && window.state?.dealType === 'broadcast') {
+            addOns += 24000 * assignedMarkets;
+          }
+
+          monthlyValue = (totalAnnual + addOns) / 12;
         } else if (p.id === 'content_automation') {
           const costs = calculateContentAutomationCosts();
           monthlyValue = costs.enabled ? (costs.monthlyCost || 0) : 0;
@@ -8783,20 +8903,30 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   const specialProducts = [];
 
   if (window.productState.selectedProducts.has('topline')) {
-    const costs = calculateTopLineCosts();
-    const tierName = costs.tier === 'both' ? 'TopLine Access + Enterprise' :
-                     costs.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
+    const tierName = window.toplineState?.tier === 'both' ? 'TopLine Access + Enterprise' :
+                     window.toplineState?.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
 
-    // Get the number of ASSIGNED markets (not the configured numberOfMarkets)
-    const assignedMarkets = getProductAssignments('topline');
-    const assignedMarketsCount = Math.max(1, assignedMarkets.size);
-    const configuredMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
+    // Use getTopLineAssignedMarketCount() which respects checkbox state for broadcast deals
+    const assignedMarketsCount = getTopLineAssignedMarketCount();
 
-    // Calculate corrected list price based on assigned markets
-    const perMarketAnnual = (costs.totalAnnual || 0) / configuredMarkets;
-    const correctedListPrice = perMarketAnnual * assignedMarketsCount;
+    // Calculate list price based on assigned market count
+    const tier = window.toplineState?.tier || 'enterprise';
+    const toplineProduct = window.PRODUCTS?.find(prod => prod.id === 'topline');
+    let perMarketAnnual = toplineProduct?.tierPrices?.[tier] || 30000;
 
-    console.log('[FinancialAllocation] TopLine:', { configuredMarkets, assignedMarketsCount, perMarketAnnual, correctedListPrice, assignedMarkets: Array.from(assignedMarkets) });
+    // Apply barter multiplier if applicable
+    const multiplier = (pricingType === 'barter' || pricingType === 'mixed') ? 1.4 : 1.0;
+    let correctedListPrice = perMarketAnnual * assignedMarketsCount * multiplier;
+
+    // Add add-ons
+    if (window.toplineState?.attributionEnabled) correctedListPrice += 8400;
+    correctedListPrice += (window.toplineState?.dataSets || 0) * 3000;
+    correctedListPrice += (window.toplineState?.crmIntegrationHours || 0) * 150;
+    if (window.toplineState?.tvEnabled && window.state?.dealType === 'broadcast') {
+      correctedListPrice += 24000 * assignedMarketsCount;
+    }
+
+    console.log('[FinancialAllocation] TopLine:', { assignedMarketsCount, perMarketAnnual, correctedListPrice, multiplier });
 
     if (pricingType === 'cash') {
       // Cash deal: show TopLine as one row
