@@ -1033,7 +1033,75 @@
   }
 
   // ============================================================================
-  // TOOL 8: buildDeal
+  // TOOL 8: lookupStationDetails
+  // ============================================================================
+
+  /**
+   * Lookup station details from PrecisionTrak data
+   * Returns format, simulcast partner, HD status, multicasts, owner, LMA, MSA
+   *
+   * @param {string} callSign - Station call sign (e.g., "WXYZ-FM", "KABC-AM")
+   * @param {object} [precisionTrakData] - PrecisionTrak data (passed from server)
+   * @returns {object} Station details or not found message
+   */
+  function lookupStationDetails(callSign, precisionTrakData) {
+    if (!callSign) {
+      return { found: false, error: "Call sign is required" };
+    }
+
+    // Normalize the call sign
+    let normalized = callSign.trim().toUpperCase();
+
+    // Add dash before AM/FM/HD suffix if missing
+    if (!/\-[AFH][MD]/.test(normalized)) {
+      const match = normalized.match(/^([A-Z0-9]+)(FM|AM|HD)$/);
+      if (match) {
+        normalized = `${match[1]}-${match[2]}`;
+      }
+      const hdMatch = normalized.match(/^([A-Z0-9]+)(HD[0-9])$/);
+      if (hdMatch) {
+        normalized = `${hdMatch[1]}-${hdMatch[2]}`;
+      }
+    }
+
+    // Look up in PrecisionTrak data
+    const stations = (precisionTrakData && precisionTrakData.stations) || {};
+    const stationData = stations[normalized];
+
+    if (!stationData) {
+      // Try without dash as fallback
+      const noDash = normalized.replace(/-/g, '');
+      const fallbackData = stations[noDash];
+      if (fallbackData) {
+        return {
+          found: true,
+          callSign: noDash,
+          ...fallbackData
+        };
+      }
+
+      return {
+        found: false,
+        callSign: normalized,
+        message: `Station ${normalized} not found in PrecisionTrak database`
+      };
+    }
+
+    return {
+      found: true,
+      callSign: normalized,
+      msa: stationData.msa,
+      format: stationData.format,
+      simulcast: stationData.simulcast,
+      hd: stationData.hd,
+      multicasts: stationData.multicasts,
+      owner: stationData.owner,
+      lma: stationData.lma
+    };
+  }
+
+  // ============================================================================
+  // TOOL 9: buildDeal
   // ============================================================================
 
   /**
@@ -1444,6 +1512,7 @@
     lookupParent,
     lookupMarkets,
     lookupStations,
+    lookupStationDetails,
     getProductCatalog,
     calculateProductPrice,
     calculateBarterMinutes,

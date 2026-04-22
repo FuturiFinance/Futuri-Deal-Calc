@@ -141,6 +141,16 @@ A station is ONLY off-book if lookup_stations returns zero results.
 NEVER assume a station is off-book without calling lookup_stations first.
 NEVER create an off-book station if the station exists in the Nielsen book.
 
+### RULE 3.5: SIMULCAST PARTNER CHECK
+
+When building a deal with multiple stations, check for simulcast partners using lookup_station_details:
+
+1. Call lookup_station_details for each station to get format, owner, and simulcast info
+2. If any station has a "simulcast" field populated, check if the simulcast partner is also in the deal
+3. **WARN the user** if both simulcast partners are selected: "⚠️ [STATION1] and [STATION2] are simulcast partners - they broadcast the same content. Including both may overcount audience."
+
+This is informational — the user can still proceed, but they should be aware of the overlap.
+
 ### RULE 4: DEAL BUILDING WORKFLOW — FOLLOW IN ORDER
 
 1. **LOOKUP**: Call lookup_parent and/or lookup_stations. NEVER skip this. NEVER assume off-book.
@@ -345,12 +355,13 @@ TOOLS AVAILABLE
 1. lookup_parent - Find broadcast groups
 2. lookup_markets - Find markets for parent
 3. lookup_stations - Find stations with AQH (ALWAYS call before assuming off-book)
-4. get_product_catalog - Get pricing
-5. calculate_product_price - Calculate price (FOR TOPLINE: ALWAYS include tier in extras!)
-6. calculate_barter_minutes - Calculate barter allocation
-7. calculate_faai_price - Calculate FAAI pricing (shows × minutes → dynamic rate)
-8. build_deal - Build complete config
-9. validate_deal - Validate before presenting`;
+4. lookup_station_details - Get station format, simulcast partner, HD status, owner (PrecisionTrak)
+5. get_product_catalog - Get pricing
+6. calculate_product_price - Calculate price (FOR TOPLINE: ALWAYS include tier in extras!)
+7. calculate_barter_minutes - Calculate barter allocation
+8. calculate_faai_price - Calculate FAAI pricing (shows × minutes → dynamic rate)
+9. build_deal - Build complete config
+10. validate_deal - Validate before presenting`;
 
 /**
  * Tool definitions for Claude API
@@ -413,6 +424,20 @@ export const TOOL_DEFINITIONS = [
         }
       },
       required: []
+    }
+  },
+  {
+    name: "lookup_station_details",
+    description: "Look up station details from PrecisionTrak database. Returns format, simulcast partner, HD status, multicasts, owner, LMA, and MSA. Use this to get station information or check if two stations are simulcast partners.",
+    input_schema: {
+      type: "object",
+      properties: {
+        call_sign: {
+          type: "string",
+          description: "Station call sign (e.g., 'WXYZ-FM', 'KABC-AM')"
+        }
+      },
+      required: ["call_sign"]
     }
   },
   {

@@ -3980,6 +3980,63 @@ document.addEventListener("click", async (e) => {
       }
     }
 
+    // PrecisionTrak station data (format, simulcast, HD status, owner, etc.)
+    window.PRECISIONTRAK = { stations: {} };
+
+    // Load PrecisionTrak data
+    async function loadPrecisionTrakData() {
+      try {
+        const response = await fetch('precisiontrak_data.json?v=' + Date.now());
+        if (!response.ok) throw new Error('Failed to fetch PrecisionTrak data');
+        const data = await response.json();
+        if (data.stations) {
+          window.PRECISIONTRAK = data;
+          console.log(`PrecisionTrak loaded: ${data.stationCount} stations`);
+        }
+      } catch (err) {
+        console.warn('Failed to load PrecisionTrak data:', err);
+      }
+    }
+
+    // Get PrecisionTrak data for a station by call sign
+    window.getPrecisionTrakData = function getPrecisionTrakData(callSign) {
+      if (!callSign || !window.PRECISIONTRAK.stations) return null;
+      // Normalize call sign (uppercase, with dash)
+      const normalized = callSign.toUpperCase().trim();
+      return window.PRECISIONTRAK.stations[normalized] || null;
+    };
+
+    // Check if two stations are simulcast partners
+    window.areSimulcastPartners = function areSimulcastPartners(callSign1, callSign2) {
+      const data1 = window.getPrecisionTrakData(callSign1);
+      const data2 = window.getPrecisionTrakData(callSign2);
+      if (!data1 || !data2) return false;
+      // Check if either station lists the other as simulcast partner
+      const cs1Upper = callSign1.toUpperCase().trim();
+      const cs2Upper = callSign2.toUpperCase().trim();
+      return (data1.simulcast === cs2Upper) || (data2.simulcast === cs1Upper);
+    };
+
+    // Get all simulcast partners in a list of call signs
+    window.findSimulcastPairsInSelection = function findSimulcastPairsInSelection(callSigns) {
+      const pairs = [];
+      const csSet = new Set(callSigns.map(cs => cs.toUpperCase().trim()));
+
+      callSigns.forEach(cs => {
+        const data = window.getPrecisionTrakData(cs);
+        if (data && data.simulcast && csSet.has(data.simulcast.toUpperCase())) {
+          // Found a pair - only add if not already in list (avoid duplicates)
+          const pair = [cs, data.simulcast].sort();
+          const pairKey = pair.join('|');
+          if (!pairs.some(p => p.join('|') === pairKey)) {
+            pairs.push(pair);
+          }
+        }
+      });
+
+      return pairs;
+    };
+
     window.productState = {
       selectedProducts: new Set(),
       pricingType: 'cash',
@@ -5071,6 +5128,9 @@ document.addEventListener("click", async (e) => {
       // Load rate card products dynamically
       await loadRateCard();
 
+      // Load PrecisionTrak station data (format, simulcast, HD status, etc.)
+      await loadPrecisionTrakData();
+
       await window.UserData.init(getCurrentBookUrl());
       // load base dataset first (may be empty if no bundled file)
       window.BASE_DS = await loadDataset();
@@ -5424,6 +5484,24 @@ document.addEventListener("click", async (e) => {
       let count = 0, prime = 0, ros = 0;
 
       const keyset = new Set(Array.from(window.state.stations));
+
+      // Get all selected call signs for simulcast pair detection
+      const selectedCallSigns = [];
+      (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
+        const key = s.parent + '|' + s.market + '|' + s.station;
+        if (keyset.has(key)) {
+          selectedCallSigns.push(s.station);
+        }
+      });
+
+      // Find simulcast pairs in selection
+      const simulcastPairs = window.findSimulcastPairsInSelection ? window.findSimulcastPairsInSelection(selectedCallSigns) : [];
+      const simulcastWarnings = new Map(); // callSign -> partner callSign
+      simulcastPairs.forEach(([cs1, cs2]) => {
+        simulcastWarnings.set(cs1.toUpperCase(), cs2);
+        simulcastWarnings.set(cs2.toUpperCase(), cs1);
+      });
+
       (window.IDX.stationsByParent.get(window.state.parent) || []).forEach(s => {
         const key = s.parent + '|' + s.market + '|' + s.station;
         if (keyset.has(key)) {
@@ -5433,9 +5511,66 @@ document.addEventListener("click", async (e) => {
 
           const row = document.createElement('div');
           row.className='el';
-          row.innerHTML =
+          row.style.cssText = 'flex-direction:column;align-items:stretch;';
+
+          // Main station line
+          const mainLine = document.createElement('div');
+          mainLine.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+          mainLine.innerHTML =
             `<span><strong>${s.station}</strong> <span class="muted">— ${s.market}${s.format?(" ("+s.format+")"):""}</span></span>` +
             `<span class="badge">Prime ${Math.round(s.primeAQH||0)} | ROS ${Math.round(s.rosAQH||0)}</span>`;
+          row.appendChild(mainLine);
+
+          // PrecisionTrak detail line
+          const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(s.station) : null;
+          if (ptData) {
+            const detailParts = [];
+
+            // Format
+            if (ptData.format) {
+              detailParts.push(`Format: ${ptData.format}`);
+            }
+
+            // HD status
+            if (ptData.hd) {
+              detailParts.push('HD');
+            }
+
+            // Multicasts (HD2, HD3, etc.)
+            if (ptData.multicasts) {
+              // Parse multicasts string like "HD2:Adult Alternative-That Station / HD3:News-News Plus"
+              const mcParts = ptData.multicasts.split('/').map(mc => {
+                const match = mc.trim().match(/^(HD\d+):(.+?)(?:-.*)?$/);
+                if (match) {
+                  return `${match[1]}: ${match[2].trim()}`;
+                }
+                return mc.trim();
+              });
+              detailParts.push(...mcParts);
+            }
+
+            // Simulcast
+            if (ptData.simulcast) {
+              detailParts.push(`SIMULCAST: ${ptData.simulcast}`);
+            }
+
+            if (detailParts.length > 0) {
+              const detailLine = document.createElement('div');
+              detailLine.style.cssText = 'font-size:11px;color:var(--text-muted);padding-left:24px;margin-top:2px;';
+              detailLine.textContent = detailParts.join(' | ');
+              row.appendChild(detailLine);
+            }
+          }
+
+          // Simulcast warning if both partners are selected
+          const partnerCs = simulcastWarnings.get(s.station.toUpperCase());
+          if (partnerCs) {
+            const warningLine = document.createElement('div');
+            warningLine.style.cssText = 'font-size:11px;color:#d32f2f;font-weight:600;padding-left:24px;margin-top:4px;';
+            warningLine.textContent = `WARNING: ${s.station} and ${partnerCs} are simulcast partners - both are in this deal. Verify this is intentional.`;
+            row.appendChild(warningLine);
+          }
+
           list.appendChild(row);
         }
       });

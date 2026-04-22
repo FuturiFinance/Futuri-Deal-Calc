@@ -42,6 +42,7 @@ const MAX_TOKENS = 4096;
 let cachedNielsenData = null;
 let cachedRateCard = null;
 let cachedDealTools = null;
+let cachedPrecisionTrakData = null;
 
 /**
  * Load Nielsen data from file
@@ -93,6 +94,22 @@ function loadDealTools() {
 }
 
 /**
+ * Load PrecisionTrak station data
+ */
+function loadPrecisionTrakData() {
+  if (cachedPrecisionTrakData) return cachedPrecisionTrakData;
+
+  try {
+    const dataPath = join(__dirname, "../../precisiontrak_data.json");
+    cachedPrecisionTrakData = JSON.parse(readFileSync(dataPath, "utf8"));
+    return cachedPrecisionTrakData;
+  } catch (error) {
+    console.error("Failed to load PrecisionTrak data:", error.message);
+    return null;
+  }
+}
+
+/**
  * Check rate limit for IP
  */
 function checkRateLimit(ip) {
@@ -129,7 +146,7 @@ function checkRateLimit(ip) {
 /**
  * Execute a tool call
  */
-async function executeTool(toolName, toolInput, DealTools, nielsenData, rateCard) {
+async function executeTool(toolName, toolInput, DealTools, nielsenData, rateCard, precisionTrakData) {
   const options = { data: nielsenData, rateCard };
 
   try {
@@ -158,6 +175,14 @@ async function executeTool(toolName, toolInput, DealTools, nielsenData, rateCard
           toolInput.market_name || null,
           toolInput.query || null,
           stationOptions
+        );
+        return { success: true, result };
+      }
+
+      case "lookup_station_details": {
+        const result = DealTools.lookupStationDetails(
+          toolInput.call_sign,
+          precisionTrakData
         );
         return { success: true, result };
       }
@@ -289,11 +314,12 @@ export default async function handler(req, res) {
   }
 
   // Load data and tools
-  let nielsenData, rateCard, DealTools;
+  let nielsenData, rateCard, DealTools, precisionTrakData;
   try {
     nielsenData = loadNielsenData();
     rateCard = loadRateCard();
     DealTools = loadDealTools();
+    precisionTrakData = loadPrecisionTrakData();
 
     if (!nielsenData) {
       return res.status(500).json({ error: "Failed to load Nielsen data" });
@@ -301,6 +327,7 @@ export default async function handler(req, res) {
     if (!rateCard) {
       return res.status(500).json({ error: "Failed to load rate card" });
     }
+    // PrecisionTrak is optional, don't error if missing
   } catch (error) {
     return res.status(500).json({ error: `Failed to load data: ${error.message}` });
   }
@@ -364,7 +391,7 @@ export default async function handler(req, res) {
         console.log(`[Tool Call] ${name}:`, JSON.stringify(input).slice(0, 200));
         toolCalls.push({ name, input });
 
-        const result = await executeTool(name, input, DealTools, nielsenData, rateCard);
+        const result = await executeTool(name, input, DealTools, nielsenData, rateCard, precisionTrakData);
 
         toolResults.push({
           type: "tool_result",
