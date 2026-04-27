@@ -1528,6 +1528,10 @@
               <label for="faaiMargin">Desired Margin (%)</label>
               <input id="faaiMargin" type="number" min="0" max="99" value="90" />
             </div>
+            <div class="field">
+              <label for="faaiPriceOverride">Custom Annual Price (leave blank to use calculated)</label>
+              <input id="faaiPriceOverride" type="number" min="0" step="1000" placeholder="e.g. 20000" style="max-width:200px;" />
+            </div>
           </div>
         </div>
 
@@ -4591,7 +4595,8 @@ document.addEventListener("click", async (e) => {
     window.faaiState = {
       numberOfShows: 0,
       minutesPerDay: 0,
-      margin: 90  // default 90%
+      margin: 90,  // default 90%
+      priceOverride: null  // Custom annual price override (null = use calculated)
     };
 
     // FAAI pricing constants
@@ -5268,9 +5273,20 @@ document.addEventListener("click", async (e) => {
       const monthlyCash = marginDecimal < 1 ? totalAiCost / (1 - marginDecimal) : totalAiCost;
       const monthlyBarter = monthlyCash * BARTER_MULTIPLIER;
 
-      // Use appropriate rate based on pricing type
-      const monthlyCost = (pricingType === 'barter') ? monthlyBarter : monthlyCash;
-      const annualCost = monthlyCost * 12;
+      // Calculate rate card values (before any override)
+      const calculatedMonthlyCost = (pricingType === 'barter') ? monthlyBarter : monthlyCash;
+      const calculatedAnnual = calculatedMonthlyCost * 12;
+
+      // Check for price override
+      const isOverridden = (s.priceOverride && s.priceOverride > 0);
+      let annualCost = calculatedAnnual;
+      let monthlyCost = calculatedMonthlyCost;
+
+      if (isOverridden) {
+        // Use override price as the deal value
+        annualCost = s.priceOverride;
+        monthlyCost = annualCost / 12;
+      }
 
       return {
         numberOfShows: s.numberOfShows,
@@ -5283,7 +5299,9 @@ document.addEventListener("click", async (e) => {
         monthlyCash,
         monthlyBarter,
         monthlyCost,
-        annualCost
+        annualCost,
+        calculatedAnnual,
+        isOverridden
       };
     }
 
@@ -5310,6 +5328,7 @@ document.addEventListener("click", async (e) => {
       const showsInput = el('faaiNumberOfShows');
       const minutesInput = el('faaiMinutesPerDay');
       const marginInput = el('faaiMargin');
+      const priceOverrideInput = el('faaiPriceOverride');
 
       if (showsInput) {
         showsInput.addEventListener('input', () => {
@@ -5337,6 +5356,15 @@ document.addEventListener("click", async (e) => {
           window.updateProductSummary();
         });
       }
+
+      if (priceOverrideInput) {
+        priceOverrideInput.addEventListener('input', () => {
+          const overrideVal = parseFloat(priceOverrideInput.value);
+          window.faaiState.priceOverride = (overrideVal > 0) ? overrideVal : null;
+          updateFaaiSummary();
+          window.updateProductSummary();
+        });
+      }
     }
 
     function applyFaaiStateToUI() {
@@ -5344,10 +5372,12 @@ document.addEventListener("click", async (e) => {
       const showsInput = el('faaiNumberOfShows');
       const minutesInput = el('faaiMinutesPerDay');
       const marginInput = el('faaiMargin');
+      const priceOverrideInput = el('faaiPriceOverride');
 
       if (showsInput) showsInput.value = s.numberOfShows;
       if (minutesInput) minutesInput.value = s.minutesPerDay;
       if (marginInput) marginInput.value = s.margin;
+      if (priceOverrideInput) priceOverrideInput.value = s.priceOverride || '';
 
       updateFaaiSummary();
     }
@@ -9104,12 +9134,22 @@ window.generateProposal = function generateProposal() {
 
     lines.push(`<tr>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-        <strong>FAAI</strong> (${rateType} Rate)<br>
+        <strong>FAAI</strong> (${rateType} Rate)${fa.isOverridden ? ' <span style="color:var(--brand);font-size:11px;">(OVERRIDE)</span>' : ''}<br>
         <span style="font-size:11px;color:var(--muted);">${fa.numberOfShows} show${fa.numberOfShows !== 1 ? 's' : ''}, ${fa.minutesPerDay} min/day, ${fa.margin}% margin</span>
       </td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fa.monthlyCost)}</td>
       <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fa.annualCost)}</strong></td>
     </tr>`);
+
+    // Show price override adjustment if active
+    if (fa.isOverridden) {
+      const adjustment = fa.annualCost - fa.calculatedAnnual;
+      lines.push(`<tr style="background:rgba(103,36,119,.12);">
+        <td style="padding:8px;"><strong>Price Override</strong><br><span style="font-size:11px;color:var(--muted);">Custom pricing applied (rate card: ${money(fa.calculatedAnnual)}/yr)</span></td>
+        <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment / 12)}</td>
+        <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment)}</td>
+      </tr>`);
+    }
 
     lines.push(`</tbody></table>`);
     lines.push(`</div>`);
@@ -9671,10 +9711,54 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     }
   }
 
-  // Combine all rows
-  const allRows = [...allocationRows, ...specialProducts];
-  console.log('[FinancialAllocation] Total rows:', allRows.length, 'allocation:', allocationRows.length, 'special:', specialProducts.length);
+  // Combine all rows and de-duplicate by station+product
+  // If same station+product appears multiple times, keep the one with revenueAllocated > 0
+  const combinedRows = [...allocationRows, ...specialProducts];
+  const rowMap = new Map();
+  combinedRows.forEach(row => {
+    const key = `${row.station}|${row.productId}`;
+    const existing = rowMap.get(key);
+    if (!existing) {
+      rowMap.set(key, row);
+    } else {
+      // Keep the row with higher revenueAllocated (prefer actual values over 0/undefined)
+      if ((row.revenueAllocated || 0) > (existing.revenueAllocated || 0)) {
+        rowMap.set(key, row);
+      }
+    }
+  });
+  const allRows = Array.from(rowMap.values());
+  console.log('[FinancialAllocation] Total rows:', allRows.length, 'before dedup:', combinedRows.length);
   console.log('[FinancialAllocation] All rows:', allRows);
+
+  // Recalculate totals from de-duplicated rows to prevent double-counting
+  // Only sum from non-Summary rows to avoid counting summary rows
+  totalCashAnnual = 0;
+  totalBarterValue = 0;
+  totalListPrice = 0;
+  marketBreakdown.clear();
+
+  allRows.forEach(row => {
+    if (row.stationType === 'Summary') {
+      // Summary rows contribute to list price but not cash/barter (those are in individual rows)
+      totalListPrice += row.listPriceAnnual || 0;
+    } else {
+      totalCashAnnual += row.cashAnnual || 0;
+      totalBarterValue += row.barterValue || 0;
+      totalListPrice += row.listPriceAnnual || row.revenueAllocated || 0;
+
+      // Rebuild market breakdown
+      if (row.market && row.market !== '—') {
+        if (!marketBreakdown.has(row.market)) {
+          marketBreakdown.set(row.market, { cash: 0, barter: 0, revenue: 0 });
+        }
+        const md = marketBreakdown.get(row.market);
+        md.cash += row.cashAnnual || 0;
+        md.barter += row.barterValue || 0;
+        md.revenue += row.revenueAllocated || 0;
+      }
+    }
+  });
 
   // Build HTML table with all columns
   // Include Revenue Allocated column for barter/mixed deals to show proportional allocation
