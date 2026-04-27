@@ -1528,10 +1528,6 @@
               <label for="faaiMargin">Desired Margin (%)</label>
               <input id="faaiMargin" type="number" min="0" max="99" value="90" />
             </div>
-            <div class="field">
-              <label for="faaiPriceOverride">Custom Annual Price (leave blank to use calculated)</label>
-              <input id="faaiPriceOverride" type="number" min="0" step="1000" placeholder="e.g. 20000" style="max-width:200px;" />
-            </div>
           </div>
         </div>
 
@@ -4595,8 +4591,7 @@ document.addEventListener("click", async (e) => {
     window.faaiState = {
       numberOfShows: 0,
       minutesPerDay: 0,
-      margin: 90,  // default 90%
-      priceOverride: null  // Custom annual price override (null = use calculated)
+      margin: 90  // default 90%
     };
 
     // FAAI pricing constants
@@ -5273,20 +5268,9 @@ document.addEventListener("click", async (e) => {
       const monthlyCash = marginDecimal < 1 ? totalAiCost / (1 - marginDecimal) : totalAiCost;
       const monthlyBarter = monthlyCash * BARTER_MULTIPLIER;
 
-      // Calculate rate card values (before any override)
-      const calculatedMonthlyCost = (pricingType === 'barter') ? monthlyBarter : monthlyCash;
-      const calculatedAnnual = calculatedMonthlyCost * 12;
-
-      // Check for price override
-      const isOverridden = (s.priceOverride && s.priceOverride > 0);
-      let annualCost = calculatedAnnual;
-      let monthlyCost = calculatedMonthlyCost;
-
-      if (isOverridden) {
-        // Use override price as the deal value
-        annualCost = s.priceOverride;
-        monthlyCost = annualCost / 12;
-      }
+      // Use appropriate rate based on pricing type
+      const monthlyCost = (pricingType === 'barter') ? monthlyBarter : monthlyCash;
+      const annualCost = monthlyCost * 12;
 
       return {
         numberOfShows: s.numberOfShows,
@@ -5299,9 +5283,7 @@ document.addEventListener("click", async (e) => {
         monthlyCash,
         monthlyBarter,
         monthlyCost,
-        annualCost,
-        calculatedAnnual,
-        isOverridden
+        annualCost
       };
     }
 
@@ -5328,7 +5310,6 @@ document.addEventListener("click", async (e) => {
       const showsInput = el('faaiNumberOfShows');
       const minutesInput = el('faaiMinutesPerDay');
       const marginInput = el('faaiMargin');
-      const priceOverrideInput = el('faaiPriceOverride');
 
       if (showsInput) {
         showsInput.addEventListener('input', () => {
@@ -5356,15 +5337,6 @@ document.addEventListener("click", async (e) => {
           window.updateProductSummary();
         });
       }
-
-      if (priceOverrideInput) {
-        priceOverrideInput.addEventListener('input', () => {
-          const overrideVal = parseFloat(priceOverrideInput.value);
-          window.faaiState.priceOverride = (overrideVal > 0) ? overrideVal : null;
-          updateFaaiSummary();
-          window.updateProductSummary();
-        });
-      }
     }
 
     function applyFaaiStateToUI() {
@@ -5372,12 +5344,10 @@ document.addEventListener("click", async (e) => {
       const showsInput = el('faaiNumberOfShows');
       const minutesInput = el('faaiMinutesPerDay');
       const marginInput = el('faaiMargin');
-      const priceOverrideInput = el('faaiPriceOverride');
 
       if (showsInput) showsInput.value = s.numberOfShows;
       if (minutesInput) minutesInput.value = s.minutesPerDay;
       if (marginInput) marginInput.value = s.margin;
-      if (priceOverrideInput) priceOverrideInput.value = s.priceOverride || '';
 
       updateFaaiSummary();
     }
@@ -7939,8 +7909,15 @@ document.addEventListener("click", async (e) => {
         row.className = 'el';
         row.style.cssText = 'align-items:center; justify-content:space-between; padding:6px 12px 6px 24px; font-size:13px;';
 
+        // Get PrecisionTrak data for format
+        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
+        const formatDisplay = ptData?.format || '—';
+        const aqhDisplay = (primeAQH > 0 || rosAQH > 0)
+          ? `${primeAQH.toLocaleString()}/${rosAQH.toLocaleString()}`
+          : '—';
+
         const left = document.createElement('div');
-        left.innerHTML = `${escapeHtml(st.station)} <span class="muted">— ${escapeHtml(st.market)}</span>`;
+        left.innerHTML = `${escapeHtml(st.station)} <span class="muted">— ${escapeHtml(st.market)} — ${formatDisplay} — AQH: ${aqhDisplay}</span>`;
 
         const right = document.createElement('div');
         right.style.cssText = 'display:flex; align-items:center; gap:8px;';
@@ -9117,15 +9094,18 @@ window.generateProposal = function generateProposal() {
   }
 
   // FAAI section if selected
+  // For barter line items: show inventory (what customer gets), not dollar amounts
+  // For cash line items: show dollar amounts as normal
   if (faaiSelected && faaiCosts && faaiCosts.monthlyCost > 0) {
     const fa = faaiCosts;
+    const isBarterLineItem = (pricingType === 'barter');
 
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">FAAI</div>`);
 
-    // For barter deals: customer sees what they GET, not what it's worth
-    // No dollar amounts on barter proposals - only product/service description
-    if (pricingType === 'barter') {
+    if (isBarterLineItem) {
+      // Barter line item: show inventory description only (no dollar amounts)
+      // Customer sees what they GET, not what it's worth
       lines.push(`<div style="padding:12px; background:var(--surface-2); border-radius:10px;">`);
       lines.push(`<div style="font-weight:600; margin-bottom:8px;">AI-Powered Audio Content</div>`);
       lines.push(`<div style="display:flex; flex-wrap:wrap; gap:12px; font-size:13px;">`);
@@ -9135,7 +9115,7 @@ window.generateProposal = function generateProposal() {
       lines.push(`</div>`);
       lines.push(`</div>`);
     } else {
-      // Cash or mixed deals: show dollar amounts
+      // Cash or mixed line item: show dollar amounts
       lines.push(`<div style="overflow-x:auto;">`);
       lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
       lines.push(`<thead><tr>
@@ -9146,22 +9126,12 @@ window.generateProposal = function generateProposal() {
 
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-          <strong>FAAI</strong>${fa.isOverridden ? ' <span style="color:var(--brand);font-size:11px;">(OVERRIDE)</span>' : ''}<br>
+          <strong>FAAI</strong><br>
           <span style="font-size:11px;color:var(--muted);">${fa.numberOfShows} show${fa.numberOfShows !== 1 ? 's' : ''}, ${fa.minutesPerDay} min/day</span>
         </td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fa.monthlyCost)}</td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fa.annualCost)}</strong></td>
       </tr>`);
-
-      // Show price override adjustment if active
-      if (fa.isOverridden) {
-        const adjustment = fa.annualCost - fa.calculatedAnnual;
-        lines.push(`<tr style="background:rgba(103,36,119,.12);">
-          <td style="padding:8px;"><strong>Price Override</strong><br><span style="font-size:11px;color:var(--muted);">Custom pricing applied (rate card: ${money(fa.calculatedAnnual)}/yr)</span></td>
-          <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment / 12)}</td>
-          <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment)}</td>
-        </tr>`);
-      }
 
       lines.push(`</tbody></table>`);
       lines.push(`</div>`);
@@ -9169,43 +9139,31 @@ window.generateProposal = function generateProposal() {
   }
 
   // Grand Total section
-  // Value shown depends on deal type:
-  // - Cash: rate card value (annualAllStationsProposal)
-  // - Barter: barter value from allocated minutes
-  // - Mixed: cash component + barter component
+  // Customer-facing proposal: only show CASH portion of the deal
+  // For 100% barter deals: hide Grand Total entirely (customers don't see dollar values on barter)
+  // For mixed deals: show only the cash component (barter is shown as inventory, not dollars)
   let grandTotalOneTime = 0;
-  let grandTotalAnnual = 0;
-  let monthlyLabel = "Monthly Cost";
-  let annualLabel = "Annual Cost";
+  let grandTotalCashAnnual = 0;
 
   if (pricingType === 'cash') {
-    // Cash deal: show rate card value
-    grandTotalAnnual = annualAllStationsProposal;
-    monthlyLabel = "Monthly Cost";
-    annualLabel = "Annual Cost";
-  } else if (pricingType === 'barter') {
-    // Barter deal: show value from allocated barter minutes
-    const barterTotal = computeAllocatedBarterTotal();
-    grandTotalAnnual = barterTotal.annualValue;
-    monthlyLabel = "Monthly Barter Value";
-    annualLabel = "Annual Barter Value";
-  } else {
-    // Mixed deal: cash + barter components
+    // Cash deal: show full rate card value
+    grandTotalCashAnnual = annualAllStationsProposal;
+  } else if (pricingType === 'mixed') {
+    // Mixed deal: show ONLY the cash component (barter shown as inventory pills)
     const cashTotal = computeCashTotal();
-    const barterTotal = computeAllocatedBarterTotal();
-    grandTotalAnnual = cashTotal.annualValue + barterTotal.annualValue;
-    monthlyLabel = "Monthly Value (Cash + Barter)";
-    annualLabel = "Annual Value (Cash + Barter)";
+    grandTotalCashAnnual = cashTotal.annualValue;
   }
+  // For 100% barter: grandTotalCashAnnual stays 0
 
   // Add one-time fees from TopLine if applicable
   if (toplineSelected && toplineCosts) {
     grandTotalOneTime += toplineCosts.totalOneTime;
   }
 
-  // Grand Total section - only show dollar amounts for cash/mixed deals
-  // Barter deals don't show dollar values to customers (they see what they get, not what it's worth)
-  if (pricingType !== 'barter') {
+  // Only show Grand Total if there's a cash component or one-time fees
+  // 100% barter deals have no dollar amounts to display to customers
+  const hasCashToShow = grandTotalCashAnnual > 0 || grandTotalOneTime > 0;
+  if (hasCashToShow) {
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div style="padding:12px; background:rgba(103,36,119,.12); border:1px solid rgba(103,36,119,.25); border-radius:14px;">`);
     lines.push(`<div class="title" style="margin-bottom:6px;">Grand Total</div>`);
@@ -9213,8 +9171,8 @@ window.generateProposal = function generateProposal() {
     if (grandTotalOneTime > 0) {
       lines.push(`<div><div class="muted" style="font-size:11px;">One-Time Fees</div><strong style="font-size:18px;">${money(grandTotalOneTime)}</strong></div>`);
     }
-    lines.push(`<div><div class="muted" style="font-size:11px;">${monthlyLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
-    lines.push(`<div><div class="muted" style="font-size:11px;">${annualLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
+    lines.push(`<div><div class="muted" style="font-size:11px;">Monthly Cost</div><strong style="font-size:18px;">${money(grandTotalCashAnnual / 12)}</strong></div>`);
+    lines.push(`<div><div class="muted" style="font-size:11px;">Annual Cost</div><strong style="font-size:18px;">${money(grandTotalCashAnnual)}</strong></div>`);
     lines.push(`</div>`);
     lines.push(`</div>`);
   }
@@ -9289,24 +9247,26 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   const isBarter = pricingType === 'barter';
   const isMixed = pricingType === 'mixed';
 
+  // Helper: Check if a product has a dedicated render block (dynamic pricing, no fixed rate card)
+  // Products without fixed cash/barter rates require special calculation logic and have their own blocks below
+  function hasDedicatedRenderBlock(product) {
+    // Products with null rate cards have dynamic pricing and dedicated render blocks
+    if (product.cash === null && product.barter === null) return true;
+    // Products that are flagged as special also have dedicated blocks
+    if (product.isSpecialProduct) return true;
+    return false;
+  }
+
   // For barter/mixed deals: show each station's barter contribution
   // For cash deals: show each station × product cash value
 
-  // Special products handled separately (TopLine, SpotOn, FAAI, etc.)
-  const SPECIAL_PRODUCT_IDS = ['topline', 'topline_cx_war_room', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'];
-
-  // Process each standard product separately
+  // Process each product separately (standard products with fixed rate cards only)
   products.forEach(p => {
-    console.log('[FinancialAllocation] Processing product:', p.name, 'isSpecial:', SPECIAL_PRODUCT_IDS.includes(p.id));
+    console.log('[FinancialAllocation] Processing product:', p.name, 'hasDedicatedBlock:', hasDedicatedRenderBlock(p));
 
-    // Skip special products - they're handled in dedicated blocks below
-    if (SPECIAL_PRODUCT_IDS.includes(p.id)) {
-      return;
-    }
-
-    // Skip products with null rates (like FAAI) - they have dedicated blocks
-    if (p.cash === null && p.barter === null) {
-      console.log('[FinancialAllocation] Skipping product with null rates:', p.name);
+    // Skip products with dedicated render blocks - they're handled in specialized sections below
+    if (hasDedicatedRenderBlock(p)) {
+      console.log('[FinancialAllocation] Skipping', p.name, '- has dedicated render block');
       return;
     }
 
@@ -9451,7 +9411,6 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     } else {
       // Barter/Mixed deal: show per-station barter contributions for TopLine
       // Revenue allocation: EQUAL SPLIT across all stations carrying the product
-      // Total product revenue ÷ count of stations = per-station allocation
       totalListPrice += correctedListPrice;
       let toplineStationBarterTotal = 0;
       let toplinePrimeMinutesTotal = 0;
@@ -9492,9 +9451,11 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
         // Track by market
         if (!marketBreakdown.has(st.market)) {
-          marketBreakdown.set(st.market, { cash: 0, barter: 0 });
+          marketBreakdown.set(st.market, { cash: 0, barter: 0, revenue: 0 });
         }
-        marketBreakdown.get(st.market).barter += stationBarterValue;
+        const marketData = marketBreakdown.get(st.market);
+        marketData.barter += stationBarterValue;
+        marketData.revenue = (marketData.revenue || 0) + toplinePerStationRevenue;
 
         allocationRows.push({
           station: st.station,
@@ -9518,7 +9479,6 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       });
 
       // Add summary row for TopLine product - shows the actual sum of individual station barter values
-      // Revenue is distributed across individual station rows via equal split, not in summary
       console.log('[FinancialAllocation] TopLine summary:', { toplineStationBarterTotal, toplinePrimeMinutesTotal, toplineRosMinutesTotal, correctedListPrice });
 
       specialProducts.push({
@@ -9533,8 +9493,8 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         rosAQH: 0,
         cashMonthly: 0,
         cashAnnual: 0,
-        revenueAllocated: 0,  // Revenue distributed to individual stations via equal split
-        barterValue: toplineStationBarterTotal,  // Sum of individual station values
+        revenueAllocated: correctedListPrice,
+        barterValue: toplineStationBarterTotal,  // Sum of individual station values, not a pre-calculated target
         primeMinutes: toplinePrimeMinutesTotal,
         rosMinutes: toplineRosMinutesTotal,
         stationType: 'Summary',
@@ -9603,14 +9563,13 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     const faaiDealValue = costs.annualCost;
     totalListPrice += faaiDealValue;
 
-    // Revenue allocation: EQUAL SPLIT across all stations carrying the product
-    // Total product revenue ÷ count of stations = per-station allocation
-    const stationCount = stations.length;
-    const perStationRevenue = stationCount > 0 ? faaiDealValue / stationCount : 0;
-
-    // For FAAI barter/mixed: distribute revenue equally, calculate barter from minutes
+    // For FAAI barter/mixed: distribute revenue EQUALLY across ALL stations carrying the product
+    // Revenue allocation = Deal Value ÷ Station Count (regardless of AQH)
+    // Barter value is calculated from allocated minutes (varies by station based on AQH)
     if (pricingType === 'barter' || pricingType === 'mixed') {
       let faaiTotalBarterValue = 0;
+      const stationCount = stations.length;
+      const perStationRevenue = stationCount > 0 ? faaiDealValue / stationCount : 0;
 
       stations.forEach(st => {
         const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
@@ -9621,6 +9580,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
 
         // Revenue allocation: EQUAL split per station (not AQH-proportional)
+        // Every station carrying this product gets the same revenue allocation
         const revenueAllocated = perStationRevenue;
 
         // Barter value from allocated minutes
@@ -9661,10 +9621,9 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       totalBarterValue += faaiTotalBarterValue;
 
       // Add summary row for FAAI
-      // Revenue is distributed across individual station rows via equal split, not in summary
       specialProducts.push({
         station: '— FAAI Summary —',
-        market: `${stationCount} station(s)`,
+        market: `${stations.length} station(s)`,
         product: `FAAI (${costs.numberOfShows || 1} show × ${costs.minutesPerDay || 0} min)`,
         productId: 'faai',
         format: '—',
@@ -9674,7 +9633,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         rosAQH: 0,
         cashMonthly: 0,
         cashAnnual: 0,
-        revenueAllocated: 0,  // Revenue distributed to individual stations via equal split
+        revenueAllocated: faaiDealValue,
         barterValue: faaiTotalBarterValue,
         primeMinutes: 0,
         rosMinutes: 0,
@@ -9682,39 +9641,11 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         listPriceAnnual: faaiDealValue
       });
     } else {
-      // Cash deal - distribute equally across stations
+      // Cash deal - show single row
       totalCashAnnual += faaiDealValue;
-
-      stations.forEach(st => {
-        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
-        const primeAQH = Number(st.primeAQH) || 0;
-        const rosAQH = Number(st.rosAQH) || 0;
-
-        allocationRows.push({
-          station: st.station,
-          market: st.market,
-          product: 'FAAI',
-          productId: 'faai',
-          format: ptData?.format || '—',
-          simulcast: ptData?.simulcast || '—',
-          hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
-          primeAQH,
-          rosAQH,
-          cashMonthly: perStationRevenue / 12,
-          cashAnnual: perStationRevenue,
-          revenueAllocated: perStationRevenue,
-          barterValue: 0,
-          primeMinutes: 0,
-          rosMinutes: 0,
-          stationType: 'Cash',
-          listPriceAnnual: perStationRevenue
-        });
-      });
-
-      // Add summary row
       specialProducts.push({
-        station: '— FAAI Summary —',
-        market: `${stationCount} station(s)`,
+        station: '— Account Level —',
+        market: '—',
         product: `FAAI (${costs.numberOfShows || 1} show × ${costs.minutesPerDay || 0} min)`,
         productId: 'faai',
         format: '—',
@@ -9728,65 +9659,16 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         barterValue: 0,
         primeMinutes: 0,
         rosMinutes: 0,
-        stationType: 'Summary',
+        stationType: 'Cash',
         listPriceAnnual: faaiDealValue
       });
     }
   }
 
-  // Combine all rows and de-duplicate by station+product
-  // If same station+product appears multiple times, keep the one with revenueAllocated > 0
-  const combinedRows = [...allocationRows, ...specialProducts];
-  const rowMap = new Map();
-  combinedRows.forEach(row => {
-    const key = `${row.station}|${row.productId}`;
-    const existing = rowMap.get(key);
-    if (!existing) {
-      rowMap.set(key, row);
-    } else {
-      // Keep the row with higher revenueAllocated (prefer actual values over 0/undefined)
-      if ((row.revenueAllocated || 0) > (existing.revenueAllocated || 0)) {
-        rowMap.set(key, row);
-      }
-    }
-  });
-  const allRows = Array.from(rowMap.values());
-  console.log('[FinancialAllocation] Total rows:', allRows.length, 'before dedup:', combinedRows.length);
+  // Combine all rows
+  const allRows = [...allocationRows, ...specialProducts];
+  console.log('[FinancialAllocation] Total rows:', allRows.length, 'allocation:', allocationRows.length, 'special:', specialProducts.length);
   console.log('[FinancialAllocation] All rows:', allRows);
-
-  // Recalculate totals from de-duplicated rows to prevent double-counting
-  // Only sum from non-Summary rows to avoid counting summary rows
-  totalCashAnnual = 0;
-  totalBarterValue = 0;
-  totalListPrice = 0;
-  marketBreakdown.clear();
-
-  allRows.forEach(row => {
-    if (row.stationType === 'Summary') {
-      // Summary rows contribute to list price (deal value) but not cash/barter
-      // The barter value in summary is already counted in individual rows
-      totalListPrice += row.listPriceAnnual || 0;
-    } else {
-      totalCashAnnual += row.cashAnnual || 0;
-      totalBarterValue += row.barterValue || 0;
-      // For list price: only add listPriceAnnual if set, NOT revenueAllocated
-      // revenueAllocated is for display purposes; listPriceAnnual is in summary rows
-      if (row.listPriceAnnual > 0) {
-        totalListPrice += row.listPriceAnnual;
-      }
-
-      // Rebuild market breakdown
-      if (row.market && row.market !== '—') {
-        if (!marketBreakdown.has(row.market)) {
-          marketBreakdown.set(row.market, { cash: 0, barter: 0, revenue: 0 });
-        }
-        const md = marketBreakdown.get(row.market);
-        md.cash += row.cashAnnual || 0;
-        md.barter += row.barterValue || 0;
-        md.revenue += row.revenueAllocated || 0;
-      }
-    }
-  });
 
   // Build HTML table with all columns
   // Include Revenue Allocated column for barter/mixed deals to show proportional allocation
