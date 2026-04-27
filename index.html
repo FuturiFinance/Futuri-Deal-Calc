@@ -9235,12 +9235,15 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   // For barter/mixed deals: show each station's barter contribution
   // For cash deals: show each station × product cash value
 
-  // Process each product separately
-  products.forEach(p => {
-    console.log('[FinancialAllocation] Processing product:', p.name, 'isSpecial:', p.isSpecialProduct);
+  // Special products handled separately (TopLine, SpotOn, FAAI, etc.)
+  const SPECIAL_PRODUCT_IDS = ['topline', 'topline_cx_war_room', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'];
 
-    if (p.isSpecialProduct) {
-      // Handle special products (TopLine, SpotOn, etc.) separately
+  // Process each standard product separately
+  products.forEach(p => {
+    console.log('[FinancialAllocation] Processing product:', p.name, 'isSpecial:', SPECIAL_PRODUCT_IDS.includes(p.id));
+
+    // Skip special products - they're handled in dedicated blocks below
+    if (SPECIAL_PRODUCT_IDS.includes(p.id)) {
       return;
     }
 
@@ -9384,8 +9387,8 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       });
     } else {
       // Barter/Mixed deal: show per-station barter contributions for TopLine
-      // The summary row should show the SUM of individual station barter values, not a pre-calculated target
-      // We'll calculate this after processing all stations
+      // Revenue allocation: EQUAL SPLIT across all stations carrying the product
+      // Total product revenue ÷ count of stations = per-station allocation
       totalListPrice += correctedListPrice;
       let toplineStationBarterTotal = 0;
       let toplinePrimeMinutesTotal = 0;
@@ -9394,6 +9397,9 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       // Get stations that are in assigned TopLine markets
       const toplineStations = getAssignedStationsForProduct('topline');
       console.log('[FinancialAllocation] TopLine stations:', toplineStations.length, toplineStations.map(s => s.station));
+
+      // Calculate equal-split revenue per station
+      const toplinePerStationRevenue = toplineStations.length > 0 ? correctedListPrice / toplineStations.length : 0;
 
       // Show each station's contribution to the TopLine barter - read from DOM
       toplineStations.forEach(st => {
@@ -9439,7 +9445,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
           rosAQH,
           cashMonthly: 0,
           cashAnnual: 0,
-          revenueAllocated: 0,  // Revenue tracked in summary row
+          revenueAllocated: toplinePerStationRevenue,  // Equal split across all stations
           barterValue: stationBarterValue,
           primeMinutes: domBarter.primeMinutes,
           rosMinutes: domBarter.rosMinutes,
@@ -9449,6 +9455,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       });
 
       // Add summary row for TopLine product - shows the actual sum of individual station barter values
+      // Revenue is distributed across individual station rows via equal split, not in summary
       console.log('[FinancialAllocation] TopLine summary:', { toplineStationBarterTotal, toplinePrimeMinutesTotal, toplineRosMinutesTotal, correctedListPrice });
 
       specialProducts.push({
@@ -9463,8 +9470,8 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         rosAQH: 0,
         cashMonthly: 0,
         cashAnnual: 0,
-        revenueAllocated: correctedListPrice,
-        barterValue: toplineStationBarterTotal,  // Sum of individual station values, not a pre-calculated target
+        revenueAllocated: 0,  // Revenue distributed to individual stations via equal split
+        barterValue: toplineStationBarterTotal,  // Sum of individual station values
         primeMinutes: toplinePrimeMinutesTotal,
         rosMinutes: toplineRosMinutesTotal,
         stationType: 'Summary',
@@ -9533,14 +9540,12 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     const faaiDealValue = costs.annualCost;
     totalListPrice += faaiDealValue;
 
-    // Calculate total AQH across all stations for proportional allocation
-    let totalAQH = 0;
-    stations.forEach(st => {
-      totalAQH += (Number(st.primeAQH) || 0) + (Number(st.rosAQH) || 0);
-    });
+    // Revenue allocation: EQUAL SPLIT across all stations carrying the product
+    // Total product revenue ÷ count of stations = per-station allocation
+    const stationCount = stations.length;
+    const perStationRevenue = stationCount > 0 ? faaiDealValue / stationCount : 0;
 
-    // For FAAI barter/mixed: distribute revenue across ALL stations proportionally by AQH
-    // Every station gets a revenue allocation, but only stations with barter minutes have barter value
+    // For FAAI barter/mixed: distribute revenue equally, calculate barter from minutes
     if (pricingType === 'barter' || pricingType === 'mixed') {
       let faaiTotalBarterValue = 0;
 
@@ -9548,16 +9553,12 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
         const primeAQH = Number(st.primeAQH) || 0;
         const rosAQH = Number(st.rosAQH) || 0;
-        const stationTotalAQH = primeAQH + rosAQH;
 
         // Get PrecisionTrak data
         const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
 
-        // Revenue allocation: proportional by AQH
-        // If total AQH is 0, distribute equally
-        const revenueAllocated = totalAQH > 0
-          ? (stationTotalAQH / totalAQH) * faaiDealValue
-          : faaiDealValue / stations.length;
+        // Revenue allocation: EQUAL split per station (not AQH-proportional)
+        const revenueAllocated = perStationRevenue;
 
         // Barter value from allocated minutes
         const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
@@ -9597,9 +9598,10 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       totalBarterValue += faaiTotalBarterValue;
 
       // Add summary row for FAAI
+      // Revenue is distributed across individual station rows via equal split, not in summary
       specialProducts.push({
         station: '— FAAI Summary —',
-        market: `${stations.length} station(s)`,
+        market: `${stationCount} station(s)`,
         product: `FAAI (${costs.numberOfShows || 1} show × ${costs.minutesPerDay || 0} min)`,
         productId: 'faai',
         format: '—',
@@ -9609,7 +9611,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         rosAQH: 0,
         cashMonthly: 0,
         cashAnnual: 0,
-        revenueAllocated: faaiDealValue,
+        revenueAllocated: 0,  // Revenue distributed to individual stations via equal split
         barterValue: faaiTotalBarterValue,
         primeMinutes: 0,
         rosMinutes: 0,
@@ -9617,11 +9619,39 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         listPriceAnnual: faaiDealValue
       });
     } else {
-      // Cash deal - show single row
+      // Cash deal - distribute equally across stations
       totalCashAnnual += faaiDealValue;
+
+      stations.forEach(st => {
+        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
+        const primeAQH = Number(st.primeAQH) || 0;
+        const rosAQH = Number(st.rosAQH) || 0;
+
+        allocationRows.push({
+          station: st.station,
+          market: st.market,
+          product: 'FAAI',
+          productId: 'faai',
+          format: ptData?.format || '—',
+          simulcast: ptData?.simulcast || '—',
+          hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
+          primeAQH,
+          rosAQH,
+          cashMonthly: perStationRevenue / 12,
+          cashAnnual: perStationRevenue,
+          revenueAllocated: perStationRevenue,
+          barterValue: 0,
+          primeMinutes: 0,
+          rosMinutes: 0,
+          stationType: 'Cash',
+          listPriceAnnual: perStationRevenue
+        });
+      });
+
+      // Add summary row
       specialProducts.push({
-        station: '— Account Level —',
-        market: '—',
+        station: '— FAAI Summary —',
+        market: `${stationCount} station(s)`,
         product: `FAAI (${costs.numberOfShows || 1} show × ${costs.minutesPerDay || 0} min)`,
         productId: 'faai',
         format: '—',
@@ -9635,7 +9665,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         barterValue: 0,
         primeMinutes: 0,
         rosMinutes: 0,
-        stationType: 'Cash',
+        stationType: 'Summary',
         listPriceAnnual: faaiDealValue
       });
     }
