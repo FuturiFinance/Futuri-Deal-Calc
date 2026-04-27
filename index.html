@@ -9119,40 +9119,53 @@ window.generateProposal = function generateProposal() {
   // FAAI section if selected
   if (faaiSelected && faaiCosts && faaiCosts.monthlyCost > 0) {
     const fa = faaiCosts;
-    const rateType = (pricingType === 'barter') ? 'Barter' : 'Cash';
 
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">FAAI</div>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
-    </tr></thead><tbody>`);
+    // For barter deals: customer sees what they GET, not what it's worth
+    // No dollar amounts on barter proposals - only product/service description
+    if (pricingType === 'barter') {
+      lines.push(`<div style="padding:12px; background:var(--surface-2); border-radius:10px;">`);
+      lines.push(`<div style="font-weight:600; margin-bottom:8px;">AI-Powered Audio Content</div>`);
+      lines.push(`<div style="display:flex; flex-wrap:wrap; gap:12px; font-size:13px;">`);
+      lines.push(`<span class="pill">${fa.numberOfShows} show${fa.numberOfShows !== 1 ? 's' : ''}</span>`);
+      lines.push(`<span class="pill">${fa.minutesPerDay} minutes/day</span>`);
+      lines.push(`<span class="pill">${stations.length} station${stations.length !== 1 ? 's' : ''}</span>`);
+      lines.push(`</div>`);
+      lines.push(`</div>`);
+    } else {
+      // Cash or mixed deals: show dollar amounts
+      lines.push(`<div style="overflow-x:auto;">`);
+      lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+      lines.push(`<thead><tr>
+        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+      </tr></thead><tbody>`);
 
-    lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-        <strong>FAAI</strong> (${rateType} Rate)${fa.isOverridden ? ' <span style="color:var(--brand);font-size:11px;">(OVERRIDE)</span>' : ''}<br>
-        <span style="font-size:11px;color:var(--muted);">${fa.numberOfShows} show${fa.numberOfShows !== 1 ? 's' : ''}, ${fa.minutesPerDay} min/day, ${fa.margin}% margin</span>
-      </td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fa.monthlyCost)}</td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fa.annualCost)}</strong></td>
-    </tr>`);
-
-    // Show price override adjustment if active
-    if (fa.isOverridden) {
-      const adjustment = fa.annualCost - fa.calculatedAnnual;
-      lines.push(`<tr style="background:rgba(103,36,119,.12);">
-        <td style="padding:8px;"><strong>Price Override</strong><br><span style="font-size:11px;color:var(--muted);">Custom pricing applied (rate card: ${money(fa.calculatedAnnual)}/yr)</span></td>
-        <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment / 12)}</td>
-        <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment)}</td>
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+          <strong>FAAI</strong>${fa.isOverridden ? ' <span style="color:var(--brand);font-size:11px;">(OVERRIDE)</span>' : ''}<br>
+          <span style="font-size:11px;color:var(--muted);">${fa.numberOfShows} show${fa.numberOfShows !== 1 ? 's' : ''}, ${fa.minutesPerDay} min/day</span>
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(fa.monthlyCost)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(fa.annualCost)}</strong></td>
       </tr>`);
-    }
 
-    lines.push(`</tbody></table>`);
-    lines.push(`</div>`);
+      // Show price override adjustment if active
+      if (fa.isOverridden) {
+        const adjustment = fa.annualCost - fa.calculatedAnnual;
+        lines.push(`<tr style="background:rgba(103,36,119,.12);">
+          <td style="padding:8px;"><strong>Price Override</strong><br><span style="font-size:11px;color:var(--muted);">Custom pricing applied (rate card: ${money(fa.calculatedAnnual)}/yr)</span></td>
+          <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment / 12)}</td>
+          <td style="padding:8px; text-align:right; color:${adjustment < 0 ? 'var(--success)' : 'var(--danger)'};">${adjustment >= 0 ? '+' : ''}${money(adjustment)}</td>
+        </tr>`);
+      }
+
+      lines.push(`</tbody></table>`);
+      lines.push(`</div>`);
+    }
   }
 
   // Grand Total section
@@ -9190,17 +9203,21 @@ window.generateProposal = function generateProposal() {
     grandTotalOneTime += toplineCosts.totalOneTime;
   }
 
-  lines.push(`<div class="subtle-divider"></div>`);
-  lines.push(`<div style="padding:12px; background:rgba(103,36,119,.12); border:1px solid rgba(103,36,119,.25); border-radius:14px;">`);
-  lines.push(`<div class="title" style="margin-bottom:6px;">Grand Total</div>`);
-  lines.push(`<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; text-align:center;">`);
-  if (grandTotalOneTime > 0) {
-    lines.push(`<div><div class="muted" style="font-size:11px;">One-Time Fees</div><strong style="font-size:18px;">${money(grandTotalOneTime)}</strong></div>`);
+  // Grand Total section - only show dollar amounts for cash/mixed deals
+  // Barter deals don't show dollar values to customers (they see what they get, not what it's worth)
+  if (pricingType !== 'barter') {
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div style="padding:12px; background:rgba(103,36,119,.12); border:1px solid rgba(103,36,119,.25); border-radius:14px;">`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Grand Total</div>`);
+    lines.push(`<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:12px; text-align:center;">`);
+    if (grandTotalOneTime > 0) {
+      lines.push(`<div><div class="muted" style="font-size:11px;">One-Time Fees</div><strong style="font-size:18px;">${money(grandTotalOneTime)}</strong></div>`);
+    }
+    lines.push(`<div><div class="muted" style="font-size:11px;">${monthlyLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
+    lines.push(`<div><div class="muted" style="font-size:11px;">${annualLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
+    lines.push(`</div>`);
+    lines.push(`</div>`);
   }
-  lines.push(`<div><div class="muted" style="font-size:11px;">${monthlyLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
-  lines.push(`<div><div class="muted" style="font-size:11px;">${annualLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
-  lines.push(`</div>`);
-  lines.push(`</div>`);
 
   // Proposal mode badge
   const modeBadge = el('proposalMode');
@@ -9284,6 +9301,12 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
     // Skip special products - they're handled in dedicated blocks below
     if (SPECIAL_PRODUCT_IDS.includes(p.id)) {
+      return;
+    }
+
+    // Skip products with null rates (like FAAI) - they have dedicated blocks
+    if (p.cash === null && p.barter === null) {
+      console.log('[FinancialAllocation] Skipping product with null rates:', p.name);
       return;
     }
 
@@ -9740,12 +9763,17 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
   allRows.forEach(row => {
     if (row.stationType === 'Summary') {
-      // Summary rows contribute to list price but not cash/barter (those are in individual rows)
+      // Summary rows contribute to list price (deal value) but not cash/barter
+      // The barter value in summary is already counted in individual rows
       totalListPrice += row.listPriceAnnual || 0;
     } else {
       totalCashAnnual += row.cashAnnual || 0;
       totalBarterValue += row.barterValue || 0;
-      totalListPrice += row.listPriceAnnual || row.revenueAllocated || 0;
+      // For list price: only add listPriceAnnual if set, NOT revenueAllocated
+      // revenueAllocated is for display purposes; listPriceAnnual is in summary rows
+      if (row.listPriceAnnual > 0) {
+        totalListPrice += row.listPriceAnnual;
+      }
 
       // Rebuild market breakdown
       if (row.market && row.market !== '—') {
