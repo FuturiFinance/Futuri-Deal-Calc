@@ -8194,6 +8194,87 @@ function computeBarterAllocationPerProduct() {
 }
 
 /**
+ * Compute total allocated barter value from allocated minutes
+ * Returns { annualValue, monthlyValue }
+ * This sums the dollar value of all barter minutes across all stations and products
+ */
+function computeAllocatedBarterTotal() {
+  try {
+    const stations = getSelectedStationsDetailed();
+    const cpm = Number(window.productState.cpm || 2.0);
+    const barterPerProduct = computeBarterAllocationPerProduct();
+    const ANNUAL_MULTIPLIER = 728; // 2 dayparts × 7 days × 52 weeks
+
+    let allocatedBarterAnnual = 0;
+
+    stations.forEach(st => {
+      const primeAQH = Number(st.primeAQH) || 0;
+      const rosAQH = Number(st.rosAQH) || 0;
+
+      // Sum up barter value from all products at this station
+      barterPerProduct.forEach((stationMap, productId) => {
+        const stationBarter = stationMap.get(st.key);
+        if (stationBarter) {
+          const primeMinutes = stationBarter.primeMinutes || 0;
+          const rosMinutes = stationBarter.rosMinutes || 0;
+          // Value from minutes: (AQH × Minutes/day × CPM × 728) / 1000
+          const primeValue = (primeAQH * primeMinutes * cpm * ANNUAL_MULTIPLIER) / 1000;
+          const rosValue = (rosAQH * rosMinutes * cpm * ANNUAL_MULTIPLIER) / 1000;
+          allocatedBarterAnnual += primeValue + rosValue;
+        }
+      });
+    });
+
+    return {
+      annualValue: allocatedBarterAnnual,
+      monthlyValue: allocatedBarterAnnual / 12
+    };
+  } catch (e) {
+    console.error('computeAllocatedBarterTotal error', e);
+    return { annualValue: 0, monthlyValue: 0 };
+  }
+}
+
+/**
+ * Compute total cash value for mixed deals
+ * Returns { annualValue, monthlyValue }
+ */
+function computeCashTotal() {
+  try {
+    const pricingType = window.productState.pricingType;
+    if (pricingType !== 'mixed') {
+      return { annualValue: 0, monthlyValue: 0 };
+    }
+
+    const stations = getSelectedStationsDetailed();
+    let totalCashMonthly = 0;
+
+    // Sum up cash across all products and all their locations
+    const productsForCash = getProductsForCashInput();
+    productsForCash.forEach(p => {
+      const isMarketLevel = isMarketLevelProduct(p.id);
+      const assignments = getProductAssignments(p.id);
+      const locations = isMarketLevel
+        ? Array.from(assignments)
+        : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      locations.forEach(locationKey => {
+        const cashKey = getCashKey(p.id, locationKey);
+        totalCashMonthly += window.productState.productCashValues.get(cashKey) || 0;
+      });
+    });
+
+    return {
+      annualValue: totalCashMonthly * 12,
+      monthlyValue: totalCashMonthly
+    };
+  } catch (e) {
+    console.error('computeCashTotal error', e);
+    return { annualValue: 0, monthlyValue: 0 };
+  }
+}
+
+/**
  * Read barter minutes directly from DOM input fields
  * This is the source of truth - reads what the user sees in the barter section
  * Returns a Map keyed by callSign with {primeMinutes, rosMinutes} for each station
@@ -8998,8 +9079,34 @@ window.generateProposal = function generateProposal() {
   }
 
   // Grand Total section
+  // Value shown depends on deal type:
+  // - Cash: rate card value (annualAllStationsProposal)
+  // - Barter: barter value from allocated minutes
+  // - Mixed: cash component + barter component
   let grandTotalOneTime = 0;
-  let grandTotalAnnual = annualAllStationsProposal;
+  let grandTotalAnnual = 0;
+  let monthlyLabel = "Monthly Cost";
+  let annualLabel = "Annual Cost";
+
+  if (pricingType === 'cash') {
+    // Cash deal: show rate card value
+    grandTotalAnnual = annualAllStationsProposal;
+    monthlyLabel = "Monthly Cost";
+    annualLabel = "Annual Cost";
+  } else if (pricingType === 'barter') {
+    // Barter deal: show value from allocated barter minutes
+    const barterTotal = computeAllocatedBarterTotal();
+    grandTotalAnnual = barterTotal.annualValue;
+    monthlyLabel = "Monthly Barter Value";
+    annualLabel = "Annual Barter Value";
+  } else {
+    // Mixed deal: cash + barter components
+    const cashTotal = computeCashTotal();
+    const barterTotal = computeAllocatedBarterTotal();
+    grandTotalAnnual = cashTotal.annualValue + barterTotal.annualValue;
+    monthlyLabel = "Monthly Value (Cash + Barter)";
+    annualLabel = "Annual Value (Cash + Barter)";
+  }
 
   // Add one-time fees from TopLine if applicable
   if (toplineSelected && toplineCosts) {
@@ -9013,8 +9120,8 @@ window.generateProposal = function generateProposal() {
   if (grandTotalOneTime > 0) {
     lines.push(`<div><div class="muted" style="font-size:11px;">One-Time Fees</div><strong style="font-size:18px;">${money(grandTotalOneTime)}</strong></div>`);
   }
-  lines.push(`<div><div class="muted" style="font-size:11px;">Monthly Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
-  lines.push(`<div><div class="muted" style="font-size:11px;">Annual Cost</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
+  lines.push(`<div><div class="muted" style="font-size:11px;">${monthlyLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual / 12)}</strong></div>`);
+  lines.push(`<div><div class="muted" style="font-size:11px;">${annualLabel}</div><strong style="font-size:18px;">${money(grandTotalAnnual)}</strong></div>`);
   lines.push(`</div>`);
   lines.push(`</div>`);
 
