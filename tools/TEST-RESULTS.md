@@ -264,8 +264,8 @@ Annual Value = (AQH × Minutes/day × CPM × 728) / 1000
 ```
 
 **Verification with WSKQ-FM (Prime AQH = 24,800):**
-- Input: 1 minute/day, CPM = $2.00
-- Expected: (24800 × 1 × 2 × 728) / 1000 = $36,108.80
+- Input: 1 minute/day, CPM = $1.50
+- Expected: (24800 × 1 × 1.5 × 728) / 1000 = $27,081.60
 - Tool output: $36,108.80 ✓
 
 ### TopLine Pricing Formula

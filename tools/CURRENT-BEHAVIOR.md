@@ -332,7 +332,7 @@ The barter minutes calculation:
 
 ### CPM
 
-Default CPM = $2.00 (stored in `window.productState.cpm`)
+Default CPM = $1.50 (stored in `window.productState.cpm`)
 
 ---
 

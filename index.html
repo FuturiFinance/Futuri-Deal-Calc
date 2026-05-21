@@ -1201,8 +1201,8 @@
         <div id="cpmDisplay" class="hidden" style="margin-bottom:12px;">
           <div class="row">
             <span class="muted">CPM:</span>
-            <span id="cpmBadge" class="badge">$2.00</span>
-            <input id="cpmInput" type="number" min="0.01" max="100" step="0.01" value="2.00" style="width:90px; height:32px; display:none;" title="Cost Per Mille (admin only)"/>
+            <span id="cpmBadge" class="badge">$1.50</span>
+            <input id="cpmInput" type="number" min="0.01" max="100" step="0.01" value="1.50" style="width:90px; height:32px; display:none;" title="Cost Per Mille (admin only)"/>
           </div>
         </div>
 
@@ -2555,7 +2555,7 @@ function buildDealPayload(){
     productAssignments: Object.fromEntries(
       Array.from(window.productState?.productAssignments || []).map(([k, v]) => [k, Array.from(v)])
     ),
-    cpm: window.productState?.cpm ?? 2.0,
+    cpm: window.productState?.cpm ?? 1.5,
 
     // TopLine configuration
     toplineConfig: { ...window.toplineState },
@@ -2753,7 +2753,7 @@ function loadDeal(payload){
   window.productState.customPrices = new Map(Object.entries(payload.customPrices || {}));
   window.productState.manualMinutes = new Map(Object.entries(payload.manualMinutes || {}));
   window.productState.productCashValues = new Map(Object.entries(payload.productCashValues || {}));
-  window.productState.cpm = payload.cpm ?? 2.0;
+  window.productState.cpm = payload.cpm ?? 1.5;
 
   // Restore per-product station/market assignments
   window.productState.productAssignments = new Map();
@@ -4346,7 +4346,7 @@ document.addEventListener("click", async (e) => {
       selectedProducts: new Set(),
       pricingType: 'cash',
       customPrices: new Map(),
-      cpm: 2.00,
+      cpm: 1.50,
       manualMinutes: new Map(),
       productCashValues: new Map(),  // Map<productId, cashAmount> - cash per product for mixed deals
       // Per-product station/market assignments (for Broadcast deals)
@@ -6424,7 +6424,7 @@ document.addEventListener("click", async (e) => {
     const cpmBadge = el('cpmBadge');
     const cpmInput = el('cpmInput');
     if (cpmBadge && cpmInput) {
-      const cpmVal = Number(window.productState.cpm || 2.0);
+      const cpmVal = Number(window.productState.cpm || 1.5);
       cpmBadge.textContent = `$${cpmVal.toFixed(2)}`;
       cpmInput.value = cpmVal.toFixed(2);
 
@@ -7645,7 +7645,7 @@ document.addEventListener("click", async (e) => {
     // Calculate barter component (value from allocated minutes)
     // Use the per-product per-station barter allocation
     let allocatedBarterAnnual = 0;
-    const cpm = Number(window.productState.cpm || 2.0);
+    const cpm = Number(window.productState.cpm || 1.5);
     const barterPerProduct = computeBarterAllocationPerProduct();
 
     stations.forEach(st => {
@@ -7769,7 +7769,7 @@ document.addEventListener("click", async (e) => {
     if (barterControls) barterControls.classList.remove('hidden');
     if (barterTotals) barterTotals.classList.remove('hidden');
 
-    const cpm = Number(window.productState.cpm || 2.0);
+    const cpm = Number(window.productState.cpm || 1.5);
 
     // Calculate total AQH for Prime and ROS
     let totalPrimeAQH = 0;
@@ -8080,7 +8080,7 @@ function computeBarterAllocationPerProduct() {
   try {
     const stations = getSelectedStationsDetailed();
     const products = getProductsForBarter();  // Include TopLine and other special products
-    const cpm = Number(window.productState.cpm || 2.0);
+    const cpm = Number(window.productState.cpm || 1.5);
 
     if (!stations.length || !products.length) return new Map();
 
@@ -8209,7 +8209,7 @@ function computeBarterAllocationPerProduct() {
 function computeAllocatedBarterTotal() {
   try {
     const stations = getSelectedStationsDetailed();
-    const cpm = Number(window.productState.cpm || 2.0);
+    const cpm = Number(window.productState.cpm || 1.5);
     const barterPerProduct = computeBarterAllocationPerProduct();
     const ANNUAL_MULTIPLIER = 728; // 2 dayparts × 7 days × 52 weeks
 
@@ -9203,7 +9203,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   const stations = getSelectedStationsDetailed();
   const products = getSelectedProductsDetailed();
   const pricingType = window.productState.pricingType;
-  const cpm = Number(window.productState.cpm) || 2.0;
+  const cpm = Number(window.productState.cpm) || 1.5;
 
   console.log('[FinancialAllocation] Starting generation...');
   console.log('[FinancialAllocation] Deal type:', dealType);
@@ -10126,7 +10126,7 @@ window.ChatPanel = (function() {
   function buildContext() {
     const mediaType = window.state?.dealType === 'agency' ? 'AgencyOther' : 'Radio';
     const nielsenBook = window._selectedBundledBook || 'fall2025';
-    const cpm = window.productState?.cpm || 2.00;
+    const cpm = window.productState?.cpm || 1.50;
 
     return {
       mediaType,

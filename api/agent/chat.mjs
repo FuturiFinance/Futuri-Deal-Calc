@@ -210,7 +210,7 @@ async function executeTool(toolName, toolInput, DealTools, nielsenData, rateCard
         const result = DealTools.calculateBarterMinutes(
           toolInput.target_annual_value,
           toolInput.stations,
-          toolInput.cpm || 2.0
+          toolInput.cpm || 1.5
         );
         return { success: true, result };
       }

@@ -862,11 +862,11 @@
    * Calculate barter minutes to hit target value (pure auto-calc, no manual overrides)
    * @param {number} targetAnnualValue - Annual value barter should cover
    * @param {Array<{callSign: string, primeAQH: number, rosAQH: number}>} stations - Station data
-   * @param {number} cpm - Cost per mille (default 2.0)
+   * @param {number} cpm - Cost per mille (default 1.5)
    * @returns {{perStation: Array<{callSign, primeMinsPerDay, rosMinsPerDay, annualValue}>, total: {primeMinsPerDay, rosMinsPerDay, annualValue}}}
    */
   function calculateBarterMinutes(targetAnnualValue, stations, cpm) {
-    cpm = cpm || 2.0;
+    cpm = cpm || 1.5;
 
     if (!stations || !stations.length || !targetAnnualValue || targetAnnualValue <= 0) {
       return {
@@ -1121,7 +1121,7 @@
     const dealType = c.dealType || 'broadcast';
     let mediaType = c.mediaType || MEDIA_TYPES.RADIO;
     let pricingType = c.pricingType || 'cash';
-    const cpm = c.cpm || 2.0;
+    const cpm = c.cpm || 1.5;
 
     // Infer mediaType from dealType if not specified
     if (dealType === 'agency' && !c.mediaType) {

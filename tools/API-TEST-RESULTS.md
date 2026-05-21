@@ -34,7 +34,7 @@ curl -X POST http://localhost:3000/api/agent/chat \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "Cumulus wants POST on KHCM at $700/mo cash"}],
-    "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 2.00}
+    "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 1.50}
   }'
 ```
 
@@ -66,7 +66,7 @@ curl -X POST http://localhost:3000/api/agent/chat \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "Cumulus wants to add POST on KHCM at $700/mo and Streaming on all Honolulu stations at $275/mo each. Mixed deal, $400 cash per station per month."}],
-    "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 2.00}
+    "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 1.50}
   }'
 ```
 
@@ -199,7 +199,7 @@ curl -X POST http://localhost:3000/api/agent/chat \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "Audacy wants TopicPulse IV on all their New York stations, full barter."}],
-    "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 2.00}
+    "context": {"mediaType": "Radio", "nielsenBook": "fall2025", "cpm": 1.50}
   }'
 ```
 

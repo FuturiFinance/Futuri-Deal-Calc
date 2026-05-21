@@ -205,7 +205,7 @@ Example build_deal config:
   "products": ["topline"],
   "productConfigs": {"topline": {"tier": "enterprise"}},
   "pricingType": "barter",
-  "cpm": 2.0
+  "cpm": 1.5
 }
 \`\`\`
 
@@ -308,7 +308,7 @@ PAYMENT & BARTER
 - Barter: 1.4× multiplier, paid in ad minutes
 - Mixed: Cash + barter combination
 - Barter formula: (AQH × Minutes/day × CPM × 728) / 1000
-- Default CPM: $2.00
+- Default CPM: $1.50
 
 ═══════════════════════════════════════════════════════════════════════════════
 WHEN TO ASK VS COMPUTE DIRECTLY
@@ -536,7 +536,7 @@ export const TOOL_DEFINITIONS = [
         },
         cpm: {
           type: "number",
-          description: "Cost per mille (default: 2.00)"
+          description: "Cost per mille (default: 1.50)"
         }
       },
       required: ["target_annual_value", "stations"]
@@ -614,7 +614,7 @@ export const TOOL_DEFINITIONS = [
             },
             cpm: {
               type: "number",
-              description: "CPM for barter calculations (default: 2.00)"
+              description: "CPM for barter calculations (default: 1.50)"
             },
             customPrices: {
               type: "object",
