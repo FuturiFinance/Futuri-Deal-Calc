@@ -240,12 +240,14 @@ PRODUCT CATALOG
 ═══════════════════════════════════════════════════════════════════════════════
 
 ### SpotOn — AI Credit-Based Audio/Video Creation
-- Pricing: $4 per credit, increments of 50 credits
-- Credit usage: Audio=1, Video :15=4, Video :30=8, Clip Regen=1
+- Pricing: $1 per credit, increments of 50 credits
+- Credit usage: Audio=1 ($1), Video :10=6 ($6), Video :15=12 ($12), Video :30=27 ($27)
+- Credit model: Broadcast clip=3 credits, video tiers are broadcast clips × 3
 - Direct math (don't ask questions):
-  * $500 → 125 credits → 31 :15 videos OR 15 :30 videos OR 125 audio spots
-  * $1000 → 250 credits → 250 audio spots
+  * $500 → 500 credits → 83 :10 videos OR 41 :15 videos OR 18 :30 videos OR 500 audio spots
+  * $1000 → 1000 credits → 1000 audio spots
 - Default allocation: 70% audio, 30% video
+- Clip Regeneration (1 credit/$1) retained for legacy/manual quoting only
 
 ### TopLine — Broadcast Intelligence (per market)
 - Access: $42,000/year

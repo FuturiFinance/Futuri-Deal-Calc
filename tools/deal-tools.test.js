@@ -179,9 +179,9 @@
       creditsPerMonth: 200,
       pricingType: 'cash'
     });
-    // 200 credits × $4 = $800/month
-    assertEqual(price.monthly, 800, 'SpotOn 200 credits = $800/month');
-    assertEqual(price.annual, 9600, 'SpotOn 200 credits = $9,600/year');
+    // 200 credits × $1 = $200/month
+    assertEqual(price.monthly, 200, 'SpotOn 200 credits = $200/month');
+    assertEqual(price.annual, 2400, 'SpotOn 200 credits = $2,400/year');
     assertEqual(price.breakdown.creditsPerMonth, 200);
   });
 

@@ -45,7 +45,7 @@
     dataSetPrice: 1000,
     crmHourly: 300,
     crmMaintenance: 0.10,
-    spotonPricePerCredit: 4,
+    spotonPricePerCredit: 1,
     chuyLocationSetup: 99,
     chuyLocationMonthly: 10,
     chuyRetailerMonthly: 119,
@@ -62,12 +62,18 @@
     }
   };
 
+  // SpotOn credit pricing
+  // Credit value derived from clip-based cost model:
+  // - Broadcast clip = 3 credits, draft clip = 1 credit
+  // - Video tiers assume broadcast clips: :10=2 clips, :15=4 clips, :30=9 clips
+  // - Regens absorbed in clip pricing (~3 gens/clip assumed)
   const SPOTON_PRICING = {
-    pricePerCredit: 4,
+    pricePerCredit: 1,
     creditIncrement: 50,
     audioCredits: 1,
-    video15Credits: 4,
-    video30Credits: 8
+    video10Credits: 6,
+    video15Credits: 12,
+    video30Credits: 27
   };
 
   const FB_GROUPS_PRICING = {
@@ -134,7 +140,7 @@
   const DEFAULT_PRODUCTS = [
     { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV', pricingType: 'tiered' },
     { id: 'topline_cx_war_room', name: 'TopLine CX War Room', cash: 1000, barter: null, industry: 'Radio/TV', cashOnly: true, pricingType: 'per_station' },
-    { id: 'spoton', name: 'SpotOn', cash: null, barter: null, industry: 'Radio/TV', note: '$4/credit, increments of 50', pricingType: 'credit_based' },
+    { id: 'spoton', name: 'SpotOn', cash: null, barter: null, industry: 'Radio/TV', note: '$1/credit, increments of 50', pricingType: 'credit_based' },
     { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV', pricingType: 'per_station' },
     { id: 'instant_video', name: 'TopicPulse IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV', pricingType: 'per_station' },
     { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1750, industry: 'Radio/TV', pricingType: 'per_station' },
@@ -750,6 +756,7 @@
         audioCredits,
         videoCredits,
         audioSpots: audioCredits,
+        video10s: Math.floor(videoCredits / SPOTON_PRICING.video10Credits),
         video15s: Math.floor(videoCredits / SPOTON_PRICING.video15Credits),
         video30s: Math.floor(videoCredits / SPOTON_PRICING.video30Credits)
       }

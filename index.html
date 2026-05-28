@@ -1306,15 +1306,15 @@
 
           <!-- SpotOn (Credit-based) -->
           <div style="margin-bottom:16px;">
-            <div style="font-weight:600; margin-bottom:8px;">SpotOn ($4/credit)</div>
+            <div style="font-weight:600; margin-bottom:8px;">SpotOn ($1/credit)</div>
             <!-- Credit Reference -->
             <div style="margin-bottom:10px; padding:8px; background:var(--surface-2); border-radius:8px; font-size:11px;">
               <div style="font-weight:600; margin-bottom:4px; color:var(--muted);">Credit Reference</div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; color:var(--muted);">
-                <span>Audio Spot = 1 credit</span>
-                <span>Video :15 = 4 credits</span>
-                <span>Video :30 = 8 credits</span>
-                <span>Clip Regen = 1 credit</span>
+                <span>Audio Spot = 1 credit ($1)</span>
+                <span>Video :10 = 6 credits ($6)</span>
+                <span>Video :15 = 12 credits ($12)</span>
+                <span>Video :30 = 27 credits ($27)</span>
               </div>
             </div>
             <div class="field" style="margin-bottom:8px;">
@@ -1422,20 +1422,22 @@
 
         <!-- Credit Reference Table -->
         <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-          <div style="font-weight:700; margin-bottom:10px;">Credit Reference ($4/credit)</div>
+          <div style="font-weight:700; margin-bottom:10px;">Credit Reference ($1/credit)</div>
           <table style="width:100%; border-collapse:collapse; font-size:12px;">
             <thead>
               <tr style="background:rgba(103,36,119,.06);">
                 <th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--edge);">Item</th>
                 <th style="text-align:right; padding:6px 8px; border-bottom:1px solid var(--edge);">Credits</th>
+                <th style="text-align:right; padding:6px 8px; border-bottom:1px solid var(--edge);">Price</th>
                 <th style="text-align:left; padding:6px 8px; border-bottom:1px solid var(--edge);">Notes</th>
               </tr>
             </thead>
             <tbody>
-              <tr><td style="padding:4px 8px;">Audio Spot</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; color:var(--muted);">1 credit per spot</td></tr>
-              <tr><td style="padding:4px 8px;">Video :15</td><td style="padding:4px 8px; text-align:right;">4</td><td style="padding:4px 8px; color:var(--muted);">Includes 4 clips</td></tr>
-              <tr><td style="padding:4px 8px;">Video :30</td><td style="padding:4px 8px; text-align:right;">8</td><td style="padding:4px 8px; color:var(--muted);">Includes 8 clips</td></tr>
-              <tr><td style="padding:4px 8px;">Clip Regeneration</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; color:var(--muted);">1 credit per clip</td></tr>
+              <tr><td style="padding:4px 8px;">Audio Spot</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; text-align:right;">$1</td><td style="padding:4px 8px; color:var(--muted);">1 credit per spot</td></tr>
+              <tr><td style="padding:4px 8px;">Video :10</td><td style="padding:4px 8px; text-align:right;">6</td><td style="padding:4px 8px; text-align:right;">$6</td><td style="padding:4px 8px; color:var(--muted);">2 broadcast clips</td></tr>
+              <tr><td style="padding:4px 8px;">Video :15</td><td style="padding:4px 8px; text-align:right;">12</td><td style="padding:4px 8px; text-align:right;">$12</td><td style="padding:4px 8px; color:var(--muted);">4 broadcast clips</td></tr>
+              <tr><td style="padding:4px 8px;">Video :30</td><td style="padding:4px 8px; text-align:right;">27</td><td style="padding:4px 8px; text-align:right;">$27</td><td style="padding:4px 8px; color:var(--muted);">9 broadcast clips</td></tr>
+              <tr style="color:var(--muted); font-style:italic;"><td style="padding:4px 8px;">Clip Regen</td><td style="padding:4px 8px; text-align:right;">1</td><td style="padding:4px 8px; text-align:right;">$1</td><td style="padding:4px 8px; color:var(--muted);">Legacy/manual quoting</td></tr>
             </tbody>
           </table>
         </div>
@@ -4250,7 +4252,7 @@ document.addEventListener("click", async (e) => {
     window.PRODUCTS_FALLBACK = [
       { id: 'topline', name: 'TopLine', cash: null, barter: null, industry: 'Radio/TV' },
       { id: 'topline_cx_war_room', name: 'TopLine CX War Room', cash: 1000, barter: null, industry: 'Radio/TV', cashOnly: true },
-      { id: 'spoton', name: 'SpotOn', cash: null, barter: null, industry: 'Radio/TV', note: '$4/credit, increments of 50' },
+      { id: 'spoton', name: 'SpotOn', cash: null, barter: null, industry: 'Radio/TV', note: '$1/credit, increments of 50' },
       { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, industry: 'Radio/TV' },
       { id: 'instant_video', name: 'TopicPulse IV Add-on', cash: 500, barter: 700, industry: 'Radio/TV' },
       { id: 'topicpulse_iv', name: 'TopicPulse IV', cash: 1250, barter: 1750, industry: 'Radio/TV' },
@@ -4560,14 +4562,19 @@ document.addEventListener("click", async (e) => {
     };
 
     // SpotOn credit pricing constants
+    // Credit value derived from clip-based cost model:
+    // - Broadcast clip = 3 credits, draft clip = 1 credit
+    // - Video tiers assume broadcast clips: :10=2 clips, :15=4 clips, :30=9 clips
+    // - Regens absorbed in clip pricing (~3 gens/clip assumed)
     const SPOTON_PRICING = {
-      pricePerCredit: 4,       // $4 per credit
+      pricePerCredit: 1,       // $1 per credit
       creditIncrement: 50,     // Credits must be in increments of 50
       defaultAudioAlloc: 70,   // Default 70% audio
       defaultVideoAlloc: 30,   // Default 30% video
       audioCredits: 1,         // Audio spot = 1 credit
-      video15Credits: 4,       // :15 video = 4 credits (includes 4 clips)
-      video30Credits: 8        // :30 video = 8 credits (includes 8 clips)
+      video10Credits: 6,       // :10 video = 6 credits (2 broadcast clips × 3)
+      video15Credits: 12,      // :15 video = 12 credits (4 broadcast clips × 3)
+      video30Credits: 27       // :30 video = 27 credits (9 broadcast clips × 3)
     };
 
     // Global barter multiplier (barter = cash × this value)
@@ -4634,7 +4641,7 @@ document.addEventListener("click", async (e) => {
       crmHourly: 300,                 // $300/hr for CRM integration
       crmMaintenance: 0.10,           // 10% annual maintenance on CRM
       // SpotOn credit pricing
-      spotonPricePerCredit: 4,        // $4 per credit
+      spotonPricePerCredit: 1,        // $1 per credit
       chuyLocationSetup: 99,          // $99 setup per retail location
       chuyLocationMonthly: 10,        // $10/mo per retail location
       chuyRetailerMonthly: 119,       // $119/mo per unique retailer
@@ -4783,10 +4790,11 @@ document.addEventListener("click", async (e) => {
         const audioCredits = Math.floor(costs.spotonCredits * 0.70);
         const videoCredits = costs.spotonCredits - audioCredits;
         const audioSpots = audioCredits;
-        const video15s = Math.floor(videoCredits / 4);
-        const video30s = Math.floor(videoCredits / 8);
+        const video10s = Math.floor(videoCredits / SPOTON_PRICING.video10Credits);
+        const video15s = Math.floor(videoCredits / SPOTON_PRICING.video15Credits);
+        const video30s = Math.floor(videoCredits / SPOTON_PRICING.video30Credits);
         html += `<div>SpotOn (${costs.spotonCredits} credits/mo): ${money(costs.spotonAnnual)}/yr</div>`;
-        html += `<div style="font-size:11px;color:var(--muted);margin-left:12px;">→ ${audioSpots} audio spots + ${video15s} :15s OR ${video30s} :30s</div>`;
+        html += `<div style="font-size:11px;color:var(--muted);margin-left:12px;">→ ${audioSpots} audio spots + ${video10s} :10s OR ${video15s} :15s OR ${video30s} :30s</div>`;
       }
       if (costs.chuySetup > 0 || costs.chuyLocationAnnual > 0) {
         html += `<div>CHUY Locations: ${money(costs.chuySetup)} setup + ${money(costs.chuyLocationAnnual)}/yr</div>`;
@@ -4830,11 +4838,12 @@ document.addEventListener("click", async (e) => {
         const audioCredits = Math.floor(credits * 0.70);
         const videoCredits = credits - audioCredits;
         const audioSpots = audioCredits;
-        const video15s = Math.floor(videoCredits / 4);
-        const video30s = Math.floor(videoCredits / 8);
+        const video10s = Math.floor(videoCredits / SPOTON_PRICING.video10Credits);
+        const video15s = Math.floor(videoCredits / SPOTON_PRICING.video15Credits);
+        const video30s = Math.floor(videoCredits / SPOTON_PRICING.video30Credits);
         allocDiv.innerHTML = `<div style="font-weight:600; margin-bottom:4px;">What does this get me?</div>
           <div><strong>Audio:</strong> ${audioCredits} credits = ${audioSpots} audio spots/mo</div>
-          <div><strong>Video:</strong> ${videoCredits} credits = ${video15s} :15s OR ${video30s} :30s/mo</div>`;
+          <div><strong>Video:</strong> ${videoCredits} credits = ${video10s} :10s OR ${video15s} :15s OR ${video30s} :30s/mo</div>`;
       };
 
       const syncState = () => {
@@ -5075,6 +5084,7 @@ document.addEventListener("click", async (e) => {
 
       // Calculate deliverables from allocation
       const audioSpots = audioCredits; // 1 credit = 1 audio spot
+      const video10s = Math.floor(videoCredits / p.video10Credits);
       const video15s = Math.floor(videoCredits / p.video15Credits);
       const video30s = Math.floor(videoCredits / p.video30Credits);
 
@@ -5088,6 +5098,7 @@ document.addEventListener("click", async (e) => {
         audioAllocPct,
         videoAllocPct,
         audioSpots,
+        video10s,
         video15s,
         video30s,
         monthlyCost,
@@ -5102,11 +5113,12 @@ document.addEventListener("click", async (e) => {
       const audioCredits = Math.floor(credits * 0.70);
       const videoCredits = credits - audioCredits;
       const audioSpots = audioCredits;
+      const video10s = Math.floor(videoCredits / p.video10Credits);
       const video15s = Math.floor(videoCredits / p.video15Credits);
       const video30s = Math.floor(videoCredits / p.video30Credits);
       return `<div style="font-weight:600; margin-bottom:6px;">What does this get me?</div>
         <div><strong>Audio:</strong> ${audioCredits} credits = ${audioSpots} audio spots/mo</div>
-        <div><strong>Video:</strong> ${videoCredits} credits = ${video15s} :15s OR ${video30s} :30s/mo</div>`;
+        <div><strong>Video:</strong> ${videoCredits} credits = ${video10s} :10s OR ${video15s} :15s OR ${video30s} :30s/mo</div>`;
     }
 
     function updateSpotOnSummary() {
@@ -8909,9 +8921,9 @@ window.generateProposal = function generateProposal() {
       const ts = window.toplineState;
       let spotonDesc = [];
       if (ts.spotonAudioSpots > 0) spotonDesc.push(`${ts.spotonAudioSpots} audio`);
+      if (ts.spotonVideos10Count > 0) spotonDesc.push(`${ts.spotonVideos10Count} :10s`);
       if (ts.spotonVideos15Count > 0) spotonDesc.push(`${ts.spotonVideos15Count} :15s`);
       if (ts.spotonVideos30Count > 0) spotonDesc.push(`${ts.spotonVideos30Count} :30s`);
-      if (ts.spotonClipRegens > 0) spotonDesc.push(`${ts.spotonClipRegens} clip regens`);
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn <em style="font-size:11px; color:var(--muted);">${tl.spotonTotalCredits} credits/mo (${spotonDesc.join(', ') || '—'})</em></td>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">—</td>
@@ -9023,12 +9035,12 @@ window.generateProposal = function generateProposal() {
 
     // Credit reference table
     lines.push(`<div style="margin-bottom:12px; padding:10px; background:var(--surface-2); border-radius:10px;">`);
-    lines.push(`<div style="font-weight:600; margin-bottom:8px; font-size:12px;">Credit Reference ($4/credit)</div>`);
+    lines.push(`<div style="font-weight:600; margin-bottom:8px; font-size:12px;">Credit Reference ($1/credit)</div>`);
     lines.push(`<table style="width:100%; border-collapse:collapse; font-size:11px; color:var(--muted);">`);
-    lines.push(`<tr><td style="padding:2px 0;">Audio Spot</td><td style="text-align:right; padding:2px 8px;">1 credit</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Video :15</td><td style="text-align:right; padding:2px 8px;">4 credits</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Video :30</td><td style="text-align:right; padding:2px 8px;">8 credits</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Clip Regeneration</td><td style="text-align:right; padding:2px 8px;">1 credit per clip</td></tr>`);
+    lines.push(`<tr><td style="padding:2px 0;">Audio Spot</td><td style="text-align:right; padding:2px 8px;">1 credit ($1)</td></tr>`);
+    lines.push(`<tr><td style="padding:2px 0;">Video :10</td><td style="text-align:right; padding:2px 8px;">6 credits ($6)</td></tr>`);
+    lines.push(`<tr><td style="padding:2px 0;">Video :15</td><td style="text-align:right; padding:2px 8px;">12 credits ($12)</td></tr>`);
+    lines.push(`<tr><td style="padding:2px 0;">Video :30</td><td style="text-align:right; padding:2px 8px;">27 credits ($27)</td></tr>`);
     lines.push(`</table>`);
     lines.push(`</div>`);
 
@@ -9051,7 +9063,7 @@ window.generateProposal = function generateProposal() {
     lines.push(`<tr>
       <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">Video (${sc.videoAllocPct}%)</td>
       <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.videoCredits}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video15s} :15s OR ${sc.video30s} :30s/mo</td>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video10s} :10s OR ${sc.video15s} :15s OR ${sc.video30s} :30s/mo</td>
     </tr>`);
 
     // Total row
