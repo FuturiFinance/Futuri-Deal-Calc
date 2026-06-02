@@ -1228,28 +1228,9 @@
             </div>
           </div>
 
-          <!-- Grid Pricing Config -->
-          <div style="padding-top:12px;border-top:1px solid var(--edge);">
-            <div class="row" style="gap:16px;flex-wrap:wrap;">
-              <div class="field" style="min-width:140px;">
-                <label style="font-size:12px;color:var(--muted);">Pricing Type</label>
-                <select id="gridPricingType" style="height:36px;">
-                  <option value="barter" selected>Barter</option>
-                  <option value="cash">Cash</option>
-                  <option value="mixed">Mixed</option>
-                </select>
-              </div>
-              <div class="field" style="min-width:140px;">
-                <label style="font-size:12px;color:var(--muted);">Default Product</label>
-                <select id="gridDefaultProduct" style="height:36px;">
-                  <option value="">(None - set per row)</option>
-                </select>
-              </div>
-            </div>
-          </div>
         </section>
 
-        <!-- Grid Table -->
+        <!-- Grid Table (station entry only - no minutes/value columns) -->
         <section class="card" style="margin-bottom:16px;">
           <div class="title">Station Grid</div>
           <div style="overflow-x:auto;">
@@ -1260,17 +1241,14 @@
                   <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);">Parent</th>
                   <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);">Market</th>
                   <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);width:90px;">Format</th>
-                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">Prime AQH</th>
-                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">ROS AQH</th>
-                  <th style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">Prime Min</th>
-                  <th style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">ROS Min</th>
-                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:100px;">Annual Value</th>
+                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:80px;">Prime AQH</th>
+                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:80px;">ROS AQH</th>
                   <th style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--edge);width:50px;"></th>
                 </tr>
               </thead>
               <tbody id="gridTableBody">
                 <tr id="gridEmptyRow">
-                  <td colspan="10" style="padding:20px;text-align:center;color:var(--muted);">
+                  <td colspan="7" style="padding:20px;text-align:center;color:var(--muted);">
                     No stations added. Paste call signs above or type them one at a time.
                   </td>
                 </tr>
@@ -1282,29 +1260,13 @@
                   </td>
                   <td style="padding:10px 8px;text-align:right;border-top:2px solid var(--edge);" id="gridTotalPrimeAQH">0</td>
                   <td style="padding:10px 8px;text-align:right;border-top:2px solid var(--edge);" id="gridTotalRosAQH">0</td>
-                  <td style="padding:10px 8px;text-align:center;border-top:2px solid var(--edge);" id="gridTotalPrimeMins">0</td>
-                  <td style="padding:10px 8px;text-align:center;border-top:2px solid var(--edge);" id="gridTotalRosMins">0</td>
-                  <td style="padding:10px 8px;text-align:right;border-top:2px solid var(--edge);color:var(--brand);" id="gridTotalAnnualValue">$0</td>
                   <td style="padding:10px 8px;border-top:2px solid var(--edge);"></td>
                 </tr>
               </tfoot>
             </table>
           </div>
-        </section>
-
-        <!-- Market-Level Products Section (TopLine, SpotOn) -->
-        <section class="card hidden" id="gridMarketProductsSection" style="margin-bottom:16px;">
-          <div class="title">Market-Level Products</div>
-          <div class="muted" style="font-size:12px;margin-bottom:12px;">
-            These products are priced per market, not per station. Configure them here.
-          </div>
-          <div id="gridMarketProductsConfig"></div>
-        </section>
-
-        <!-- Grid Actions -->
-        <section class="card" id="gridActionsSection">
-          <div class="row" style="justify-content:flex-end;gap:12px;">
-            <button class="btn primary" id="btnGridGenerateProposal" type="button">Generate Proposal</button>
+          <div class="muted" style="font-size:12px;margin-top:12px;">
+            After adding stations, select products below. Barter minutes are allocated automatically.
           </div>
         </section>
 
@@ -1317,20 +1279,6 @@
             </div>
             <div class="muted" style="margin-bottom:12px;">This call sign exists in multiple markets. Select the correct one:</div>
             <div id="gridDisambOptions" class="list"></div>
-          </div>
-        </div>
-
-        <!-- Grid Product Config Modal -->
-        <div id="gridProductConfigModal" class="modal" style="display:none;">
-          <div class="modal-card" style="max-width:480px;">
-            <div class="modal-header">
-              <div class="title">Configure <span id="gridConfigProductName"></span></div>
-              <button class="btn modal-close" id="gridConfigCancel" type="button">✕</button>
-            </div>
-            <div id="gridConfigContent"></div>
-            <div class="modal-actions" style="margin-top:12px;">
-              <button class="btn primary" id="gridConfigSave" type="button">Save</button>
-            </div>
           </div>
         </div>
       </div><!-- End gridEntrySection -->
@@ -11497,23 +11445,8 @@ window.ChatPanel = (function() {
         dealType: window.state?.dealType || 'broadcast'
       });
 
-      populateProductDropdown();
       console.log('[Grid] Initialized with', nielsenData.stations.length, 'stations, CPM:', globalCpm);
     }
-  }
-
-  // Populate product dropdown from rate card
-  function populateProductDropdown() {
-    const select = el('gridDefaultProduct');
-    if (!select) return;
-
-    select.innerHTML = '<option value="">(None - set per row)</option>';
-    (window.PRODUCTS || []).forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.id;
-      opt.textContent = p.name;
-      select.appendChild(opt);
-    });
   }
 
   // Entry mode toggle
@@ -11549,9 +11482,6 @@ window.ChatPanel = (function() {
     const pricingType = window.productState?.pricingType || 'barter';
     const cpm = window.productState?.cpm || 1.5;
 
-    const gridPricingSelect = el('gridPricingType');
-    if (gridPricingSelect) gridPricingSelect.value = pricingType;
-
     if (typeof GridEntry !== 'undefined') {
       GridEntry.setGlobalConfig({ pricingType, cpm });
     }
@@ -11572,46 +11502,7 @@ window.ChatPanel = (function() {
       if (e.key === 'Enter') { e.preventDefault(); handleSingleAdd(); }
     });
 
-    el('gridPricingType')?.addEventListener('change', (e) => {
-      if (typeof GridEntry !== 'undefined') {
-        GridEntry.setGlobalConfig({ pricingType: e.target.value });
-        GridEntry.recalculateAllValues();
-        renderGridTable();
-      }
-    });
-
     el('gridDisambCancel')?.addEventListener('click', closeDisambiguationModal);
-
-    // Generate Proposal button
-    el('btnGridGenerateProposal')?.addEventListener('click', () => {
-      window.generateGridProposal();
-    });
-
-    // Populate default product dropdown from rate card
-    populateGridProductDropdown();
-  }
-
-  // Populate the default product dropdown from window.PRODUCTS (rate card)
-  function populateGridProductDropdown() {
-    const select = el('gridDefaultProduct');
-    if (!select || !window.PRODUCTS) return;
-
-    // Keep the "(None)" option
-    select.innerHTML = '<option value="">(None - set per row)</option>';
-
-    // Add products from rate card (excluding market-level products)
-    const marketLevelIds = ['topline', 'spoton'];
-    window.PRODUCTS
-      .filter(p => !marketLevelIds.includes(p.id))
-      .forEach(p => {
-        const opt = document.createElement('option');
-        opt.value = p.id;
-        const pricingType = el('gridPricingType')?.value || 'barter';
-        const price = pricingType === 'cash' ? p.cash : p.barter;
-        const priceStr = price != null ? ` ($${price.toLocaleString()}/mo)` : '';
-        opt.textContent = p.name + priceStr;
-        select.appendChild(opt);
-      });
   }
 
   // Handle paste
@@ -11727,7 +11618,7 @@ window.ChatPanel = (function() {
     currentDisambIndex = 0;
   }
 
-  // Render grid table
+  // Render grid table (station entry only - no minutes/value columns)
   function renderGridTable() {
     if (typeof GridEntry === 'undefined') return;
 
@@ -11738,9 +11629,10 @@ window.ChatPanel = (function() {
     const rows = GridEntry.getRows();
 
     if (rows.length === 0) {
-      tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--muted);">
+      tbody.innerHTML = `<tr><td colspan="7" style="padding:20px;text-align:center;color:var(--muted);">
         No stations added. Paste call signs above or type them one at a time.</td></tr>`;
       if (tfoot) tfoot.classList.add('hidden');
+      syncGridToState(); // Clear state when grid is empty
       return;
     }
 
@@ -11756,25 +11648,10 @@ window.ChatPanel = (function() {
         <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:right;">${row.primeAQH?.toLocaleString() || '—'}</td>
         <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:right;">${row.rosAQH?.toLocaleString() || '—'}</td>
         <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:center;">
-          <input type="number" min="0" value="${row.primeMinutes}" style="width:50px;height:28px;text-align:center;"
-            data-row-id="${row.id}" data-field="prime" ${row.isOffBook ? 'disabled' : ''}>
-        </td>
-        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:center;">
-          <input type="number" min="0" value="${row.rosMinutes}" style="width:50px;height:28px;text-align:center;"
-            data-row-id="${row.id}" data-field="ros" ${row.isOffBook ? 'disabled' : ''}>
-        </td>
-        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:right;font-weight:600;">
-          ${row.isOffBook ? '—' : '$' + row.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0})}
-        </td>
-        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:center;">
           <button class="btn" style="padding:4px 8px;font-size:11px;" data-remove-row="${row.id}">✕</button>
         </td>
       </tr>
     `).join('');
-
-    tbody.querySelectorAll('input[type="number"]').forEach(input => {
-      input.addEventListener('change', handleMinutesChange);
-    });
 
     tbody.querySelectorAll('button[data-remove-row]').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -11785,37 +11662,10 @@ window.ChatPanel = (function() {
 
     if (tfoot) tfoot.classList.remove('hidden');
     updateGridTotals();
+    syncGridToState(); // Sync to window.state for structured product picker
   }
 
-  // Handle minutes change
-  function handleMinutesChange(e) {
-    const rowId = parseInt(e.target.dataset.rowId);
-    const field = e.target.dataset.field;
-    const value = parseInt(e.target.value) || 0;
-
-    const rows = GridEntry.getRows();
-    const row = rows.find(r => r.id === rowId);
-    if (!row) return;
-
-    GridEntry.setRowMinutes(rowId,
-      field === 'prime' ? value : row.primeMinutes,
-      field === 'ros' ? value : row.rosMinutes
-    );
-
-    // Update display
-    const updatedRows = GridEntry.getRows();
-    const updated = updatedRows.find(r => r.id === rowId);
-    if (updated && !updated.isOffBook) {
-      const tr = document.querySelector(`tr[data-row-id="${rowId}"]`);
-      if (tr) {
-        const valueTd = tr.querySelectorAll('td')[8];
-        if (valueTd) valueTd.textContent = '$' + updated.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0});
-      }
-    }
-    updateGridTotals();
-  }
-
-  // Update grid totals
+  // Update grid totals (station counts and AQH only - no minutes/value)
   function updateGridTotals() {
     if (typeof GridEntry === 'undefined') return;
 
@@ -11824,255 +11674,76 @@ window.ChatPanel = (function() {
 
     const totals = rows.reduce((acc, r) => ({
       primeAQH: acc.primeAQH + (r.primeAQH || 0),
-      rosAQH: acc.rosAQH + (r.rosAQH || 0),
-      primeMins: acc.primeMins + r.primeMinutes,
-      rosMins: acc.rosMins + r.rosMinutes,
-      annualValue: acc.annualValue + r.annualValue
-    }), { primeAQH: 0, rosAQH: 0, primeMins: 0, rosMins: 0, annualValue: 0 });
+      rosAQH: acc.rosAQH + (r.rosAQH || 0)
+    }), { primeAQH: 0, rosAQH: 0 });
 
     const set = (id, val) => { const e = el(id); if (e) e.textContent = val; };
     set('gridStationCount', rows.length);
     set('gridMarketCount', markets.length);
     set('gridTotalPrimeAQH', totals.primeAQH.toLocaleString());
     set('gridTotalRosAQH', totals.rosAQH.toLocaleString());
-    set('gridTotalPrimeMins', totals.primeMins);
-    set('gridTotalRosMins', totals.rosMins);
-    set('gridTotalAnnualValue', '$' + totals.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0}));
-
-    // Update market-level products section
-    updateMarketProductsSection();
   }
 
-  // Grid market-level product state (user choices only - no prices)
-  window.gridMarketProducts = window.gridMarketProducts || {
-    topline: { enabled: false, tier: 'access', usersNeeded: 5, accountsNeeded: 220 },
-    spoton: { enabled: false, creditsPerMonth: 0 }
-  };
-
-  // Update market-level products section visibility and render
-  function updateMarketProductsSection() {
-    const section = el('gridMarketProductsSection');
-    if (!section) return;
-
-    const markets = GridEntry.getUniqueMarkets();
-    if (markets.length === 0) {
-      section.classList.add('hidden');
-      return;
-    }
-
-    section.classList.remove('hidden');
-    renderMarketLevelProducts(markets.length);
-  }
-
-  // Render market-level products UI - reads pricing from DealTools exports
-  function renderMarketLevelProducts(marketCount) {
-    const container = el('gridMarketProductsConfig');
-    if (!container || typeof DealTools === 'undefined') return;
-
-    const state = window.gridMarketProducts;
-
-    // Read pricing info from DealTools exports (single source of truth)
-    const toplinePricing = DealTools.TOPLINE_PRICING || {};
-    const spotonPricing = DealTools.SPOTON_PRICING || {};
-    const tierPrices = toplinePricing.tierPrices || { access: 42000, enterprise: 30000, both: 72000 };
-
-    // Get preview values by calling buildDeal() - the ONLY correct way to compute prices
-    const previewDeal = getMarketProductsPreview(marketCount);
-    const toplinePreviewValue = previewDeal?.productValues?.topline?.annual || 0;
-    const spotonPreviewValue = previewDeal?.productValues?.spoton?.annual || 0;
-
-    container.innerHTML = `
-      <!-- TopLine Configuration -->
-      <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <input type="checkbox" id="gridToplineEnabled" ${state.topline.enabled ? 'checked' : ''}>
-          <strong>TopLine</strong>
-          <span class="muted" style="font-size:12px;">(priced per market)</span>
-        </label>
-        <div id="gridToplineConfig" class="${state.topline.enabled ? '' : 'hidden'}" style="margin-left:24px;">
-          <div class="row" style="gap:16px;flex-wrap:wrap;">
-            <div class="field" style="min-width:180px;">
-              <label style="font-size:12px;color:var(--muted);">Tier</label>
-              <select id="gridToplineTier" style="height:36px;">
-                <option value="access" ${state.topline.tier === 'access' ? 'selected' : ''}>TopLine - Base</option>
-                <option value="enterprise" ${state.topline.tier === 'enterprise' ? 'selected' : ''}>Enterprise</option>
-                <option value="both" ${state.topline.tier === 'both' ? 'selected' : ''}>Both</option>
-              </select>
-            </div>
-            <div class="field" style="min-width:100px;">
-              <label style="font-size:12px;color:var(--muted);">Markets</label>
-              <input type="number" id="gridToplineMarkets" value="${marketCount}" min="1" disabled style="height:36px;width:70px;background:var(--surface-2);">
-            </div>
-            <div class="field" style="min-width:120px;">
-              <label style="font-size:12px;color:var(--muted);">Users (${toplinePricing.usersIncluded || 5} incl)</label>
-              <input type="number" id="gridToplineUsers" value="${state.topline.usersNeeded}" min="1" style="height:36px;width:70px;">
-            </div>
-            <div class="field" style="min-width:140px;">
-              <label style="font-size:12px;color:var(--muted);">Accounts (${toplinePricing.accountsIncluded || 220} incl)</label>
-              <input type="number" id="gridToplineAccounts" value="${state.topline.accountsNeeded}" min="1" style="height:36px;width:80px;">
-            </div>
-          </div>
-          <div class="muted" style="font-size:12px;margin-top:8px;">
-            Total: <strong>$${toplinePreviewValue.toLocaleString()}/yr</strong>
-            <span style="font-size:11px;">(${marketCount} market${marketCount !== 1 ? 's' : ''}, computed by buildDeal)</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- SpotOn Configuration -->
-      <div style="padding:12px; background:var(--surface-2); border-radius:14px;">
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <input type="checkbox" id="gridSpotonEnabled" ${state.spoton.enabled ? 'checked' : ''}>
-          <strong>SpotOn</strong>
-          <span class="muted" style="font-size:12px;">($${spotonPricing.pricePerCredit || 1}/credit, increments of ${spotonPricing.creditIncrement || 50})</span>
-        </label>
-        <div id="gridSpotonConfig" class="${state.spoton.enabled ? '' : 'hidden'}" style="margin-left:24px;">
-          <div class="field" style="max-width:200px;">
-            <label style="font-size:12px;color:var(--muted);">Credits per Month</label>
-            <input type="number" id="gridSpotonCredits" value="${state.spoton.creditsPerMonth}" min="0" step="${spotonPricing.creditIncrement || 50}" style="height:36px;">
-          </div>
-          <div class="muted" style="font-size:12px;margin-top:8px;">
-            Total: <strong>$${spotonPreviewValue.toLocaleString()}/yr</strong>
-            <span style="font-size:11px;">(computed by buildDeal)</span>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Add event handlers
-    el('gridToplineEnabled')?.addEventListener('change', (e) => {
-      state.topline.enabled = e.target.checked;
-      el('gridToplineConfig')?.classList.toggle('hidden', !e.target.checked);
-      renderMarketLevelProducts(marketCount);
-    });
-
-    el('gridToplineTier')?.addEventListener('change', (e) => {
-      state.topline.tier = e.target.value;
-      renderMarketLevelProducts(marketCount);
-    });
-
-    el('gridToplineUsers')?.addEventListener('change', (e) => {
-      state.topline.usersNeeded = parseInt(e.target.value) || 5;
-      renderMarketLevelProducts(marketCount);
-    });
-
-    el('gridToplineAccounts')?.addEventListener('change', (e) => {
-      state.topline.accountsNeeded = parseInt(e.target.value) || 220;
-      renderMarketLevelProducts(marketCount);
-    });
-
-    el('gridSpotonEnabled')?.addEventListener('change', (e) => {
-      state.spoton.enabled = e.target.checked;
-      el('gridSpotonConfig')?.classList.toggle('hidden', !e.target.checked);
-      renderMarketLevelProducts(marketCount);
-    });
-
-    el('gridSpotonCredits')?.addEventListener('change', (e) => {
-      state.spoton.creditsPerMonth = parseInt(e.target.value) || 0;
-      renderMarketLevelProducts(marketCount);
-    });
-  }
-
-  // Get preview values by calling buildDeal() - no grid-side price math
-  function getMarketProductsPreview(marketCount) {
-    if (typeof DealTools === 'undefined' || typeof GridEntry === 'undefined') return null;
-
-    const state = window.gridMarketProducts;
-    const pricingType = el('gridPricingType')?.value || 'barter';
-
-    // Build a minimal config with just market-level products
-    const products = [];
-    const productConfigs = {};
-
-    if (state.topline.enabled) {
-      products.push('topline');
-      productConfigs.topline = {
-        tier: state.topline.tier,
-        numberOfMarkets: marketCount,
-        usersNeeded: state.topline.usersNeeded,
-        accountsNeeded: state.topline.accountsNeeded
-      };
-    }
-
-    if (state.spoton.enabled) {
-      products.push('spoton');
-      productConfigs.spoton = {
-        creditsPerMonth: state.spoton.creditsPerMonth
-      };
-    }
-
-    if (products.length === 0) return null;
-
-    // Call buildDeal to get actual computed prices
-    const config = {
-      dealType: 'broadcast',
-      pricingType: pricingType,
-      cpm: window.productState?.cpm || 1.5,
-      stations: [],
-      markets: [],
-      products: products,
-      productConfigs: productConfigs,
-      toplineConfig: productConfigs.topline,
-      spotonConfig: productConfigs.spoton
-    };
-
-    return DealTools.buildDeal(config);
-  }
-
-  // Generate proposal from grid (calls buildDeal directly)
-  window.generateGridProposal = function() {
-    if (typeof GridEntry === 'undefined' || typeof DealTools === 'undefined') {
-      alert('Grid not initialized');
-      return;
-    }
+  /**
+   * Sync grid stations to window.state so the structured product picker works.
+   * This is the key integration: grid = fast station entry, then use the same
+   * product picker and allocation engine as the structured flow.
+   */
+  function syncGridToState() {
+    if (typeof GridEntry === 'undefined') return;
 
     const rows = GridEntry.getRows();
-    if (rows.length === 0) {
-      alert('Add at least one station to the grid');
-      return;
-    }
 
-    // Build config from grid
-    const config = GridEntry.buildConfig({
-      parent: rows[0]?.parent || 'Unknown',
-      dealType: window.state?.dealType || 'broadcast'
-    });
+    // Convert grid rows to the station format used by structured flow
+    const stations = rows.map(row => ({
+      key: row.key,
+      stationCallSign: row.callSign,
+      parent: row.parent,
+      market: row.market,
+      format: row.format,
+      primeAQH: row.primeAQH,
+      rosAQH: row.rosAQH,
+      isOffBook: row.isOffBook
+    }));
 
-    // Ensure CPM comes from global setting
-    config.cpm = window.productState?.cpm || 1.5;
-
-    // Include market-level products from gridMarketProducts state
-    const marketState = window.gridMarketProducts || {};
+    // Collect unique markets
     const markets = GridEntry.getUniqueMarkets();
 
-    if (marketState.topline?.enabled) {
-      if (!config.products) config.products = [];
-      if (!config.products.includes('topline')) config.products.push('topline');
-      config.toplineConfig = {
-        tier: marketState.topline.tier || 'access',
-        numberOfMarkets: markets.length || 1,
-        usersNeeded: marketState.topline.usersNeeded || 5,
-        accountsNeeded: marketState.topline.accountsNeeded || 220
-      };
+    // Update window.state with grid stations
+    if (!window.state) window.state = {};
+    window.state.selectedStations = new Set(stations.map(s => s.key));
+    window.state.stationDetails = new Map(stations.map(s => [s.key, s]));
+    window.state.selectedMarkets = new Set(markets);
+
+    // Derive parent from first station (for display purposes)
+    if (stations.length > 0) {
+      window.state.selectedParent = stations[0].parent;
     }
 
-    if (marketState.spoton?.enabled) {
-      if (!config.products) config.products = [];
-      if (!config.products.includes('spoton')) config.products.push('spoton');
-      config.spotonConfig = {
-        creditsPerMonth: marketState.spoton.creditsPerMonth || 0
-      };
+    // Update the market badge and station count displays
+    const marketBadge = el('marketBadge');
+    if (marketBadge) marketBadge.textContent = markets.length;
+
+    const stationBadge = el('stationBadge');
+    if (stationBadge) stationBadge.textContent = stations.length;
+
+    // Update TopLine market count if TopLine is selected
+    if (window.toplineState) {
+      window.toplineState.numberOfMarkets = markets.length || 1;
+      const toplineMarketsInput = el('toplineMarkets');
+      if (toplineMarketsInput) toplineMarketsInput.value = markets.length || 1;
     }
 
-    // Call the shared buildDeal engine
-    const deal = DealTools.buildDeal(config);
+    // Trigger product list update to reflect new station context
+    if (typeof window.renderProducts === 'function') {
+      window.renderProducts();
+    }
+    if (typeof window.updateProductSummary === 'function') {
+      window.updateProductSummary();
+    }
 
-    // Render using shared renderer
-    window.renderProposalFromDeal(deal);
-    el('proposalSection')?.classList.remove('hidden');
-
-    return deal;
-  };
+    console.log(`[Grid] Synced ${stations.length} stations in ${markets.length} markets to window.state`);
+  }
 
   function escapeHtml(str) {
     if (!str) return '';
@@ -12099,7 +11770,7 @@ window.ChatPanel = (function() {
     init();
   }
 
-  window.GridEntryUI = { renderGridTable, generateGridProposal: window.generateGridProposal };
+  window.GridEntryUI = { renderGridTable, syncGridToState };
 })();
 </script>
 
