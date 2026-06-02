@@ -768,6 +768,8 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="tools/deal-tools.js"></script>
+  <script src="tools/grid-entry.js"></script>
 </head>
 
 <body>
@@ -1087,6 +1089,24 @@
         </div>
       </section>
 
+      <!-- Entry Mode Toggle (Structured vs Grid) -->
+      <section class="card" style="margin-bottom:16px;" id="entryModeSection">
+        <div class="title">Entry Mode</div>
+        <div class="muted" style="font-size:12px;margin-bottom:10px;">Choose how to enter stations. Both modes produce the same deal.</div>
+        <div class="row" style="gap:12px;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="entryMode" value="structured" id="entryModeStructured" checked />
+            <span style="font-weight:600;">Structured</span>
+            <span class="muted" style="font-size:11px;">(step-by-step)</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="radio" name="entryMode" value="grid" id="entryModeGrid" />
+            <span style="font-weight:600;">Grid</span>
+            <span class="muted" style="font-size:11px;">(paste/type stations)</span>
+          </label>
+        </div>
+      </section>
+
       <!-- Agency/Other Customer Name (hidden by default) -->
       <section class="card hidden" id="agencyCustomerSection">
         <div class="title">Customer Information</div>
@@ -1179,6 +1199,141 @@
         </div>
       </section>
       </div><!-- End broadcastSections -->
+
+      <!-- Grid Entry Section (hidden by default, shown when entry mode = grid) -->
+      <div id="gridEntrySection" class="hidden">
+        <section class="card" style="margin-bottom:16px;">
+          <div class="title">Grid Entry - Add Stations</div>
+          <div class="muted" style="font-size:12px;margin-bottom:12px;">
+            Paste call signs (one per line) or type them below. Stations autofill from Nielsen data.
+          </div>
+
+          <!-- Paste Area -->
+          <div style="margin-bottom:16px;">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Paste Call Signs</label>
+            <textarea id="gridPasteInput" placeholder="Paste call signs here (one per line)..." style="width:100%;height:80px;resize:vertical;padding:10px 12px;border:1px solid var(--input-edge);border-radius:14px;background:var(--input);font-family:ui-monospace,SFMono-Regular,monospace;font-size:13px;"></textarea>
+            <div class="row" style="margin-top:8px;gap:8px;">
+              <button class="btn primary" id="btnGridParse" type="button">Add Stations</button>
+              <button class="btn" id="btnGridClear" type="button">Clear Grid</button>
+              <span id="gridPasteStatus" class="muted" style="font-size:12px;"></span>
+            </div>
+          </div>
+
+          <!-- Single Station Input -->
+          <div style="margin-bottom:16px;padding-top:12px;border-top:1px solid var(--edge);">
+            <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px;">Or Add Single Station</label>
+            <div class="row" style="gap:8px;">
+              <input id="gridSingleStation" type="text" placeholder="Enter call sign..." style="max-width:180px;" />
+              <button class="btn" id="btnGridAddSingle" type="button">Add</button>
+            </div>
+          </div>
+
+          <!-- Grid Pricing Config -->
+          <div style="padding-top:12px;border-top:1px solid var(--edge);">
+            <div class="row" style="gap:16px;flex-wrap:wrap;">
+              <div class="field" style="min-width:140px;">
+                <label style="font-size:12px;color:var(--muted);">Pricing Type</label>
+                <select id="gridPricingType" style="height:36px;">
+                  <option value="barter" selected>Barter</option>
+                  <option value="cash">Cash</option>
+                  <option value="mixed">Mixed</option>
+                </select>
+              </div>
+              <div class="field" style="min-width:140px;">
+                <label style="font-size:12px;color:var(--muted);">Default Product</label>
+                <select id="gridDefaultProduct" style="height:36px;">
+                  <option value="">(None - set per row)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Grid Table -->
+        <section class="card" style="margin-bottom:16px;">
+          <div class="title">Station Grid</div>
+          <div style="overflow-x:auto;">
+            <table id="gridTable" style="width:100%;border-collapse:collapse;font-size:13px;">
+              <thead>
+                <tr style="background:rgba(103,36,119,.06);">
+                  <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);width:100px;">Call Sign</th>
+                  <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);">Parent</th>
+                  <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);">Market</th>
+                  <th style="text-align:left;padding:10px 8px;border-bottom:1px solid var(--edge);width:90px;">Format</th>
+                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">Prime AQH</th>
+                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">ROS AQH</th>
+                  <th style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">Prime Min</th>
+                  <th style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--edge);width:70px;">ROS Min</th>
+                  <th style="text-align:right;padding:10px 8px;border-bottom:1px solid var(--edge);width:100px;">Annual Value</th>
+                  <th style="text-align:center;padding:10px 8px;border-bottom:1px solid var(--edge);width:50px;"></th>
+                </tr>
+              </thead>
+              <tbody id="gridTableBody">
+                <tr id="gridEmptyRow">
+                  <td colspan="10" style="padding:20px;text-align:center;color:var(--muted);">
+                    No stations added. Paste call signs above or type them one at a time.
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot id="gridTableFoot" class="hidden">
+                <tr style="background:rgba(103,36,119,.08);font-weight:700;">
+                  <td style="padding:10px 8px;border-top:2px solid var(--edge);" colspan="4">
+                    Total: <span id="gridStationCount">0</span> stations in <span id="gridMarketCount">0</span> market(s)
+                  </td>
+                  <td style="padding:10px 8px;text-align:right;border-top:2px solid var(--edge);" id="gridTotalPrimeAQH">0</td>
+                  <td style="padding:10px 8px;text-align:right;border-top:2px solid var(--edge);" id="gridTotalRosAQH">0</td>
+                  <td style="padding:10px 8px;text-align:center;border-top:2px solid var(--edge);" id="gridTotalPrimeMins">0</td>
+                  <td style="padding:10px 8px;text-align:center;border-top:2px solid var(--edge);" id="gridTotalRosMins">0</td>
+                  <td style="padding:10px 8px;text-align:right;border-top:2px solid var(--edge);color:var(--brand);" id="gridTotalAnnualValue">$0</td>
+                  <td style="padding:10px 8px;border-top:2px solid var(--edge);"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <!-- Market-Level Products Section (TopLine, SpotOn) -->
+        <section class="card hidden" id="gridMarketProductsSection" style="margin-bottom:16px;">
+          <div class="title">Market-Level Products</div>
+          <div class="muted" style="font-size:12px;margin-bottom:12px;">
+            These products are priced per market, not per station. Configure them here.
+          </div>
+          <div id="gridMarketProductsConfig"></div>
+        </section>
+
+        <!-- Grid Actions -->
+        <section class="card" id="gridActionsSection">
+          <div class="row" style="justify-content:flex-end;gap:12px;">
+            <button class="btn primary" id="btnGridGenerateProposal" type="button">Generate Proposal</button>
+          </div>
+        </section>
+
+        <!-- Grid Disambiguation Modal -->
+        <div id="gridDisambiguationModal" class="modal" style="display:none;">
+          <div class="modal-card">
+            <div class="modal-header">
+              <div class="title">Select Market for <span id="gridDisambCallSign"></span></div>
+              <button class="btn modal-close" id="gridDisambCancel" type="button">✕</button>
+            </div>
+            <div class="muted" style="margin-bottom:12px;">This call sign exists in multiple markets. Select the correct one:</div>
+            <div id="gridDisambOptions" class="list"></div>
+          </div>
+        </div>
+
+        <!-- Grid Product Config Modal -->
+        <div id="gridProductConfigModal" class="modal" style="display:none;">
+          <div class="modal-card" style="max-width:480px;">
+            <div class="modal-header">
+              <div class="title">Configure <span id="gridConfigProductName"></span></div>
+              <button class="btn modal-close" id="gridConfigCancel" type="button">✕</button>
+            </div>
+            <div id="gridConfigContent"></div>
+            <div class="modal-actions" style="margin-top:12px;">
+              <button class="btn primary" id="gridConfigSave" type="button">Save</button>
+            </div>
+          </div>
+        </div>
+      </div><!-- End gridEntrySection -->
 
       <section class="card">
         <div class="title" id="productsStepTitle">Step 5: Select Products & Pricing</div>
@@ -8402,14 +8557,548 @@ function computeBarterAllocation(monthlyRemainingValue) {
   }
 }
 
-// --- replace your existing generateProposal() with this ---
+// ============================================================================
+// SHARED DEAL ARCHITECTURE
+// Both entry modes (Structured + Grid) flow through buildDeal() via these functions
+// ============================================================================
+
+/**
+ * Build a config object from the current UI state (for structured flow)
+ * This config is passed to DealTools.buildDeal()
+ */
+window.buildConfigFromState = function buildConfigFromState() {
+  const stations = getSelectedStationsDetailed();
+  const selectedProducts = Array.from(window.productState.selectedProducts);
+
+  // Build station keys
+  const stationKeys = stations.map(s => s.key);
+
+  // Build markets from selected stations
+  const marketsSet = new Set();
+  stations.forEach(s => {
+    if (s.market) marketsSet.add(s.market);
+  });
+
+  // Build product assignments
+  const productAssignments = {};
+  selectedProducts.forEach(pid => {
+    const assignments = getProductAssignments(pid);
+    productAssignments[pid] = Array.from(assignments);
+  });
+
+  // Build custom prices map as object
+  const customPrices = {};
+  window.productState.customPrices.forEach((val, key) => {
+    if (val !== null && val !== undefined) {
+      customPrices[key] = val;
+    }
+  });
+
+  // Build product cash values for mixed deals
+  const productCashValues = {};
+  window.productState.productCashValues.forEach((val, key) => {
+    if (val !== null && val !== undefined) {
+      productCashValues[key] = val;
+    }
+  });
+
+  // Build manual minutes
+  const manualMinutes = {};
+  window.productState.manualMinutes.forEach((val, key) => {
+    if (val) {
+      manualMinutes[key] = val;
+    }
+  });
+
+  // Build deal meta
+  const dealMeta = {
+    termMonths: dealMetaState.termMonths || 36,
+    autoRenewEnabled: !!dealMetaState.autoRenewEnabled,
+    autoRenewMonths: dealMetaState.autoRenewMonths || 12,
+    nielsenSeason: dealMetaState.nielsenSeason || '',
+    nielsenYear: dealMetaState.nielsenYear || ''
+  };
+
+  // Build config object
+  const config = {
+    dealType: window.state.dealType || 'broadcast',
+    parent: window.state.parent || null,
+    customerName: window.state.customerName || null,
+    customerLocation: window.state.customerLocation || null,
+    markets: Array.from(marketsSet),
+    stations: stationKeys,
+    products: selectedProducts,
+    pricingType: window.productState.pricingType || 'cash',
+    cpm: window.productState.cpm || 1.5,
+    customPrices: customPrices,
+    productCashValues: productCashValues,
+    productAssignments: productAssignments,
+    manualMinutes: Object.keys(manualMinutes).length > 0 ? manualMinutes : undefined,
+    dealMeta: dealMeta,
+    notes: el('dealNotes')?.value || '',
+
+    // Product-specific configs
+    toplineConfig: window.productState.selectedProducts.has('topline') ? {
+      tier: window.toplineState.tier || 'access',
+      numberOfMarkets: window.toplineState.numberOfMarkets || 1,
+      usersNeeded: window.toplineState.usersNeeded || 5,
+      accountsNeeded: window.toplineState.accountsNeeded || 220,
+      attributionEnabled: !!window.toplineState.attributionEnabled,
+      dataSets: window.toplineState.dataSets || 0,
+      crmIntegrationHours: window.toplineState.crmIntegrationHours || 0,
+      tvEnabled: !!window.toplineState.tvEnabled,
+      spotonCredits: window.toplineState.spotonCredits || 0,
+      chuyLocations: window.toplineState.chuyLocations || 0,
+      chuyRetailers: window.toplineState.chuyRetailers || 0,
+      priceOverride: window.toplineState.priceOverride || null
+    } : undefined,
+
+    contentAutomationConfig: window.productState.selectedProducts.has('content_automation') ? {
+      tier: window.contentAutomationState.tier || 'xs'
+    } : undefined,
+
+    spotonConfig: window.productState.selectedProducts.has('spoton') ? {
+      creditsPerMonth: window.spotonState.creditsPerMonth || 0
+    } : undefined,
+
+    fbGroupsConfig: window.productState.selectedProducts.has('topicpulse_community_radar_fb') ? {
+      groupCount: window.fbGroupsState.groupCount || 0
+    } : undefined,
+
+    faaiConfig: window.productState.selectedProducts.has('faai') ? {
+      numberOfShows: window.faaiState.numberOfShows || 0,
+      minutesPerDay: window.faaiState.minutesPerDay || 0,
+      margin: window.faaiState.margin || 90
+    } : undefined,
+
+    // Pass Nielsen data for station lookup
+    data: { stations: window.IDX?.stations || [] }
+  };
+
+  return config;
+};
+
+/**
+ * Render a proposal from a deal object (from DealTools.buildDeal)
+ * This is the shared renderer used by both entry modes
+ */
+window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
+  if (!deal) {
+    console.error('renderProposalFromDeal: no deal object provided');
+    return;
+  }
+
+  const isAgencyDeal = (deal.dealType === 'agency');
+  const stations = deal.stationDetails || [];
+  const products = deal.products || [];
+  const pricingType = deal.pricingType || 'cash';
+
+  // Deal terms
+  const termMonths = deal.dealMeta?.termMonths || 36;
+  const arEnabled = !!deal.dealMeta?.autoRenewEnabled;
+  const arMonths = deal.dealMeta?.autoRenewMonths || 12;
+  const nielsenDisplay = (deal.dealMeta?.nielsenSeason && deal.dealMeta?.nielsenYear)
+    ? `${deal.dealMeta.nielsenSeason} ${deal.dealMeta.nielsenYear}` : '—';
+
+  // Totals from deal object
+  const totalAnnual = deal.totalAnnual || 0;
+  const totalCashMonthly = deal.cashMonthly || 0;
+  const totalCashAnnual = deal.cashAnnual || 0;
+  const barterTargetAnnual = deal.barterTargetAnnual || 0;
+
+  // Barter allocation from deal
+  const barterAllocation = deal.barterAllocation || { perStation: [], total: {} };
+
+  // Build barter lookup by station call sign
+  const barterByCallSign = new Map();
+  (barterAllocation.perStation || []).forEach(s => {
+    barterByCallSign.set(s.callSign, {
+      primePerDay: s.primeMinsPerDay || 0,
+      rosPerDay: s.rosMinsPerDay || 0
+    });
+  });
+
+  // Get product names for display
+  const productNames = products.map(pid => {
+    const p = (window.PRODUCTS || []).find(pp => pp.id === pid);
+    return p ? p.name : pid;
+  });
+
+  const showBarterCols = (pricingType === 'mixed' || pricingType === 'barter');
+  const showCashCol = (pricingType === 'mixed' || pricingType === 'cash');
+  const showAnnualCol = (pricingType === 'cash');
+
+  // Build proposal HTML
+  const lines = [];
+
+  // Header summary
+  lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+  if (isAgencyDeal) {
+    lines.push(`<span class="pill">Customer: <span>${deal.customerName || 'N/A'}</span></span>`);
+    if (deal.customerLocation) {
+      lines.push(`<span class="pill">Location: <span>${deal.customerLocation}</span></span>`);
+    }
+    lines.push(`<span class="pill">Deal Type: <span>Agency/Other</span></span>`);
+  } else {
+    lines.push(`<span class="pill">Parent: <span>${deal.parent || 'N/A'}</span></span>`);
+    lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
+  }
+  lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
+  lines.push(`<span class="pill">Annual Total: <span>${money(totalAnnual)}</span></span>`);
+  if (pricingType === 'mixed' && !isAgencyDeal) {
+    lines.push(`<span class="pill">Cash (Monthly): <span>${money(totalCashMonthly)}</span>/mo</span>`);
+  }
+  lines.push(`</div>`);
+
+  // Deal terms
+  lines.push(`<div class="subtle-divider"></div>`);
+  lines.push(`<div class="card">`);
+  lines.push(`<div class="title" style="margin-bottom:6px;">Deal Terms</div>`);
+  lines.push(`<div class="row" style="gap:10px; flex-wrap:wrap;">`);
+  lines.push(`<span class="badge">Term: ${termMonths} months</span>`);
+  lines.push(`<span class="badge">Auto-Renew: ${arEnabled ? "Yes" : "No"}</span>`);
+  lines.push(`<span class="badge">Auto-Renew Term: ${arEnabled ? (arMonths + " months") : "—"}</span>`);
+  if (nielsenDisplay !== "—") {
+    lines.push(`<span class="badge">Nielsen: ${nielsenDisplay}</span>`);
+  }
+  lines.push(`</div>`);
+  lines.push(`</div>`);
+
+  // Station table - only for Broadcast deals
+  if (!isAgencyDeal && stations.length > 0) {
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Station Breakdown</div>`);
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Format</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
+      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime/Day</th>` : ''}
+      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS/Day</th>` : ''}
+    </tr></thead>`);
+    lines.push(`<tbody>`);
+
+    stations
+      .slice()
+      .sort((a, b) => (a.market || '').localeCompare(b.market || '') || (a.station || '').localeCompare(b.station || ''))
+      .forEach(st => {
+        const barter = barterByCallSign.get(st.station) || { primePerDay: 0, rosPerDay: 0 };
+        const isOffBook = st.inBook === false || st.primeAQH === null;
+
+        lines.push(`<tr${isOffBook ? ' style="background:rgba(180,35,24,0.05);"' : ''}>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+            <strong>${st.station}</strong>
+            ${isOffBook ? '<br><span style="font-size:10px;color:var(--danger);">Off-book</span>' : ''}
+          </td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ''}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.format || ''}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${st.primeAQH?.toLocaleString() || '—'}</td>
+          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${st.rosAQH?.toLocaleString() || '—'}</td>
+          ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${barter.primePerDay}</td>` : ''}
+          ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${barter.rosPerDay}</td>` : ''}
+        </tr>`);
+      });
+
+    lines.push(`</tbody></table>`);
+    lines.push(`</div>`);
+  }
+
+  // Product breakdown sections from deal.productValues
+  const productValues = deal.productValues || {};
+
+  // TopLine section
+  if (productValues.topline) {
+    const tl = productValues.topline;
+    const bd = tl.breakdown || {};
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">TopLine Products</div>`);
+
+    lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap; margin-bottom:12px;">`);
+    if (bd.totalOneTime > 0) {
+      lines.push(`<span class="pill">Upfront/One-Time: <strong>${money(bd.totalOneTime)}</strong></span>`);
+    }
+    lines.push(`<span class="pill">Annual Cost: <strong>${money(tl.annual)}</strong></span>`);
+    lines.push(`</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>Base (${bd.tier || 'access'})</strong><br><span style="font-size:11px;color:var(--muted);">${bd.numMarkets || 1} market(s)</span></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.baseAnnual || 0)}</td>
+    </tr>`);
+
+    if (bd.usersAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Users</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.usersAnnual)}</td>
+      </tr>`);
+    }
+
+    if (bd.accountsAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Accounts</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.accountsAnnual)}</td>
+      </tr>`);
+    }
+
+    if (bd.attributionAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Attribution Add-on</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.attributionAnnual)}</td>
+      </tr>`);
+    }
+
+    if (bd.tvAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">TV Hard Costs</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.tvAnnual)}</td>
+      </tr>`);
+    }
+
+    if (bd.spotonAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.spotonAnnual)}</td>
+      </tr>`);
+    }
+
+    if (bd.chuyLocationAnnual > 0 || bd.chuyRetailerAnnual > 0) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money((bd.chuyLocationAnnual || 0) + (bd.chuyRetailerAnnual || 0))}</td>
+      </tr>`);
+    }
+
+    if (bd.isOverridden) {
+      lines.push(`<tr style="background:rgba(103,36,119,.12);">
+        <td style="padding:8px;"><strong>Price Override Applied</strong></td>
+        <td style="padding:8px; text-align:right;"><strong>${money(tl.annual)}</strong></td>
+      </tr>`);
+    }
+
+    lines.push(`<tr style="background:rgba(103,36,119,.06);">
+      <td style="padding:8px;"><strong>TopLine Total</strong></td>
+      <td style="padding:8px; text-align:right;"><strong>${money(tl.annual)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table></div>`);
+  }
+
+  // Content Automation section
+  if (productValues.content_automation) {
+    const ca = productValues.content_automation;
+    const bd = ca.breakdown || {};
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Content Automation</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>Content Automation — ${bd.tierName || bd.tier || 'XS'}</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${(bd.credits || 0).toLocaleString()} credits/mo @ $${(bd.costPerCredit || 0).toFixed(2)}/credit</span>
+      </td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.monthly)}</strong></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.annual)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table></div>`);
+  }
+
+  // SpotOn section
+  if (productValues.spoton && productValues.spoton.annual > 0) {
+    const sp = productValues.spoton;
+    const bd = sp.breakdown || {};
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">SpotOn</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    lines.push(`<tr>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+        <strong>SpotOn Credits</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${(bd.creditsPerMonth || 0).toLocaleString()} credits/mo @ $${bd.pricePerCredit || 1}/credit</span>
+      </td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sp.monthly)}</strong></td>
+      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sp.annual)}</strong></td>
+    </tr>`);
+
+    lines.push(`</tbody></table></div>`);
+  }
+
+  // FB Groups section
+  if (productValues.topicpulse_community_radar_fb && productValues.topicpulse_community_radar_fb.annual > 0) {
+    const fb = productValues.topicpulse_community_radar_fb;
+    const bd = fb.breakdown || {};
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">TopicPulse Community Radar (FB Groups)</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<tbody>`);
+    lines.push(`<tr>
+      <td style="padding:8px;"><strong>${bd.groupCount || 0} Facebook Groups</strong> @ $50/group/mo</td>
+      <td style="padding:8px; text-align:right;"><strong>${money(fb.annual)}/yr</strong></td>
+    </tr>`);
+    lines.push(`</tbody></table></div>`);
+  }
+
+  // FAAI section
+  if (productValues.faai && productValues.faai.annual > 0) {
+    const fa = productValues.faai;
+    const bd = fa.breakdown || {};
+
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">FAAI</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<tbody>`);
+    lines.push(`<tr>
+      <td style="padding:8px;">
+        <strong>FAAI</strong><br>
+        <span style="font-size:11px;color:var(--muted);">${bd.numberOfShows || 0} shows, ${bd.minutesPerDay || 0} min/day, ${bd.margin || 90}% margin</span>
+      </td>
+      <td style="padding:8px; text-align:right;"><strong>${money(fa.annual)}/yr</strong></td>
+    </tr>`);
+    lines.push(`</tbody></table></div>`);
+  }
+
+  // Standard per-station products
+  const standardProducts = products.filter(pid =>
+    !['topline', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'].includes(pid) &&
+    productValues[pid]
+  );
+
+  if (standardProducts.length > 0) {
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Per-Station Products</div>`);
+
+    lines.push(`<div style="overflow-x:auto;">`);
+    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+    lines.push(`<thead><tr>
+      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
+      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+    </tr></thead><tbody>`);
+
+    standardProducts.forEach(pid => {
+      const pv = productValues[pid];
+      const productInfo = (window.PRODUCTS || []).find(p => p.id === pid);
+      const name = productInfo?.name || pid;
+
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${name}</strong></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(pv.monthly)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(pv.annual)}</td>
+      </tr>`);
+    });
+
+    lines.push(`</tbody></table></div>`);
+  }
+
+  // Barter allocation summary
+  if (showBarterCols && barterAllocation.total) {
+    lines.push(`<div class="subtle-divider"></div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">Barter Allocation Summary</div>`);
+    lines.push(`<div class="row" style="gap:12px; flex-wrap:wrap;">`);
+    lines.push(`<span class="pill">Target: <strong>${money(barterTargetAnnual)}/yr</strong></span>`);
+    lines.push(`<span class="pill">Allocated: <strong>${money(barterAllocation.total.annualValue || 0)}/yr</strong></span>`);
+    lines.push(`<span class="pill">Prime: <strong>${barterAllocation.total.primeMinsPerDay || 0} min/day</strong></span>`);
+    lines.push(`<span class="pill">ROS: <strong>${barterAllocation.total.rosMinsPerDay || 0} min/day</strong></span>`);
+    lines.push(`</div>`);
+  }
+
+  // Render to output
+  const output = el('proposalOutput');
+  const table = el('proposalTable');
+  const modeBadge = el('proposalMode');
+
+  if (output) output.classList.remove('hidden');
+  if (modeBadge) {
+    modeBadge.textContent = pricingType === 'cash' ? 'Cash Deal' :
+                            pricingType === 'barter' ? 'Barter Deal' : 'Mixed Deal';
+  }
+  if (table) table.innerHTML = lines.join('\n');
+
+  // Store deal for other uses (e.g., financial allocation)
+  window.lastRenderedDeal = deal;
+
+  return deal;
+};
+
+// --- generateProposal() - now uses shared architecture via buildDeal() ---
 window.generateProposal = function generateProposal() {
   if (typeof syncDealMetaFromUI === "function") syncDealMetaFromUI();
 
   const dealType = window.state?.dealType || 'broadcast';
   const isAgencyDeal = (dealType === 'agency');
   const stations = getSelectedStationsDetailed();
-  const products = getSelectedProductsDetailed(); // used only for list of selected items
+  const products = getSelectedProductsDetailed();
+  const pricingType = window.productState.pricingType;
+
+  // Validation based on deal type
+  if (isAgencyDeal) {
+    if (!window.state.customerName?.trim()) return alert("Enter a customer name first.");
+    if (!products.length) return alert("Select at least one product.");
+  } else {
+    if (!window.state.parent) return alert("Select a parent company first.");
+    if (!stations.length) return alert("Select at least one station.");
+    if (!products.length) return alert("Select at least one product.");
+  }
+
+  // Build config from UI state
+  const config = window.buildConfigFromState();
+
+  // Call DealTools.buildDeal() - the shared engine
+  let deal;
+  if (typeof DealTools !== 'undefined' && DealTools.buildDeal) {
+    deal = DealTools.buildDeal(config);
+  } else {
+    console.error('DealTools not available - falling back to legacy rendering');
+    // Fall back to legacy rendering if DealTools not loaded
+    return generateProposalLegacy();
+  }
+
+  // Render proposal from deal object
+  window.renderProposalFromDeal(deal);
+
+  // Show proposal section
+  el('proposalSection')?.classList.remove('hidden');
+
+  return deal;
+};
+
+// Legacy generateProposal - kept for fallback if DealTools unavailable
+window.generateProposalLegacy = function generateProposalLegacy() {
+  const dealType = window.state?.dealType || 'broadcast';
+  const isAgencyDeal = (dealType === 'agency');
+  const stations = getSelectedStationsDetailed();
+  const products = getSelectedProductsDetailed();
   const pricingType = window.productState.pricingType;
 
   // Validation based on deal type
@@ -10757,6 +11446,660 @@ window.ChatPanel = (function() {
     clear: clearConversation,
     applyConfig: applyDealConfig
   };
+})();
+
+/****************************
+ * GRID ENTRY MODE
+ * Additive second input path feeding buildDeal()
+ * Does NOT mutate window.state - calls buildDeal() directly
+ ****************************/
+(function() {
+  'use strict';
+
+  let gridInitialized = false;
+  let currentEntryMode = 'structured';
+  let disambiguationQueue = [];
+  let currentDisambIndex = 0;
+
+  // Wait for Nielsen data
+  function waitForNielsenData(callback, maxTries = 50) {
+    let tries = 0;
+    const check = () => {
+      tries++;
+      if (window.IDX && window.IDX.stations && window.IDX.stations.length > 0) {
+        callback();
+      } else if (tries < maxTries) {
+        setTimeout(check, 100);
+      }
+    };
+    check();
+  }
+
+  // Initialize grid
+  function initGrid() {
+    if (gridInitialized) return;
+    gridInitialized = true;
+
+    const nielsenData = { stations: window.IDX.stations || [] };
+
+    if (typeof GridEntry !== 'undefined' && typeof DealTools !== 'undefined') {
+      GridEntry.init({
+        dealTools: DealTools,
+        nielsenData: nielsenData,
+        products: window.PRODUCTS || []
+      });
+
+      // Inherit global CPM (default 1.5)
+      const globalCpm = window.productState?.cpm || 1.5;
+      GridEntry.setGlobalConfig({
+        pricingType: 'barter',
+        cpm: globalCpm,
+        dealType: window.state?.dealType || 'broadcast'
+      });
+
+      populateProductDropdown();
+      console.log('[Grid] Initialized with', nielsenData.stations.length, 'stations, CPM:', globalCpm);
+    }
+  }
+
+  // Populate product dropdown from rate card
+  function populateProductDropdown() {
+    const select = el('gridDefaultProduct');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">(None - set per row)</option>';
+    (window.PRODUCTS || []).forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.name;
+      select.appendChild(opt);
+    });
+  }
+
+  // Entry mode toggle
+  function setupEntryModeToggle() {
+    const structuredRadio = el('entryModeStructured');
+    const gridRadio = el('entryModeGrid');
+    if (!structuredRadio || !gridRadio) return;
+
+    const handleModeChange = () => {
+      const mode = document.querySelector('input[name="entryMode"]:checked')?.value || 'structured';
+      currentEntryMode = mode;
+
+      const broadcastSections = el('broadcastSections');
+      const gridSection = el('gridEntrySection');
+
+      if (mode === 'grid') {
+        if (broadcastSections) broadcastSections.classList.add('hidden');
+        if (gridSection) gridSection.classList.remove('hidden');
+        waitForNielsenData(initGrid);
+        syncGridPricing();
+      } else {
+        if (broadcastSections) broadcastSections.classList.remove('hidden');
+        if (gridSection) gridSection.classList.add('hidden');
+      }
+    };
+
+    structuredRadio.addEventListener('change', handleModeChange);
+    gridRadio.addEventListener('change', handleModeChange);
+  }
+
+  // Sync pricing from main UI (inherit CPM)
+  function syncGridPricing() {
+    const pricingType = window.productState?.pricingType || 'barter';
+    const cpm = window.productState?.cpm || 1.5;
+
+    const gridPricingSelect = el('gridPricingType');
+    if (gridPricingSelect) gridPricingSelect.value = pricingType;
+
+    if (typeof GridEntry !== 'undefined') {
+      GridEntry.setGlobalConfig({ pricingType, cpm });
+    }
+  }
+
+  // Setup grid handlers
+  function setupGridHandlers() {
+    el('btnGridParse')?.addEventListener('click', handlePaste);
+    el('btnGridClear')?.addEventListener('click', () => {
+      if (typeof GridEntry !== 'undefined') {
+        GridEntry.clearRows();
+        renderGridTable();
+      }
+    });
+
+    el('btnGridAddSingle')?.addEventListener('click', handleSingleAdd);
+    el('gridSingleStation')?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); handleSingleAdd(); }
+    });
+
+    el('gridPricingType')?.addEventListener('change', (e) => {
+      if (typeof GridEntry !== 'undefined') {
+        GridEntry.setGlobalConfig({ pricingType: e.target.value });
+        GridEntry.recalculateAllValues();
+        renderGridTable();
+      }
+    });
+
+    el('gridDisambCancel')?.addEventListener('click', closeDisambiguationModal);
+
+    // Generate Proposal button
+    el('btnGridGenerateProposal')?.addEventListener('click', () => {
+      window.generateGridProposal();
+    });
+
+    // Populate default product dropdown from rate card
+    populateGridProductDropdown();
+  }
+
+  // Populate the default product dropdown from window.PRODUCTS (rate card)
+  function populateGridProductDropdown() {
+    const select = el('gridDefaultProduct');
+    if (!select || !window.PRODUCTS) return;
+
+    // Keep the "(None)" option
+    select.innerHTML = '<option value="">(None - set per row)</option>';
+
+    // Add products from rate card (excluding market-level products)
+    const marketLevelIds = ['topline', 'spoton'];
+    window.PRODUCTS
+      .filter(p => !marketLevelIds.includes(p.id))
+      .forEach(p => {
+        const opt = document.createElement('option');
+        opt.value = p.id;
+        const pricingType = el('gridPricingType')?.value || 'barter';
+        const price = pricingType === 'cash' ? p.cash : p.barter;
+        const priceStr = price != null ? ` ($${price.toLocaleString()}/mo)` : '';
+        opt.textContent = p.name + priceStr;
+        select.appendChild(opt);
+      });
+  }
+
+  // Handle paste
+  function handlePaste() {
+    const textarea = el('gridPasteInput');
+    const statusEl = el('gridPasteStatus');
+    if (!textarea) return;
+
+    const text = textarea.value;
+    if (!text.trim()) {
+      if (statusEl) statusEl.textContent = 'Nothing to paste';
+      return;
+    }
+
+    if (typeof GridEntry === 'undefined') return;
+
+    const callSigns = GridEntry.parseClipboardText(text);
+    if (callSigns.length === 0) {
+      if (statusEl) statusEl.textContent = 'No call signs found';
+      return;
+    }
+
+    const result = GridEntry.addRowsFromCallSigns(callSigns);
+
+    if (result.needsDisambiguation.length > 0) {
+      disambiguationQueue = result.needsDisambiguation;
+      currentDisambIndex = 0;
+      showNextDisambiguation();
+    }
+
+    const parts = [];
+    if (result.added.length > 0) parts.push(`${result.added.length} added`);
+    if (result.duplicates.length > 0) parts.push(`${result.duplicates.length} duplicates skipped`);
+    if (result.notFound.length > 0) parts.push(`${result.notFound.length} off-book`);
+    if (result.needsDisambiguation.length > 0) parts.push(`${result.needsDisambiguation.length} need market selection`);
+
+    if (statusEl) statusEl.textContent = parts.join(', ');
+    textarea.value = '';
+    renderGridTable();
+  }
+
+  // Handle single add
+  function handleSingleAdd() {
+    const input = el('gridSingleStation');
+    if (!input || !input.value.trim()) return;
+    if (typeof GridEntry === 'undefined') return;
+
+    const callSign = input.value.trim().toUpperCase();
+    const result = GridEntry.addRowsFromCallSigns([callSign]);
+
+    if (result.needsDisambiguation.length > 0) {
+      disambiguationQueue = result.needsDisambiguation;
+      currentDisambIndex = 0;
+      showNextDisambiguation();
+    }
+
+    if (result.duplicates.length > 0) {
+      input.style.borderColor = 'var(--danger)';
+      setTimeout(() => { input.style.borderColor = ''; }, 1500);
+    } else {
+      input.value = '';
+    }
+    renderGridTable();
+  }
+
+  // Disambiguation modal
+  function showNextDisambiguation() {
+    if (currentDisambIndex >= disambiguationQueue.length) {
+      closeDisambiguationModal();
+      renderGridTable();
+      return;
+    }
+
+    const item = disambiguationQueue[currentDisambIndex];
+    const modal = el('gridDisambiguationModal');
+    const csSpan = el('gridDisambCallSign');
+    const optionsDiv = el('gridDisambOptions');
+
+    if (!modal || !optionsDiv) return;
+    if (csSpan) csSpan.textContent = item.callSign;
+
+    optionsDiv.innerHTML = '';
+    item.options.forEach(opt => {
+      const row = document.createElement('div');
+      row.className = 'el';
+      row.style.cursor = 'pointer';
+      row.innerHTML = `
+        <div><strong>${opt.stationCallSign}</strong><br><span class="muted">${opt.market}</span></div>
+        <div style="text-align:right;">Prime: ${opt.primeAQH?.toLocaleString() || 0}</div>
+      `;
+      row.addEventListener('click', () => {
+        GridEntry.addDisambiguatedRow(opt);
+        currentDisambIndex++;
+        showNextDisambiguation();
+      });
+      optionsDiv.appendChild(row);
+    });
+
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn';
+    skipBtn.style.marginTop = '8px';
+    skipBtn.textContent = 'Skip';
+    skipBtn.addEventListener('click', () => { currentDisambIndex++; showNextDisambiguation(); });
+    optionsDiv.appendChild(skipBtn);
+
+    modal.style.display = 'flex';
+  }
+
+  function closeDisambiguationModal() {
+    const modal = el('gridDisambiguationModal');
+    if (modal) modal.style.display = 'none';
+    disambiguationQueue = [];
+    currentDisambIndex = 0;
+  }
+
+  // Render grid table
+  function renderGridTable() {
+    if (typeof GridEntry === 'undefined') return;
+
+    const tbody = el('gridTableBody');
+    const tfoot = el('gridTableFoot');
+    if (!tbody) return;
+
+    const rows = GridEntry.getRows();
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="10" style="padding:20px;text-align:center;color:var(--muted);">
+        No stations added. Paste call signs above or type them one at a time.</td></tr>`;
+      if (tfoot) tfoot.classList.add('hidden');
+      return;
+    }
+
+    tbody.innerHTML = rows.map(row => `
+      <tr data-row-id="${row.id}" style="${row.isOffBook ? 'background:rgba(180,35,24,0.05);' : ''}">
+        <td style="padding:8px;border-bottom:1px solid var(--edge);">
+          <strong>${row.callSign}</strong>
+          ${row.isOffBook ? '<br><span style="font-size:10px;color:var(--danger);">Off-book</span>' : ''}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);font-size:12px;">${escapeHtml(row.parent)}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);font-size:12px;">${escapeHtml(row.market)}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);font-size:12px;">${escapeHtml(row.format)}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:right;">${row.primeAQH?.toLocaleString() || '—'}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:right;">${row.rosAQH?.toLocaleString() || '—'}</td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:center;">
+          <input type="number" min="0" value="${row.primeMinutes}" style="width:50px;height:28px;text-align:center;"
+            data-row-id="${row.id}" data-field="prime" ${row.isOffBook ? 'disabled' : ''}>
+        </td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:center;">
+          <input type="number" min="0" value="${row.rosMinutes}" style="width:50px;height:28px;text-align:center;"
+            data-row-id="${row.id}" data-field="ros" ${row.isOffBook ? 'disabled' : ''}>
+        </td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:right;font-weight:600;">
+          ${row.isOffBook ? '—' : '$' + row.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0})}
+        </td>
+        <td style="padding:8px;border-bottom:1px solid var(--edge);text-align:center;">
+          <button class="btn" style="padding:4px 8px;font-size:11px;" data-remove-row="${row.id}">✕</button>
+        </td>
+      </tr>
+    `).join('');
+
+    tbody.querySelectorAll('input[type="number"]').forEach(input => {
+      input.addEventListener('change', handleMinutesChange);
+    });
+
+    tbody.querySelectorAll('button[data-remove-row]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        GridEntry.removeRow(parseInt(e.target.dataset.removeRow));
+        renderGridTable();
+      });
+    });
+
+    if (tfoot) tfoot.classList.remove('hidden');
+    updateGridTotals();
+  }
+
+  // Handle minutes change
+  function handleMinutesChange(e) {
+    const rowId = parseInt(e.target.dataset.rowId);
+    const field = e.target.dataset.field;
+    const value = parseInt(e.target.value) || 0;
+
+    const rows = GridEntry.getRows();
+    const row = rows.find(r => r.id === rowId);
+    if (!row) return;
+
+    GridEntry.setRowMinutes(rowId,
+      field === 'prime' ? value : row.primeMinutes,
+      field === 'ros' ? value : row.rosMinutes
+    );
+
+    // Update display
+    const updatedRows = GridEntry.getRows();
+    const updated = updatedRows.find(r => r.id === rowId);
+    if (updated && !updated.isOffBook) {
+      const tr = document.querySelector(`tr[data-row-id="${rowId}"]`);
+      if (tr) {
+        const valueTd = tr.querySelectorAll('td')[8];
+        if (valueTd) valueTd.textContent = '$' + updated.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0});
+      }
+    }
+    updateGridTotals();
+  }
+
+  // Update grid totals
+  function updateGridTotals() {
+    if (typeof GridEntry === 'undefined') return;
+
+    const rows = GridEntry.getRows();
+    const markets = GridEntry.getUniqueMarkets();
+
+    const totals = rows.reduce((acc, r) => ({
+      primeAQH: acc.primeAQH + (r.primeAQH || 0),
+      rosAQH: acc.rosAQH + (r.rosAQH || 0),
+      primeMins: acc.primeMins + r.primeMinutes,
+      rosMins: acc.rosMins + r.rosMinutes,
+      annualValue: acc.annualValue + r.annualValue
+    }), { primeAQH: 0, rosAQH: 0, primeMins: 0, rosMins: 0, annualValue: 0 });
+
+    const set = (id, val) => { const e = el(id); if (e) e.textContent = val; };
+    set('gridStationCount', rows.length);
+    set('gridMarketCount', markets.length);
+    set('gridTotalPrimeAQH', totals.primeAQH.toLocaleString());
+    set('gridTotalRosAQH', totals.rosAQH.toLocaleString());
+    set('gridTotalPrimeMins', totals.primeMins);
+    set('gridTotalRosMins', totals.rosMins);
+    set('gridTotalAnnualValue', '$' + totals.annualValue.toLocaleString(undefined, {maximumFractionDigits: 0}));
+
+    // Update market-level products section
+    updateMarketProductsSection();
+  }
+
+  // Grid market-level product state (user choices only - no prices)
+  window.gridMarketProducts = window.gridMarketProducts || {
+    topline: { enabled: false, tier: 'access', usersNeeded: 5, accountsNeeded: 220 },
+    spoton: { enabled: false, creditsPerMonth: 0 }
+  };
+
+  // Update market-level products section visibility and render
+  function updateMarketProductsSection() {
+    const section = el('gridMarketProductsSection');
+    if (!section) return;
+
+    const markets = GridEntry.getUniqueMarkets();
+    if (markets.length === 0) {
+      section.classList.add('hidden');
+      return;
+    }
+
+    section.classList.remove('hidden');
+    renderMarketLevelProducts(markets.length);
+  }
+
+  // Render market-level products UI - reads pricing from DealTools exports
+  function renderMarketLevelProducts(marketCount) {
+    const container = el('gridMarketProductsConfig');
+    if (!container || typeof DealTools === 'undefined') return;
+
+    const state = window.gridMarketProducts;
+
+    // Read pricing info from DealTools exports (single source of truth)
+    const toplinePricing = DealTools.TOPLINE_PRICING || {};
+    const spotonPricing = DealTools.SPOTON_PRICING || {};
+    const tierPrices = toplinePricing.tierPrices || { access: 42000, enterprise: 30000, both: 72000 };
+
+    // Get preview values by calling buildDeal() - the ONLY correct way to compute prices
+    const previewDeal = getMarketProductsPreview(marketCount);
+    const toplinePreviewValue = previewDeal?.productValues?.topline?.annual || 0;
+    const spotonPreviewValue = previewDeal?.productValues?.spoton?.annual || 0;
+
+    container.innerHTML = `
+      <!-- TopLine Configuration -->
+      <div style="margin-bottom:16px; padding:12px; background:var(--surface-2); border-radius:14px;">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="checkbox" id="gridToplineEnabled" ${state.topline.enabled ? 'checked' : ''}>
+          <strong>TopLine</strong>
+          <span class="muted" style="font-size:12px;">(priced per market)</span>
+        </label>
+        <div id="gridToplineConfig" class="${state.topline.enabled ? '' : 'hidden'}" style="margin-left:24px;">
+          <div class="row" style="gap:16px;flex-wrap:wrap;">
+            <div class="field" style="min-width:180px;">
+              <label style="font-size:12px;color:var(--muted);">Tier</label>
+              <select id="gridToplineTier" style="height:36px;">
+                <option value="access" ${state.topline.tier === 'access' ? 'selected' : ''}>TopLine - Base</option>
+                <option value="enterprise" ${state.topline.tier === 'enterprise' ? 'selected' : ''}>Enterprise</option>
+                <option value="both" ${state.topline.tier === 'both' ? 'selected' : ''}>Both</option>
+              </select>
+            </div>
+            <div class="field" style="min-width:100px;">
+              <label style="font-size:12px;color:var(--muted);">Markets</label>
+              <input type="number" id="gridToplineMarkets" value="${marketCount}" min="1" disabled style="height:36px;width:70px;background:var(--surface-2);">
+            </div>
+            <div class="field" style="min-width:120px;">
+              <label style="font-size:12px;color:var(--muted);">Users (${toplinePricing.usersIncluded || 5} incl)</label>
+              <input type="number" id="gridToplineUsers" value="${state.topline.usersNeeded}" min="1" style="height:36px;width:70px;">
+            </div>
+            <div class="field" style="min-width:140px;">
+              <label style="font-size:12px;color:var(--muted);">Accounts (${toplinePricing.accountsIncluded || 220} incl)</label>
+              <input type="number" id="gridToplineAccounts" value="${state.topline.accountsNeeded}" min="1" style="height:36px;width:80px;">
+            </div>
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:8px;">
+            Total: <strong>$${toplinePreviewValue.toLocaleString()}/yr</strong>
+            <span style="font-size:11px;">(${marketCount} market${marketCount !== 1 ? 's' : ''}, computed by buildDeal)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- SpotOn Configuration -->
+      <div style="padding:12px; background:var(--surface-2); border-radius:14px;">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <input type="checkbox" id="gridSpotonEnabled" ${state.spoton.enabled ? 'checked' : ''}>
+          <strong>SpotOn</strong>
+          <span class="muted" style="font-size:12px;">($${spotonPricing.pricePerCredit || 1}/credit, increments of ${spotonPricing.creditIncrement || 50})</span>
+        </label>
+        <div id="gridSpotonConfig" class="${state.spoton.enabled ? '' : 'hidden'}" style="margin-left:24px;">
+          <div class="field" style="max-width:200px;">
+            <label style="font-size:12px;color:var(--muted);">Credits per Month</label>
+            <input type="number" id="gridSpotonCredits" value="${state.spoton.creditsPerMonth}" min="0" step="${spotonPricing.creditIncrement || 50}" style="height:36px;">
+          </div>
+          <div class="muted" style="font-size:12px;margin-top:8px;">
+            Total: <strong>$${spotonPreviewValue.toLocaleString()}/yr</strong>
+            <span style="font-size:11px;">(computed by buildDeal)</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add event handlers
+    el('gridToplineEnabled')?.addEventListener('change', (e) => {
+      state.topline.enabled = e.target.checked;
+      el('gridToplineConfig')?.classList.toggle('hidden', !e.target.checked);
+      renderMarketLevelProducts(marketCount);
+    });
+
+    el('gridToplineTier')?.addEventListener('change', (e) => {
+      state.topline.tier = e.target.value;
+      renderMarketLevelProducts(marketCount);
+    });
+
+    el('gridToplineUsers')?.addEventListener('change', (e) => {
+      state.topline.usersNeeded = parseInt(e.target.value) || 5;
+      renderMarketLevelProducts(marketCount);
+    });
+
+    el('gridToplineAccounts')?.addEventListener('change', (e) => {
+      state.topline.accountsNeeded = parseInt(e.target.value) || 220;
+      renderMarketLevelProducts(marketCount);
+    });
+
+    el('gridSpotonEnabled')?.addEventListener('change', (e) => {
+      state.spoton.enabled = e.target.checked;
+      el('gridSpotonConfig')?.classList.toggle('hidden', !e.target.checked);
+      renderMarketLevelProducts(marketCount);
+    });
+
+    el('gridSpotonCredits')?.addEventListener('change', (e) => {
+      state.spoton.creditsPerMonth = parseInt(e.target.value) || 0;
+      renderMarketLevelProducts(marketCount);
+    });
+  }
+
+  // Get preview values by calling buildDeal() - no grid-side price math
+  function getMarketProductsPreview(marketCount) {
+    if (typeof DealTools === 'undefined' || typeof GridEntry === 'undefined') return null;
+
+    const state = window.gridMarketProducts;
+    const pricingType = el('gridPricingType')?.value || 'barter';
+
+    // Build a minimal config with just market-level products
+    const products = [];
+    const productConfigs = {};
+
+    if (state.topline.enabled) {
+      products.push('topline');
+      productConfigs.topline = {
+        tier: state.topline.tier,
+        numberOfMarkets: marketCount,
+        usersNeeded: state.topline.usersNeeded,
+        accountsNeeded: state.topline.accountsNeeded
+      };
+    }
+
+    if (state.spoton.enabled) {
+      products.push('spoton');
+      productConfigs.spoton = {
+        creditsPerMonth: state.spoton.creditsPerMonth
+      };
+    }
+
+    if (products.length === 0) return null;
+
+    // Call buildDeal to get actual computed prices
+    const config = {
+      dealType: 'broadcast',
+      pricingType: pricingType,
+      cpm: window.productState?.cpm || 1.5,
+      stations: [],
+      markets: [],
+      products: products,
+      productConfigs: productConfigs,
+      toplineConfig: productConfigs.topline,
+      spotonConfig: productConfigs.spoton
+    };
+
+    return DealTools.buildDeal(config);
+  }
+
+  // Generate proposal from grid (calls buildDeal directly)
+  window.generateGridProposal = function() {
+    if (typeof GridEntry === 'undefined' || typeof DealTools === 'undefined') {
+      alert('Grid not initialized');
+      return;
+    }
+
+    const rows = GridEntry.getRows();
+    if (rows.length === 0) {
+      alert('Add at least one station to the grid');
+      return;
+    }
+
+    // Build config from grid
+    const config = GridEntry.buildConfig({
+      parent: rows[0]?.parent || 'Unknown',
+      dealType: window.state?.dealType || 'broadcast'
+    });
+
+    // Ensure CPM comes from global setting
+    config.cpm = window.productState?.cpm || 1.5;
+
+    // Include market-level products from gridMarketProducts state
+    const marketState = window.gridMarketProducts || {};
+    const markets = GridEntry.getUniqueMarkets();
+
+    if (marketState.topline?.enabled) {
+      if (!config.products) config.products = [];
+      if (!config.products.includes('topline')) config.products.push('topline');
+      config.toplineConfig = {
+        tier: marketState.topline.tier || 'access',
+        numberOfMarkets: markets.length || 1,
+        usersNeeded: marketState.topline.usersNeeded || 5,
+        accountsNeeded: marketState.topline.accountsNeeded || 220
+      };
+    }
+
+    if (marketState.spoton?.enabled) {
+      if (!config.products) config.products = [];
+      if (!config.products.includes('spoton')) config.products.push('spoton');
+      config.spotonConfig = {
+        creditsPerMonth: marketState.spoton.creditsPerMonth || 0
+      };
+    }
+
+    // Call the shared buildDeal engine
+    const deal = DealTools.buildDeal(config);
+
+    // Render using shared renderer
+    window.renderProposalFromDeal(deal);
+    el('proposalSection')?.classList.remove('hidden');
+
+    return deal;
+  };
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c);
+  }
+
+  // Initialize
+  function init() {
+    setupEntryModeToggle();
+    setupGridHandlers();
+
+    // Sync deal type changes
+    el('dealTypeBroadcast')?.addEventListener('change', () => {
+      if (typeof GridEntry !== 'undefined') GridEntry.setGlobalConfig({ dealType: 'broadcast' });
+    });
+    el('dealTypeAgency')?.addEventListener('change', () => {
+      if (typeof GridEntry !== 'undefined') GridEntry.setGlobalConfig({ dealType: 'agency' });
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  window.GridEntryUI = { renderGridTable, generateGridProposal: window.generateGridProposal };
 })();
 </script>
 
