@@ -7909,12 +7909,6 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
-    // Track grand totals
-    let grandTotalPrimeMinutes = 0;
-    let grandTotalRosMinutes = 0;
-    let grandTotalAllocatedValue = 0;
-    let grandTotalTargetValue = 0;
-
     // Check if there are any barter-eligible products
     if (!products.length) {
       breakdown.innerHTML = '<div class="el muted">No products selected for barter allocation.</div>';
@@ -7923,18 +7917,21 @@ document.addEventListener("click", async (e) => {
       return;
     }
 
-    // Calculate barter minutes PER PRODUCT - all products use the same code path
+    // =========================================================================
+    // PASS 1: Calculate all allocations into a data structure (before rendering)
+    // =========================================================================
+    const BARTER_MULTIPLIER = 728; // Annual multiplier for barter formula
+    const allocationData = []; // Array of { productId, productName, stationKey, station, market, primeAQH, rosAQH, primeMinutes, rosMinutes, manualKey, hasManualPrime, hasManualRos }
+    let grandTotalTargetValue = 0;
+
     products.forEach(p => {
-      // Get assigned stations for this product (handles market-level → station expansion)
       const assignedStations = getAssignedStationsForProduct(p.id);
-      if (!assignedStations.length) return; // No stations assigned to this product
+      if (!assignedStations.length) return;
 
       const unitPrice = getProductUnitListPrice(p);
       let productCashTotal = 0;
       let productListPriceTotal = 0;
 
-      // For special products (TopLine, SpotOn, etc.), the calculated value is the total
-      // For standard products, sum up per-station values
       if (p.isSpecialProduct) {
         productListPriceTotal = unitPrice;
       } else {
@@ -7949,21 +7946,9 @@ document.addEventListener("click", async (e) => {
       const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
       const productBarterAnnual = productBarterMonthly * 12;
 
-      if (productBarterMonthly <= 0) return; // Skip products fully covered by cash
+      if (productBarterMonthly <= 0) return;
 
       grandTotalTargetValue += productBarterAnnual;
-
-      // Product header
-      const productHeader = document.createElement('div');
-      productHeader.className = 'el';
-      productHeader.style.cssText = 'background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.2); margin-bottom:4px; padding:10px 12px;';
-      productHeader.innerHTML = `
-        <div style="flex:1;"><strong>${escapeHtml(p.name)}</strong></div>
-        <div style="text-align:right; color:var(--text-muted); font-size:12px;">
-          List: ${money(productListPriceTotal)}/mo • Cash: ${money(productCashTotal)}/mo • <span style="color:var(--brand);">Barter: ${money(productBarterMonthly)}/mo</span>
-        </div>
-      `;
-      breakdown.appendChild(productHeader);
 
       // Calculate AQH totals for assigned stations
       let assignedPrimeAQH = 0;
@@ -7976,29 +7961,21 @@ document.addEventListener("click", async (e) => {
       const hasAssignedPrimeAQH = assignedPrimeAQH > 0;
       const hasAssignedRosAQH = assignedRosAQH > 0;
 
-      // Split product's barter value between Prime and ROS proportionally by assigned station AQH
       const primeValueShare = hasAssignedPrimeAQH ? (assignedPrimeAQH / assignedTotalAQH) : 0;
       const rosValueShare = hasAssignedRosAQH ? (assignedRosAQH / assignedTotalAQH) : 0;
       const productPrimeAnnual = productBarterAnnual * primeValueShare;
       const productRosAnnual = productBarterAnnual * rosValueShare;
 
-      // Calculate minutes for each assigned station for this product
-      let productPrimeMinutesTotal = 0;
-      let productRosMinutesTotal = 0;
-      let productAllocatedValue = 0;
-
       assignedStations.forEach(st => {
         const primeAQH = Number(st.primeAQH) || 0;
         const rosAQH = Number(st.rosAQH) || 0;
 
-        // This station's share of the product's barter value (among assigned stations)
         const stationPrimeShare = hasAssignedPrimeAQH && primeAQH > 0 ? (primeAQH / assignedPrimeAQH) : 0;
         const stationRosShare = hasAssignedRosAQH && rosAQH > 0 ? (rosAQH / assignedRosAQH) : 0;
 
         const stationPrimeTargetValue = productPrimeAnnual * stationPrimeShare;
         const stationRosTargetValue = productRosAnnual * stationRosShare;
 
-        // Calculate minutes needed
         let autoPrimeMinutes = 0;
         let autoRosMinutes = 0;
         if (primeAQH > 0) {
@@ -8008,40 +7985,174 @@ document.addEventListener("click", async (e) => {
           autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
         }
 
-        // Check for manual overrides (keyed by product:station)
         const manualKey = `${p.id}:${st.key}`;
         const manual = window.productState.manualMinutes.get(manualKey);
-        const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
-        const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+        const hasManualPrime = manual?.prime != null;
+        const hasManualRos = manual?.ros != null;
+
+        allocationData.push({
+          productId: p.id,
+          productName: p.name,
+          isSpecialProduct: p.isSpecialProduct,
+          productListPriceTotal,
+          productCashTotal,
+          productBarterMonthly,
+          productBarterAnnual,
+          stationKey: st.key,
+          station: st.station,
+          market: st.market,
+          primeAQH,
+          rosAQH,
+          primeMinutes: hasManualPrime ? manual.prime : autoPrimeMinutes,
+          rosMinutes: hasManualRos ? manual.ros : autoRosMinutes,
+          autoPrimeMinutes,
+          autoRosMinutes,
+          manualKey,
+          hasManualPrime,
+          hasManualRos
+        });
+      });
+    });
+
+    // =========================================================================
+    // RECONCILIATION: Adjust auto-calculated minutes to hit target within 5%
+    // Only adjust slots that DON'T have manual overrides
+    // =========================================================================
+    const TOLERANCE = 0.05;
+    const maxOverValue = grandTotalTargetValue * (1 + TOLERANCE);
+
+    // Helper to calculate total allocated value
+    const calcTotalValue = () => {
+      let total = 0;
+      allocationData.forEach(slot => {
+        total += calculateValueFromMinutes(slot.primeMinutes, slot.primeAQH, cpm);
+        total += calculateValueFromMinutes(slot.rosMinutes, slot.rosAQH, cpm);
+      });
+      return total;
+    };
+
+    // Helper to get value per minute for a given AQH
+    const valuePerMin = (aqh) => {
+      if (!aqh || aqh <= 0) return 0;
+      return (aqh * cpm * BARTER_MULTIPLIER) / 1000;
+    };
+
+    let totalAllocatedValue = calcTotalValue();
+    let iterations = 0;
+    const MAX_ITERATIONS = 10000;
+
+    // While over tolerance, decrement from highest-value auto slots
+    while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      let bestIdx = -1;
+      let bestDaypart = null;
+      let bestValuePerMin = 0;
+
+      allocationData.forEach((slot, idx) => {
+        // Check prime (only if not manual and has minutes > 0)
+        if (!slot.hasManualPrime && slot.primeMinutes > 0) {
+          const vpm = valuePerMin(slot.primeAQH);
+          if (vpm > bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'prime';
+          }
+        }
+        // Check ROS (only if not manual and has minutes > 0)
+        if (!slot.hasManualRos && slot.rosMinutes > 0) {
+          const vpm = valuePerMin(slot.rosAQH);
+          if (vpm > bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'ros';
+          }
+        }
+      });
+
+      if (bestIdx < 0) break; // No more adjustable slots
+
+      // Decrement the best slot
+      if (bestDaypart === 'prime') {
+        allocationData[bestIdx].primeMinutes--;
+      } else {
+        allocationData[bestIdx].rosMinutes--;
+      }
+
+      totalAllocatedValue = calcTotalValue();
+    }
+
+    // =========================================================================
+    // PASS 2: Render the UI from reconciled allocation data
+    // =========================================================================
+    let grandTotalPrimeMinutes = 0;
+    let grandTotalRosMinutes = 0;
+    let grandTotalAllocatedValue = 0;
+
+    // Group allocations by product for rendering
+    const productGroups = new Map();
+    allocationData.forEach(slot => {
+      if (!productGroups.has(slot.productId)) {
+        productGroups.set(slot.productId, {
+          productId: slot.productId,
+          productName: slot.productName,
+          productListPriceTotal: slot.productListPriceTotal,
+          productCashTotal: slot.productCashTotal,
+          productBarterMonthly: slot.productBarterMonthly,
+          productBarterAnnual: slot.productBarterAnnual,
+          slots: []
+        });
+      }
+      productGroups.get(slot.productId).slots.push(slot);
+    });
+
+    productGroups.forEach(group => {
+      // Product header
+      const productHeader = document.createElement('div');
+      productHeader.className = 'el';
+      productHeader.style.cssText = 'background:rgba(103,36,119,.08); border:1px solid rgba(103,36,119,.2); margin-bottom:4px; padding:10px 12px;';
+      productHeader.innerHTML = `
+        <div style="flex:1;"><strong>${escapeHtml(group.productName)}</strong></div>
+        <div style="text-align:right; color:var(--text-muted); font-size:12px;">
+          List: ${money(group.productListPriceTotal)}/mo • Cash: ${money(group.productCashTotal)}/mo • <span style="color:var(--brand);">Barter: ${money(group.productBarterMonthly)}/mo</span>
+        </div>
+      `;
+      breakdown.appendChild(productHeader);
+
+      let productPrimeMinutesTotal = 0;
+      let productRosMinutesTotal = 0;
+      let productAllocatedValue = 0;
+
+      group.slots.forEach(slot => {
+        const primeMinutes = slot.primeMinutes;
+        const rosMinutes = slot.rosMinutes;
 
         productPrimeMinutesTotal += primeMinutes;
         productRosMinutesTotal += rosMinutes;
 
-        // Calculate allocated value
-        const primeValue = calculateValueFromMinutes(primeMinutes, primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(rosMinutes, rosAQH, cpm);
+        const primeValue = calculateValueFromMinutes(primeMinutes, slot.primeAQH, cpm);
+        const rosValue = calculateValueFromMinutes(rosMinutes, slot.rosAQH, cpm);
         productAllocatedValue += primeValue + rosValue;
 
-        // Build station row for this product
+        // Build station row
         const row = document.createElement('div');
         row.className = 'el';
         row.style.cssText = 'align-items:center; justify-content:space-between; padding:6px 12px 6px 24px; font-size:13px;';
 
-        // Get PrecisionTrak data for format
-        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
+        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(slot.station) : null;
         const formatDisplay = ptData?.format || '—';
-        const aqhDisplay = (primeAQH > 0 || rosAQH > 0)
-          ? `${primeAQH.toLocaleString()}/${rosAQH.toLocaleString()}`
+        const aqhDisplay = (slot.primeAQH > 0 || slot.rosAQH > 0)
+          ? `${slot.primeAQH.toLocaleString()}/${slot.rosAQH.toLocaleString()}`
           : '—';
 
         const left = document.createElement('div');
-        left.innerHTML = `${escapeHtml(st.station)} <span class="muted">— ${escapeHtml(st.market)} — ${formatDisplay} — AQH: ${aqhDisplay}</span>`;
+        left.innerHTML = `${escapeHtml(slot.station)} <span class="muted">— ${escapeHtml(slot.market)} — ${formatDisplay} — AQH: ${aqhDisplay}</span>`;
 
         const right = document.createElement('div');
         right.style.cssText = 'display:flex; align-items:center; gap:8px;';
 
         // Prime input
-        if (primeAQH > 0) {
+        if (slot.primeAQH > 0) {
           const primeLbl = document.createElement('span');
           primeLbl.className = 'muted';
           primeLbl.style.fontSize = '11px';
@@ -8054,15 +8165,15 @@ document.addEventListener("click", async (e) => {
           primeInput.value = String(primeMinutes);
           primeInput.style.cssText = 'width:60px; text-align:right;';
           primeInput.dataset.barterType = 'prime';
-          primeInput.dataset.productId = p.id;
-          primeInput.dataset.stationKey = st.key;
-          primeInput.dataset.callSign = st.station;
+          primeInput.dataset.productId = slot.productId;
+          primeInput.dataset.stationKey = slot.stationKey;
+          primeInput.dataset.callSign = slot.station;
 
           primeInput.onchange = () => {
             const v = parseFloat(primeInput.value);
             const roundedV = Number.isFinite(v) && v > 0 ? Math.ceil(v) : 0;
-            const currentManual = window.productState.manualMinutes.get(manualKey) || {};
-            window.productState.manualMinutes.set(manualKey, { ...currentManual, prime: roundedV });
+            const currentManual = window.productState.manualMinutes.get(slot.manualKey) || {};
+            window.productState.manualMinutes.set(slot.manualKey, { ...currentManual, prime: roundedV });
             calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
           };
 
@@ -8071,7 +8182,7 @@ document.addEventListener("click", async (e) => {
         }
 
         // ROS input
-        if (rosAQH > 0) {
+        if (slot.rosAQH > 0) {
           const rosLbl = document.createElement('span');
           rosLbl.className = 'muted';
           rosLbl.style.cssText = 'font-size:11px; margin-left:8px;';
@@ -8084,15 +8195,15 @@ document.addEventListener("click", async (e) => {
           rosInput.value = String(rosMinutes);
           rosInput.style.cssText = 'width:60px; text-align:right;';
           rosInput.dataset.barterType = 'ros';
-          rosInput.dataset.productId = p.id;
-          rosInput.dataset.stationKey = st.key;
-          rosInput.dataset.callSign = st.station;
+          rosInput.dataset.productId = slot.productId;
+          rosInput.dataset.stationKey = slot.stationKey;
+          rosInput.dataset.callSign = slot.station;
 
           rosInput.onchange = () => {
             const v = parseFloat(rosInput.value);
             const roundedV = Number.isFinite(v) && v > 0 ? Math.ceil(v) : 0;
-            const currentManual = window.productState.manualMinutes.get(manualKey) || {};
-            window.productState.manualMinutes.set(manualKey, { ...currentManual, ros: roundedV });
+            const currentManual = window.productState.manualMinutes.get(slot.manualKey) || {};
+            window.productState.manualMinutes.set(slot.manualKey, { ...currentManual, ros: roundedV });
             calculateBarterMinutes(annualRemainingValue, monthlyRemainingValue);
           };
 
@@ -8112,9 +8223,9 @@ document.addEventListener("click", async (e) => {
       // Product subtotal
       const productSubtotal = document.createElement('div');
       productSubtotal.style.cssText = 'padding:4px 12px 8px 24px; font-size:11px; color:var(--text-muted); margin-bottom:8px;';
-      productSubtotal.innerHTML = `${p.name} Total: ${productPrimeMinutesTotal} Prime/day + ${productRosMinutesTotal} ROS/day = ${money(productAllocatedValue)} annual value`;
+      productSubtotal.innerHTML = `${group.productName} Total: ${productPrimeMinutesTotal} Prime/day + ${productRosMinutesTotal} ROS/day = ${money(productAllocatedValue)} annual value`;
       breakdown.appendChild(productSubtotal);
-    }); // end products.forEach
+    });
 
     // Update totals display
     el('totalPrimeMinutes').textContent = String(Math.round(grandTotalPrimeMinutes));
