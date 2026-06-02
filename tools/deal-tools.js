@@ -924,15 +924,16 @@
       const stationPrimeTarget = primeTargetAnnual * stationPrimeShare;
       const stationRosTarget = rosTargetAnnual * stationRosShare;
 
-      // Calculate minutes (round up for initial pass)
+      // Calculate minutes using Math.round (not ceil) to allow 0 minutes
+      // when target share is small relative to station's AQH
       let primeMinsPerDay = 0;
       let rosMinsPerDay = 0;
 
       if (primeAQH > 0) {
-        primeMinsPerDay = Math.ceil(calculateMinutesFromValue(stationPrimeTarget, primeAQH, cpm));
+        primeMinsPerDay = Math.round(calculateMinutesFromValue(stationPrimeTarget, primeAQH, cpm));
       }
       if (rosAQH > 0) {
-        rosMinsPerDay = Math.ceil(calculateMinutesFromValue(stationRosTarget, rosAQH, cpm));
+        rosMinsPerDay = Math.round(calculateMinutesFromValue(stationRosTarget, rosAQH, cpm));
       }
 
       perStation.push({
@@ -966,11 +967,13 @@
     // =========================================================================
     const TOLERANCE = 0.05; // 5%
     const maxOverValue = targetAnnualValue * (1 + TOLERANCE);
+    const minUnderValue = targetAnnualValue * (1 - TOLERANCE);
     let totalAllocatedValue = calcTotalValue();
     let iterations = 0;
     const MAX_ITERATIONS = 10000; // Safety limit
 
-    // While we're more than 5% over target, decrement minutes
+    // Phase 1: While we're more than 5% OVER target, decrement minutes
+    // Decrement from highest-value-per-minute slots first (removes most value per decrement)
     while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
@@ -1010,6 +1013,53 @@
         perStation[bestIdx].primeMinsPerDay--;
       } else {
         perStation[bestIdx].rosMinsPerDay--;
+      }
+
+      // Recalculate total
+      totalAllocatedValue = calcTotalValue();
+    }
+
+    // Phase 2: While we're more than 5% UNDER target, increment minutes
+    // Increment the lowest-value-per-minute slots first (adds least value per increment)
+    while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      // Find the station/daypart with the lowest positive value-per-minute
+      let bestIdx = -1;
+      let bestDaypart = null;
+      let bestValuePerMin = Infinity;
+
+      perStation.forEach((ps, idx) => {
+        // Check prime (only if station has prime AQH)
+        if (ps.primeAQH > 0) {
+          const vpm = valuePerMin(ps.primeAQH);
+          if (vpm > 0 && vpm < bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'prime';
+          }
+        }
+        // Check ROS (only if station has ROS AQH)
+        if (ps.rosAQH > 0) {
+          const vpm = valuePerMin(ps.rosAQH);
+          if (vpm > 0 && vpm < bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'ros';
+          }
+        }
+      });
+
+      // If no station can be incremented, stop
+      if (bestIdx < 0 || bestValuePerMin === Infinity) {
+        break;
+      }
+
+      // Increment one minute to the best candidate
+      if (bestDaypart === 'prime') {
+        perStation[bestIdx].primeMinsPerDay++;
+      } else {
+        perStation[bestIdx].rosMinsPerDay++;
       }
 
       // Recalculate total

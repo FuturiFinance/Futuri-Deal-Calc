@@ -7979,10 +7979,12 @@ document.addEventListener("click", async (e) => {
         let autoPrimeMinutes = 0;
         let autoRosMinutes = 0;
         if (primeAQH > 0) {
-          autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
+          // Use Math.round (not ceil) to allow 0 minutes when target share is small
+          autoPrimeMinutes = Math.round(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
         }
         if (rosAQH > 0) {
-          autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
+          // Use Math.round (not ceil) to allow 0 minutes when target share is small
+          autoRosMinutes = Math.round(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
         }
 
         const manualKey = `${p.id}:${st.key}`;
@@ -8020,6 +8022,7 @@ document.addEventListener("click", async (e) => {
     // =========================================================================
     const TOLERANCE = 0.05;
     const maxOverValue = grandTotalTargetValue * (1 + TOLERANCE);
+    const minUnderValue = grandTotalTargetValue * (1 - TOLERANCE);
 
     // Helper to calculate total allocated value
     const calcTotalValue = () => {
@@ -8041,7 +8044,7 @@ document.addEventListener("click", async (e) => {
     let iterations = 0;
     const MAX_ITERATIONS = 10000;
 
-    // While over tolerance, decrement from highest-value auto slots
+    // Phase 1: While more than 5% OVER target, decrement from highest-value auto slots
     while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
@@ -8077,6 +8080,47 @@ document.addEventListener("click", async (e) => {
         allocationData[bestIdx].primeMinutes--;
       } else {
         allocationData[bestIdx].rosMinutes--;
+      }
+
+      totalAllocatedValue = calcTotalValue();
+    }
+
+    // Phase 2: While more than 5% UNDER target, increment lowest-value auto slots
+    while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      let bestIdx = -1;
+      let bestDaypart = null;
+      let bestValuePerMin = Infinity;
+
+      allocationData.forEach((slot, idx) => {
+        // Check prime (only if not manual and has AQH)
+        if (!slot.hasManualPrime && slot.primeAQH > 0) {
+          const vpm = valuePerMin(slot.primeAQH);
+          if (vpm > 0 && vpm < bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'prime';
+          }
+        }
+        // Check ROS (only if not manual and has AQH)
+        if (!slot.hasManualRos && slot.rosAQH > 0) {
+          const vpm = valuePerMin(slot.rosAQH);
+          if (vpm > 0 && vpm < bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'ros';
+          }
+        }
+      });
+
+      if (bestIdx < 0 || bestValuePerMin === Infinity) break; // No more adjustable slots
+
+      // Increment the best slot
+      if (bestDaypart === 'prime') {
+        allocationData[bestIdx].primeMinutes++;
+      } else {
+        allocationData[bestIdx].rosMinutes++;
       }
 
       totalAllocatedValue = calcTotalValue();
@@ -8405,10 +8449,12 @@ function computeBarterAllocationPerProduct() {
         let autoPrimeMinutes = 0;
         let autoRosMinutes = 0;
         if (primeAQH > 0) {
-          autoPrimeMinutes = Math.ceil(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
+          // Use Math.round (not ceil) to allow 0 minutes when target share is small
+          autoPrimeMinutes = Math.round(calculateMinutesFromValue(stationPrimeTargetValue, primeAQH, cpm));
         }
         if (rosAQH > 0) {
-          autoRosMinutes = Math.ceil(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
+          // Use Math.round (not ceil) to allow 0 minutes when target share is small
+          autoRosMinutes = Math.round(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
         }
 
         // Check for manual override
