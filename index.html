@@ -8643,6 +8643,8 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
   const stations = deal.stationDetails || [];
   const products = deal.products || [];
   const pricingType = deal.pricingType || 'cash';
+  const productValues = deal.productValues || {};
+  const productAssignments = deal.productAssignments || {};
 
   // Deal terms
   const termMonths = deal.dealMeta?.termMonths || 36;
@@ -8651,16 +8653,14 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
   const nielsenDisplay = (deal.dealMeta?.nielsenSeason && deal.dealMeta?.nielsenYear)
     ? `${deal.dealMeta.nielsenSeason} ${deal.dealMeta.nielsenYear}` : '—';
 
-  // Totals from deal object
-  const totalAnnual = deal.totalAnnual || 0;
-  const totalCashMonthly = deal.cashMonthly || 0;
+  // Cash total only (barter values are INTERNAL ONLY, never shown)
   const totalCashAnnual = deal.cashAnnual || 0;
-  const barterTargetAnnual = deal.barterTargetAnnual || 0;
+  const isCashDeal = pricingType === 'cash';
+  const isBarterDeal = pricingType === 'barter';
+  const isMixedDeal = pricingType === 'mixed';
 
-  // Barter allocation from deal
+  // Barter allocation from deal (for inventory display only - NO dollar values)
   const barterAllocation = deal.barterAllocation || { perStation: [], total: {} };
-
-  // Build barter lookup by station call sign
   const barterByCallSign = new Map();
   (barterAllocation.perStation || []).forEach(s => {
     barterByCallSign.set(s.callSign, {
@@ -8669,15 +8669,20 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
     });
   });
 
-  // Get product names for display
-  const productNames = products.map(pid => {
-    const p = (window.PRODUCTS || []).find(pp => pp.id === pid);
-    return p ? p.name : pid;
+  // Station lookup by key
+  const stationByKey = new Map();
+  stations.forEach(s => {
+    const key = `${s.parent}|${s.market}|${s.station}`;
+    stationByKey.set(key, s);
   });
 
-  const showBarterCols = (pricingType === 'mixed' || pricingType === 'barter');
-  const showCashCol = (pricingType === 'mixed' || pricingType === 'cash');
-  const showAnnualCol = (pricingType === 'cash');
+  // Helper: render inventory pills (barter portion - NEVER show dollars)
+  const inventoryPills = (primeMin, rosMin) => {
+    const pills = [];
+    if (primeMin > 0) pills.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Prime: ${primeMin} min/day</span>`);
+    if (rosMin > 0) pills.push(`<span class="badge" style="background:rgba(103,36,119,.1);">ROS: ${rosMin} min/day</span>`);
+    return pills.length ? pills.join(' ') : '<span class="muted">—</span>';
+  };
 
   // Build proposal HTML
   const lines = [];
@@ -8695,9 +8700,9 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
     lines.push(`<span class="pill">Stations: <span>${stations.length}</span></span>`);
   }
   lines.push(`<span class="pill">Products: <span>${products.length}</span></span>`);
-  lines.push(`<span class="pill">Annual Total: <span>${money(totalAnnual)}</span></span>`);
-  if (pricingType === 'mixed' && !isAgencyDeal) {
-    lines.push(`<span class="pill">Cash (Monthly): <span>${money(totalCashMonthly)}</span>/mo</span>`);
+  // Grand Total: cash portion only, hidden on 100% barter
+  if (!isBarterDeal) {
+    lines.push(`<span class="pill">Annual Total: <span>${money(totalCashAnnual)}</span></span>`);
   }
   lines.push(`</div>`);
 
@@ -8715,136 +8720,64 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
   lines.push(`</div>`);
   lines.push(`</div>`);
 
-  // Station table - only for Broadcast deals
-  if (!isAgencyDeal && stations.length > 0) {
-    lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Station Breakdown</div>`);
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Format</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime AQH</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS AQH</th>
-      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Prime/Day</th>` : ''}
-      ${showBarterCols ? `<th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">ROS/Day</th>` : ''}
-    </tr></thead>`);
-    lines.push(`<tbody>`);
+  // ============================================================================
+  // PRODUCT BLOCKS - One block per product, grouped by product
+  // Cash: show dollar amounts
+  // Barter: show inventory only (pills), NO dollar values
+  // Mixed: cash dollars + barter inventory
+  // ============================================================================
 
-    stations
-      .slice()
-      .sort((a, b) => (a.market || '').localeCompare(b.market || '') || (a.station || '').localeCompare(b.station || ''))
-      .forEach(st => {
-        const barter = barterByCallSign.get(st.station) || { primePerDay: 0, rosPerDay: 0 };
-        const isOffBook = st.inBook === false || st.primeAQH === null;
-
-        lines.push(`<tr${isOffBook ? ' style="background:rgba(180,35,24,0.05);"' : ''}>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-            <strong>${st.station}</strong>
-            ${isOffBook ? '<br><span style="font-size:10px;color:var(--danger);">Off-book</span>' : ''}
-          </td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ''}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.format || ''}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${st.primeAQH?.toLocaleString() || '—'}</td>
-          <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${st.rosAQH?.toLocaleString() || '—'}</td>
-          ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${barter.primePerDay}</td>` : ''}
-          ${showBarterCols ? `<td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${barter.rosPerDay}</td>` : ''}
-        </tr>`);
-      });
-
-    lines.push(`</tbody></table>`);
-    lines.push(`</div>`);
-  }
-
-  // Product breakdown sections from deal.productValues
-  const productValues = deal.productValues || {};
-
-  // TopLine section
+  // --- TopLine ---
   if (productValues.topline) {
     const tl = productValues.topline;
     const bd = tl.breakdown || {};
+    const marketCount = bd.numMarkets || 1;
 
     lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">TopLine Products</div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">TopLine</div>`);
 
-    lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap; margin-bottom:12px;">`);
-    if (bd.totalOneTime > 0) {
-      lines.push(`<span class="pill">Upfront/One-Time: <strong>${money(bd.totalOneTime)}</strong></span>`);
-    }
-    lines.push(`<span class="pill">Annual Cost: <strong>${money(tl.annual)}</strong></span>`);
-    lines.push(`</div>`);
+    if (isBarterDeal) {
+      // BARTER: inventory only (markets as pill), no dollar values
+      lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${marketCount} market${marketCount !== 1 ? 's' : ''}</span>`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Tier: ${bd.tier || 'access'}</span>`);
+      lines.push(`</div>`);
+    } else {
+      // CASH or MIXED: show dollar amounts
+      lines.push(`<div style="overflow-x:auto;">`);
+      lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+      lines.push(`<thead><tr>
+        <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
+        <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
+      </tr></thead><tbody>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
-    </tr></thead><tbody>`);
-
-    lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>Base (${bd.tier || 'access'})</strong><br><span style="font-size:11px;color:var(--muted);">${bd.numMarkets || 1} market(s)</span></td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.baseAnnual || 0)}</td>
-    </tr>`);
-
-    if (bd.usersAnnual > 0) {
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Users</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.usersAnnual)}</td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>Base (${bd.tier || 'access'})</strong><br><span style="font-size:11px;color:var(--muted);">${marketCount} market(s)</span></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.baseAnnual || 0)}</td>
       </tr>`);
+
+      if (bd.usersAnnual > 0) {
+        lines.push(`<tr><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Users</td><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.usersAnnual)}</td></tr>`);
+      }
+      if (bd.accountsAnnual > 0) {
+        lines.push(`<tr><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Accounts</td><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.accountsAnnual)}</td></tr>`);
+      }
+      if (bd.attributionAnnual > 0) {
+        lines.push(`<tr><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Attribution Add-on</td><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.attributionAnnual)}</td></tr>`);
+      }
+      if (bd.tvAnnual > 0) {
+        lines.push(`<tr><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">TV Hard Costs</td><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.tvAnnual)}</td></tr>`);
+      }
+      if (bd.chuyLocationAnnual > 0 || bd.chuyRetailerAnnual > 0) {
+        lines.push(`<tr><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY</td><td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money((bd.chuyLocationAnnual || 0) + (bd.chuyRetailerAnnual || 0))}</td></tr>`);
+      }
+
+      lines.push(`<tr style="background:rgba(103,36,119,.06);"><td style="padding:8px;"><strong>TopLine Total</strong></td><td style="padding:8px; text-align:right;"><strong>${money(tl.annual)}</strong></td></tr>`);
+      lines.push(`</tbody></table></div>`);
     }
-
-    if (bd.accountsAnnual > 0) {
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Additional Accounts</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.accountsAnnual)}</td>
-      </tr>`);
-    }
-
-    if (bd.attributionAnnual > 0) {
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">Attribution Add-on</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.attributionAnnual)}</td>
-      </tr>`);
-    }
-
-    if (bd.tvAnnual > 0) {
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">TV Hard Costs</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.tvAnnual)}</td>
-      </tr>`);
-    }
-
-    if (bd.spotonAnnual > 0) {
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(bd.spotonAnnual)}</td>
-      </tr>`);
-    }
-
-    if (bd.chuyLocationAnnual > 0 || bd.chuyRetailerAnnual > 0) {
-      lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">CHUY</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money((bd.chuyLocationAnnual || 0) + (bd.chuyRetailerAnnual || 0))}</td>
-      </tr>`);
-    }
-
-    if (bd.isOverridden) {
-      lines.push(`<tr style="background:rgba(103,36,119,.12);">
-        <td style="padding:8px;"><strong>Price Override Applied</strong></td>
-        <td style="padding:8px; text-align:right;"><strong>${money(tl.annual)}</strong></td>
-      </tr>`);
-    }
-
-    lines.push(`<tr style="background:rgba(103,36,119,.06);">
-      <td style="padding:8px;"><strong>TopLine Total</strong></td>
-      <td style="padding:8px; text-align:right;"><strong>${money(tl.annual)}</strong></td>
-    </tr>`);
-
-    lines.push(`</tbody></table></div>`);
   }
 
-  // Content Automation section
+  // --- Content Automation ---
   if (productValues.content_automation) {
     const ca = productValues.content_automation;
     const bd = ca.breakdown || {};
@@ -8852,27 +8785,24 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">Content Automation</div>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
-    </tr></thead><tbody>`);
-
-    lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-        <strong>Content Automation — ${bd.tierName || bd.tier || 'XS'}</strong><br>
-        <span style="font-size:11px;color:var(--muted);">${(bd.credits || 0).toLocaleString()} credits/mo @ $${(bd.costPerCredit || 0).toFixed(2)}/credit</span>
-      </td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.monthly)}</strong></td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.annual)}</strong></td>
-    </tr>`);
-
-    lines.push(`</tbody></table></div>`);
+    if (isBarterDeal) {
+      // BARTER: inventory only
+      lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Tier: ${bd.tierName || bd.tier || 'XS'}</span>`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${(bd.credits || 0).toLocaleString()} credits/mo</span>`);
+      lines.push(`</div>`);
+    } else {
+      // CASH or MIXED: show dollars
+      lines.push(`<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;"><tbody>`);
+      lines.push(`<tr>
+        <td style="padding:8px;"><strong>Content Automation — ${bd.tierName || bd.tier || 'XS'}</strong><br><span style="font-size:11px;color:var(--muted);">${(bd.credits || 0).toLocaleString()} credits/mo</span></td>
+        <td style="padding:8px; text-align:right;"><strong>${money(ca.annual)}/yr</strong></td>
+      </tr>`);
+      lines.push(`</tbody></table></div>`);
+    }
   }
 
-  // SpotOn section
+  // --- SpotOn ---
   if (productValues.spoton && productValues.spoton.annual > 0) {
     const sp = productValues.spoton;
     const bd = sp.breakdown || {};
@@ -8880,27 +8810,23 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">SpotOn</div>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Line Item</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
-    </tr></thead><tbody>`);
-
-    lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-        <strong>SpotOn Credits</strong><br>
-        <span style="font-size:11px;color:var(--muted);">${(bd.creditsPerMonth || 0).toLocaleString()} credits/mo @ $${bd.pricePerCredit || 1}/credit</span>
-      </td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sp.monthly)}</strong></td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(sp.annual)}</strong></td>
-    </tr>`);
-
-    lines.push(`</tbody></table></div>`);
+    if (isBarterDeal) {
+      // BARTER: inventory only
+      lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${(bd.creditsPerMonth || 0).toLocaleString()} credits/mo</span>`);
+      lines.push(`</div>`);
+    } else {
+      // CASH or MIXED: show dollars
+      lines.push(`<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;"><tbody>`);
+      lines.push(`<tr>
+        <td style="padding:8px;"><strong>SpotOn Credits</strong><br><span style="font-size:11px;color:var(--muted);">${(bd.creditsPerMonth || 0).toLocaleString()} credits/mo</span></td>
+        <td style="padding:8px; text-align:right;"><strong>${money(sp.annual)}/yr</strong></td>
+      </tr>`);
+      lines.push(`</tbody></table></div>`);
+    }
   }
 
-  // FB Groups section
+  // --- FB Groups ---
   if (productValues.topicpulse_community_radar_fb && productValues.topicpulse_community_radar_fb.annual > 0) {
     const fb = productValues.topicpulse_community_radar_fb;
     const bd = fb.breakdown || {};
@@ -8908,17 +8834,16 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">TopicPulse Community Radar (FB Groups)</div>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<tbody>`);
-    lines.push(`<tr>
-      <td style="padding:8px;"><strong>${bd.groupCount || 0} Facebook Groups</strong> @ $50/group/mo</td>
-      <td style="padding:8px; text-align:right;"><strong>${money(fb.annual)}/yr</strong></td>
-    </tr>`);
-    lines.push(`</tbody></table></div>`);
+    if (isBarterDeal) {
+      lines.push(`<div class="row" style="gap:8px;"><span class="badge" style="background:rgba(103,36,119,.1);">${bd.groupCount || 0} Facebook Groups</span></div>`);
+    } else {
+      lines.push(`<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;"><tbody>`);
+      lines.push(`<tr><td style="padding:8px;"><strong>${bd.groupCount || 0} Facebook Groups</strong></td><td style="padding:8px; text-align:right;"><strong>${money(fb.annual)}/yr</strong></td></tr>`);
+      lines.push(`</tbody></table></div>`);
+    }
   }
 
-  // FAAI section
+  // --- FAAI ---
   if (productValues.faai && productValues.faai.annual > 0) {
     const fa = productValues.faai;
     const bd = fa.breakdown || {};
@@ -8926,62 +8851,116 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">FAAI</div>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<tbody>`);
-    lines.push(`<tr>
-      <td style="padding:8px;">
-        <strong>FAAI</strong><br>
-        <span style="font-size:11px;color:var(--muted);">${bd.numberOfShows || 0} shows, ${bd.minutesPerDay || 0} min/day, ${bd.margin || 90}% margin</span>
-      </td>
-      <td style="padding:8px; text-align:right;"><strong>${money(fa.annual)}/yr</strong></td>
-    </tr>`);
-    lines.push(`</tbody></table></div>`);
+    if (isBarterDeal) {
+      lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${bd.numberOfShows || 0} shows</span>`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${bd.minutesPerDay || 0} min/day</span>`);
+      lines.push(`</div>`);
+    } else {
+      lines.push(`<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;"><tbody>`);
+      lines.push(`<tr><td style="padding:8px;"><strong>FAAI</strong><br><span style="font-size:11px;color:var(--muted);">${bd.numberOfShows || 0} shows, ${bd.minutesPerDay || 0} min/day</span></td><td style="padding:8px; text-align:right;"><strong>${money(fa.annual)}/yr</strong></td></tr>`);
+      lines.push(`</tbody></table></div>`);
+    }
   }
 
-  // Standard per-station products
-  const standardProducts = products.filter(pid =>
+  // --- Standard per-station products (TopicPulse, Streaming, etc.) ---
+  const standardProductIds = products.filter(pid =>
     !['topline', 'content_automation', 'spoton', 'topicpulse_community_radar_fb', 'faai'].includes(pid) &&
     productValues[pid]
   );
 
-  if (standardProducts.length > 0) {
+  standardProductIds.forEach(pid => {
+    const pv = productValues[pid];
+    const productInfo = (window.PRODUCTS || []).find(p => p.id === pid);
+    const productName = productInfo?.name || pid;
+
+    // Get assigned stations for this product
+    const assignedKeys = productAssignments[pid] ? Array.from(productAssignments[pid]) : [];
+    const assignedStations = assignedKeys.map(k => stationByKey.get(k)).filter(Boolean);
+
     lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Per-Station Products</div>`);
+    lines.push(`<div class="title" style="margin-bottom:6px;">${productName}</div>`);
 
-    lines.push(`<div style="overflow-x:auto;">`);
-    lines.push(`<table style="width:100%; border-collapse:collapse; font-size:13px;">`);
-    lines.push(`<thead><tr>
-      <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Product</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Monthly</th>
-      <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
-    </tr></thead><tbody>`);
+    if (isBarterDeal) {
+      // BARTER: show inventory per station (minutes as pills), NO dollars
+      if (assignedStations.length > 0) {
+        lines.push(`<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;">`);
+        lines.push(`<thead><tr>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Station</th>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Market</th>
+          <th style="text-align:left; padding:8px; border-bottom:1px solid var(--edge);">Inventory</th>
+        </tr></thead><tbody>`);
 
-    standardProducts.forEach(pid => {
-      const pv = productValues[pid];
-      const productInfo = (window.PRODUCTS || []).find(p => p.id === pid);
-      const name = productInfo?.name || pid;
-
+        assignedStations.forEach(st => {
+          const barter = barterByCallSign.get(st.station) || { primePerDay: 0, rosPerDay: 0 };
+          lines.push(`<tr>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${st.station}</strong></td>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${st.market || ''}</td>
+            <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">${inventoryPills(barter.primePerDay, barter.rosPerDay)}</td>
+          </tr>`);
+        });
+        lines.push(`</tbody></table></div>`);
+      } else {
+        lines.push(`<div class="row" style="gap:8px;"><span class="badge" style="background:rgba(103,36,119,.1);">${stations.length} stations</span></div>`);
+      }
+    } else {
+      // CASH or MIXED: show dollar amounts
+      lines.push(`<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:13px;"><tbody>`);
       lines.push(`<tr>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);"><strong>${name}</strong></td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(pv.monthly)}</td>
-        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;">${money(pv.annual)}</td>
+        <td style="padding:8px;"><strong>${productName}</strong><br><span style="font-size:11px;color:var(--muted);">${assignedStations.length || stations.length} station(s)</span></td>
+        <td style="padding:8px; text-align:right;"><strong>${money(pv.annual)}/yr</strong></td>
       </tr>`);
-    });
+      lines.push(`</tbody></table></div>`);
 
-    lines.push(`</tbody></table></div>`);
+      // For MIXED deals, also show barter inventory if allocated
+      if (isMixedDeal && assignedStations.length > 0) {
+        const hasBarterAllocation = assignedStations.some(st => {
+          const b = barterByCallSign.get(st.station);
+          return b && (b.primePerDay > 0 || b.rosPerDay > 0);
+        });
+        if (hasBarterAllocation) {
+          lines.push(`<div style="margin-top:8px; padding:8px; background:rgba(103,36,119,.04); border-radius:8px;">`);
+          lines.push(`<div style="font-size:12px; color:var(--muted); margin-bottom:6px;">Barter Inventory:</div>`);
+          lines.push(`<div class="row" style="gap:8px; flex-wrap:wrap;">`);
+          assignedStations.forEach(st => {
+            const b = barterByCallSign.get(st.station);
+            if (b && (b.primePerDay > 0 || b.rosPerDay > 0)) {
+              lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${st.station}: ${b.primePerDay}p/${b.rosPerDay}r</span>`);
+            }
+          });
+          lines.push(`</div></div>`);
+        }
+      }
+    }
+  });
+
+  // ============================================================================
+  // BARTER INVENTORY SUMMARY (only for barter/mixed, shows inventory totals only)
+  // ============================================================================
+  if ((isBarterDeal || isMixedDeal) && barterAllocation.total) {
+    const totalPrime = barterAllocation.total.primeMinsPerDay || 0;
+    const totalRos = barterAllocation.total.rosMinsPerDay || 0;
+
+    if (totalPrime > 0 || totalRos > 0) {
+      lines.push(`<div class="subtle-divider"></div>`);
+      lines.push(`<div class="title" style="margin-bottom:6px;">Barter Inventory Summary</div>`);
+      lines.push(`<div class="row" style="gap:12px; flex-wrap:wrap;">`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Prime: ${totalPrime} min/day total</span>`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">ROS: ${totalRos} min/day total</span>`);
+      lines.push(`</div>`);
+    }
   }
 
-  // Barter allocation summary
-  if (showBarterCols && barterAllocation.total) {
+  // ============================================================================
+  // GRAND TOTAL (cash only, hidden on 100% barter)
+  // ============================================================================
+  if (!isBarterDeal && totalCashAnnual > 0) {
     lines.push(`<div class="subtle-divider"></div>`);
-    lines.push(`<div class="title" style="margin-bottom:6px;">Barter Allocation Summary</div>`);
-    lines.push(`<div class="row" style="gap:12px; flex-wrap:wrap;">`);
-    lines.push(`<span class="pill">Target: <strong>${money(barterTargetAnnual)}/yr</strong></span>`);
-    lines.push(`<span class="pill">Allocated: <strong>${money(barterAllocation.total.annualValue || 0)}/yr</strong></span>`);
-    lines.push(`<span class="pill">Prime: <strong>${barterAllocation.total.primeMinsPerDay || 0} min/day</strong></span>`);
-    lines.push(`<span class="pill">ROS: <strong>${barterAllocation.total.rosMinsPerDay || 0} min/day</strong></span>`);
-    lines.push(`</div>`);
+    lines.push(`<div style="background:rgba(103,36,119,.08); padding:12px; border-radius:8px;">`);
+    lines.push(`<div class="row" style="justify-content:space-between; align-items:center;">`);
+    lines.push(`<strong style="font-size:15px;">Grand Total (Cash)</strong>`);
+    lines.push(`<strong style="font-size:18px; color:var(--brand);">${money(totalCashAnnual)}/yr</strong>`);
+    lines.push(`</div></div>`);
   }
 
   // Render to output
@@ -8991,8 +8970,7 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
 
   if (output) output.classList.remove('hidden');
   if (modeBadge) {
-    modeBadge.textContent = pricingType === 'cash' ? 'Cash Deal' :
-                            pricingType === 'barter' ? 'Barter Deal' : 'Mixed Deal';
+    modeBadge.textContent = isCashDeal ? 'Cash Deal' : isBarterDeal ? 'Barter Deal' : 'Mixed Deal';
   }
   if (table) table.innerHTML = lines.join('\n');
 
