@@ -1025,61 +1025,92 @@
       totalAllocatedValue = calcTotalValue();
     }
 
-    // Phase 2: While we're more than 5% UNDER target, find the best slot to increment
-    // Pick the slot that gets us CLOSEST to target while staying within band
+    // Phase 2: While more than 5% UNDER target, increment minutes to reach band
+    // Strategy: keep adding the smallest valid increment until we hit the band
     while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
-      // Find ALL candidate increments and pick the one that gets closest to target
-      let bestIdx = -1;
-      let bestDaypart = null;
-      let bestNewTotal = 0;
-      let bestDistanceToTarget = Infinity;
+      // Collect ALL possible increments with their values
+      const candidates = [];
 
       perStation.forEach((ps, idx) => {
         // Check prime
         if (ps.primeAQH > 0) {
           const vpm = valuePerMin(ps.primeAQH);
-          const newTotal = totalAllocatedValue + vpm;
-          // Only consider if it doesn't overshoot the band
-          if (newTotal <= maxOverValue) {
-            const distanceToTarget = Math.abs(newTotal - targetAnnualValue);
-            if (distanceToTarget < bestDistanceToTarget) {
-              bestDistanceToTarget = distanceToTarget;
-              bestNewTotal = newTotal;
-              bestIdx = idx;
-              bestDaypart = 'prime';
-            }
-          }
+          candidates.push({
+            idx,
+            daypart: 'prime',
+            valuePerMin: vpm,
+            newTotal: totalAllocatedValue + vpm
+          });
         }
         // Check ROS
         if (ps.rosAQH > 0) {
           const vpm = valuePerMin(ps.rosAQH);
-          const newTotal = totalAllocatedValue + vpm;
-          // Only consider if it doesn't overshoot the band
-          if (newTotal <= maxOverValue) {
-            const distanceToTarget = Math.abs(newTotal - targetAnnualValue);
-            if (distanceToTarget < bestDistanceToTarget) {
-              bestDistanceToTarget = distanceToTarget;
-              bestNewTotal = newTotal;
-              bestIdx = idx;
-              bestDaypart = 'ros';
-            }
-          }
+          candidates.push({
+            idx,
+            daypart: 'ros',
+            valuePerMin: vpm,
+            newTotal: totalAllocatedValue + vpm
+          });
         }
       });
 
-      // If no valid increment found, we can't get closer without overshooting
-      if (bestIdx < 0) break;
+      if (candidates.length === 0) break; // No slots to increment
 
-      // Apply the best increment
-      if (bestDaypart === 'prime') {
-        perStation[bestIdx].primeMinsPerDay++;
+      // Sort candidates by value (smallest first)
+      candidates.sort((a, b) => a.valuePerMin - b.valuePerMin);
+
+      // Find the best candidate:
+      // 1. First, try to find one that lands IN the band (>= minUnder AND <= maxOver)
+      // 2. If none, find one that stays <= maxOver (closest to band from below)
+      // 3. If none, pick smallest that at least gets us closer to band
+
+      let bestCandidate = null;
+
+      // Option 1: Find one that lands in the band
+      for (const c of candidates) {
+        if (c.newTotal >= minUnderValue && c.newTotal <= maxOverValue) {
+          bestCandidate = c;
+          break; // Take first one that lands in band (smallest)
+        }
+      }
+
+      // Option 2: Find one that stays under max but gets us closer
+      if (!bestCandidate) {
+        for (const c of candidates) {
+          if (c.newTotal <= maxOverValue && c.newTotal > totalAllocatedValue) {
+            bestCandidate = c;
+            break; // Take smallest that doesn't overshoot
+          }
+        }
+      }
+
+      // Option 3: If all overshoot, take the smallest one anyway to get as close as possible
+      // (only if it would get us into the band)
+      if (!bestCandidate && candidates.length > 0) {
+        const smallest = candidates[0];
+        if (smallest.newTotal >= minUnderValue) {
+          // This overshoots maxOver but at least enters the band from below
+          bestCandidate = smallest;
+        }
+      }
+
+      if (!bestCandidate) break; // Can't improve
+
+      // Apply the increment
+      if (bestCandidate.daypart === 'prime') {
+        perStation[bestCandidate.idx].primeMinsPerDay++;
       } else {
-        perStation[bestIdx].rosMinsPerDay++;
+        perStation[bestCandidate.idx].rosMinsPerDay++;
       }
 
       totalAllocatedValue = calcTotalValue();
+
+      // If we're now in the band, stop
+      if (totalAllocatedValue >= minUnderValue && totalAllocatedValue <= maxOverValue) {
+        break;
+      }
     }
 
     // Final pass: calculate annual value for each station and totals
