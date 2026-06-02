@@ -964,6 +964,7 @@
 
     // =========================================================================
     // RECONCILIATION: Adjust minutes so total lands within 5% of target
+    // Key: STOP before any adjustment would exit the 5% band on the other side
     // =========================================================================
     const TOLERANCE = 0.05; // 5%
     const maxOverValue = targetAnnualValue * (1 + TOLERANCE);
@@ -973,17 +974,15 @@
     const MAX_ITERATIONS = 10000; // Safety limit
 
     // Phase 1: While we're more than 5% OVER target, decrement minutes
-    // Decrement from highest-value-per-minute slots first (removes most value per decrement)
+    // BUT STOP if the decrement would drop us below the 5% band
     while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
-      // Find the station/daypart with the highest value-per-minute that has minutes > 0
       let bestIdx = -1;
-      let bestDaypart = null; // 'prime' or 'ros'
+      let bestDaypart = null;
       let bestValuePerMin = 0;
 
       perStation.forEach((ps, idx) => {
-        // Check prime
         if (ps.primeMinsPerDay > 0) {
           const vpm = valuePerMin(ps.primeAQH);
           if (vpm > bestValuePerMin) {
@@ -992,7 +991,6 @@
             bestDaypart = 'prime';
           }
         }
-        // Check ROS
         if (ps.rosMinsPerDay > 0) {
           const vpm = valuePerMin(ps.rosAQH);
           if (vpm > bestValuePerMin) {
@@ -1003,34 +1001,40 @@
         }
       });
 
-      // If no station can be decremented, stop
       if (bestIdx < 0 || bestValuePerMin <= 0) {
         break;
       }
 
-      // Decrement one minute from the best candidate
+      // Check if this decrement would drop us BELOW the band
+      const decrementValue = bestValuePerMin;
+      const newTotal = totalAllocatedValue - decrementValue;
+
+      if (newTotal < minUnderValue) {
+        // This decrement would overshoot - DON'T do it
+        // We're as close as we can get without going under
+        break;
+      }
+
+      // Safe to decrement
       if (bestDaypart === 'prime') {
         perStation[bestIdx].primeMinsPerDay--;
       } else {
         perStation[bestIdx].rosMinsPerDay--;
       }
 
-      // Recalculate total
       totalAllocatedValue = calcTotalValue();
     }
 
     // Phase 2: While we're more than 5% UNDER target, increment minutes
-    // Increment the lowest-value-per-minute slots first (adds least value per increment)
+    // BUT STOP if the increment would push us above the 5% band
     while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
-      // Find the station/daypart with the lowest positive value-per-minute
       let bestIdx = -1;
       let bestDaypart = null;
       let bestValuePerMin = Infinity;
 
       perStation.forEach((ps, idx) => {
-        // Check prime (only if station has prime AQH)
         if (ps.primeAQH > 0) {
           const vpm = valuePerMin(ps.primeAQH);
           if (vpm > 0 && vpm < bestValuePerMin) {
@@ -1039,7 +1043,6 @@
             bestDaypart = 'prime';
           }
         }
-        // Check ROS (only if station has ROS AQH)
         if (ps.rosAQH > 0) {
           const vpm = valuePerMin(ps.rosAQH);
           if (vpm > 0 && vpm < bestValuePerMin) {
@@ -1050,19 +1053,27 @@
         }
       });
 
-      // If no station can be incremented, stop
       if (bestIdx < 0 || bestValuePerMin === Infinity) {
         break;
       }
 
-      // Increment one minute to the best candidate
+      // Check if this increment would push us ABOVE the band
+      const incrementValue = bestValuePerMin;
+      const newTotal = totalAllocatedValue + incrementValue;
+
+      if (newTotal > maxOverValue) {
+        // This increment would overshoot - DON'T do it
+        // We're as close as we can get without going over
+        break;
+      }
+
+      // Safe to increment
       if (bestDaypart === 'prime') {
         perStation[bestIdx].primeMinsPerDay++;
       } else {
         perStation[bestIdx].rosMinsPerDay++;
       }
 
-      // Recalculate total
       totalAllocatedValue = calcTotalValue();
     }
 

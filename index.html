@@ -8017,8 +8017,8 @@ document.addEventListener("click", async (e) => {
     });
 
     // =========================================================================
-    // RECONCILIATION: Adjust auto-calculated minutes to hit target within 5%
-    // Only adjust slots that DON'T have manual overrides
+    // RECONCILIATION: Adjust auto-calculated minutes to land within 5% of target
+    // Key: STOP before any adjustment would exit the 5% band on the other side
     // =========================================================================
     const TOLERANCE = 0.05;
     const maxOverValue = grandTotalTargetValue * (1 + TOLERANCE);
@@ -8045,6 +8045,7 @@ document.addEventListener("click", async (e) => {
     const MAX_ITERATIONS = 10000;
 
     // Phase 1: While more than 5% OVER target, decrement from highest-value auto slots
+    // BUT STOP if the decrement would drop us below the 5% band
     while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
@@ -8053,7 +8054,6 @@ document.addEventListener("click", async (e) => {
       let bestValuePerMin = 0;
 
       allocationData.forEach((slot, idx) => {
-        // Check prime (only if not manual and has minutes > 0)
         if (!slot.hasManualPrime && slot.primeMinutes > 0) {
           const vpm = valuePerMin(slot.primeAQH);
           if (vpm > bestValuePerMin) {
@@ -8062,7 +8062,6 @@ document.addEventListener("click", async (e) => {
             bestDaypart = 'prime';
           }
         }
-        // Check ROS (only if not manual and has minutes > 0)
         if (!slot.hasManualRos && slot.rosMinutes > 0) {
           const vpm = valuePerMin(slot.rosAQH);
           if (vpm > bestValuePerMin) {
@@ -8073,9 +8072,19 @@ document.addEventListener("click", async (e) => {
         }
       });
 
-      if (bestIdx < 0) break; // No more adjustable slots
+      if (bestIdx < 0) break;
 
-      // Decrement the best slot
+      // Check if this decrement would drop us BELOW the band
+      const decrementValue = bestValuePerMin;
+      const newTotal = totalAllocatedValue - decrementValue;
+
+      if (newTotal < minUnderValue) {
+        // This decrement would overshoot - DON'T do it
+        // We're as close as we can get without going under
+        break;
+      }
+
+      // Safe to decrement
       if (bestDaypart === 'prime') {
         allocationData[bestIdx].primeMinutes--;
       } else {
@@ -8086,6 +8095,7 @@ document.addEventListener("click", async (e) => {
     }
 
     // Phase 2: While more than 5% UNDER target, increment lowest-value auto slots
+    // BUT STOP if the increment would push us above the 5% band
     while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
@@ -8094,7 +8104,6 @@ document.addEventListener("click", async (e) => {
       let bestValuePerMin = Infinity;
 
       allocationData.forEach((slot, idx) => {
-        // Check prime (only if not manual and has AQH)
         if (!slot.hasManualPrime && slot.primeAQH > 0) {
           const vpm = valuePerMin(slot.primeAQH);
           if (vpm > 0 && vpm < bestValuePerMin) {
@@ -8103,7 +8112,6 @@ document.addEventListener("click", async (e) => {
             bestDaypart = 'prime';
           }
         }
-        // Check ROS (only if not manual and has AQH)
         if (!slot.hasManualRos && slot.rosAQH > 0) {
           const vpm = valuePerMin(slot.rosAQH);
           if (vpm > 0 && vpm < bestValuePerMin) {
@@ -8114,9 +8122,19 @@ document.addEventListener("click", async (e) => {
         }
       });
 
-      if (bestIdx < 0 || bestValuePerMin === Infinity) break; // No more adjustable slots
+      if (bestIdx < 0 || bestValuePerMin === Infinity) break;
 
-      // Increment the best slot
+      // Check if this increment would push us ABOVE the band
+      const incrementValue = bestValuePerMin;
+      const newTotal = totalAllocatedValue + incrementValue;
+
+      if (newTotal > maxOverValue) {
+        // This increment would overshoot - DON'T do it
+        // We're as close as we can get without going over
+        break;
+      }
+
+      // Safe to increment
       if (bestDaypart === 'prime') {
         allocationData[bestIdx].primeMinutes++;
       } else {
