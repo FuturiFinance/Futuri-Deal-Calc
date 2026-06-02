@@ -8224,6 +8224,20 @@ document.addEventListener("click", async (e) => {
     });
     debugInfo.reconciledMinutes = `${debugTotalPrime}P/${debugTotalRos}R`;
 
+    // STORE reconciled minutes so Financial Summary can use them
+    // This replaces the initial allocation with the reconciled values
+    if (!window.productState.reconciledMinutes) {
+      window.productState.reconciledMinutes = new Map();
+    }
+    window.productState.reconciledMinutes.clear();
+    allocationData.forEach(slot => {
+      const key = `${slot.productId}:${slot.stationKey}`;
+      window.productState.reconciledMinutes.set(key, {
+        primeMinutes: slot.primeMinutes,
+        rosMinutes: slot.rosMinutes
+      });
+    });
+
     // =========================================================================
     // PASS 2: Render the UI from reconciled allocation data
     // =========================================================================
@@ -8572,11 +8586,30 @@ function computeBarterAllocationPerProduct() {
           autoRosMinutes = Math.round(calculateMinutesFromValue(stationRosTargetValue, rosAQH, cpm));
         }
 
-        // Check for manual override
+        // Check for reconciled values first (from calculateBarterMinutes reconciliation)
+        // Then manual override, then auto-calculated
+        const reconciledKey = `${p.id}:${st.key}`;
+        const reconciled = window.productState.reconciledMinutes?.get(reconciledKey);
         const manualKey = `${p.id}:${st.key}`;
         const manual = window.productState.manualMinutes.get(manualKey);
-        const primeMinutes = (manual?.prime != null) ? manual.prime : autoPrimeMinutes;
-        const rosMinutes = (manual?.ros != null) ? manual.ros : autoRosMinutes;
+
+        // Priority: manual override > reconciled > auto
+        let primeMinutes, rosMinutes;
+        if (manual?.prime != null) {
+          primeMinutes = manual.prime;
+        } else if (reconciled?.primeMinutes != null) {
+          primeMinutes = reconciled.primeMinutes;
+        } else {
+          primeMinutes = autoPrimeMinutes;
+        }
+
+        if (manual?.ros != null) {
+          rosMinutes = manual.ros;
+        } else if (reconciled?.rosMinutes != null) {
+          rosMinutes = reconciled.rosMinutes;
+        } else {
+          rosMinutes = autoRosMinutes;
+        }
 
         stationMap.set(st.key, { primeMinutes, rosMinutes });
       });
