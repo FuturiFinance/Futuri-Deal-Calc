@@ -8224,6 +8224,14 @@ document.addEventListener("click", async (e) => {
       debugInfo.phase2WhyNoCandidate = `Loop condition false? allocated=${money(debugInfo.valueAfterPhase1)} < minUnder=${money(minUnderValue)} = ${debugInfo.valueAfterPhase1 < minUnderValue}`;
     }
 
+    // DEBUG: Count total minutes after reconciliation
+    let debugTotalPrime = 0, debugTotalRos = 0;
+    allocationData.forEach(slot => {
+      debugTotalPrime += slot.primeMinutes;
+      debugTotalRos += slot.rosMinutes;
+    });
+    debugInfo.reconciledMinutes = `${debugTotalPrime}P/${debugTotalRos}R`;
+
     // =========================================================================
     // PASS 2: Render the UI from reconciled allocation data
     // =========================================================================
@@ -8400,6 +8408,9 @@ document.addEventListener("click", async (e) => {
       Band: ${money(debugInfo.minUnderValue)}-${money(debugInfo.maxOverValue)} |
       Phase1: ${debugInfo.phase1Ran ? debugInfo.phase1Iterations + ' iters' : 'skipped'} → ${money(debugInfo.valueAfterPhase1)} |
       Phase2: ${debugInfo.phase2Ran ? debugInfo.phase2Iterations + ' iters, ' + debugInfo.phase2Candidates + ' candidates' : 'skipped'} → ${money(debugInfo.valueAfterPhase2)} |
+      ReconciledMins: ${debugInfo.reconciledMinutes} |
+      RenderedMins: ${grandTotalPrimeMinutes}P/${grandTotalRosMinutes}R |
+      RenderedValue: ${money(grandTotalAllocatedValue)} |
       ${debugInfo.phase2WhyNoCandidate ? 'Why: ' + debugInfo.phase2WhyNoCandidate : ''}
     `;
     breakdown.appendChild(debugFooter);
