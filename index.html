@@ -8044,9 +8044,27 @@ document.addEventListener("click", async (e) => {
     let iterations = 0;
     const MAX_ITERATIONS = 10000;
 
+    // DEBUG tracking
+    const debugInfo = {
+      initialAllocatedValue: totalAllocatedValue,
+      targetValue: grandTotalTargetValue,
+      minUnderValue: minUnderValue,
+      maxOverValue: maxOverValue,
+      phase1Ran: false,
+      phase1Iterations: 0,
+      phase2Ran: false,
+      phase2Iterations: 0,
+      phase2Candidates: 0,
+      phase2WhyNoCandidate: '',
+      valueAfterPhase1: 0,
+      valueAfterPhase2: 0
+    };
+
     // Phase 1: While more than 5% OVER target, decrement from highest-value auto slots
     // BUT STOP if the decrement would drop us below the 5% band
     while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
+      debugInfo.phase1Ran = true;
+      debugInfo.phase1Iterations++;
       iterations++;
 
       let bestIdx = -1;
@@ -8096,9 +8114,13 @@ document.addEventListener("click", async (e) => {
       totalAllocatedValue = calcTotalValue();
     }
 
+    debugInfo.valueAfterPhase1 = totalAllocatedValue;
+
     // Phase 2: While more than 5% UNDER target, increment minutes to reach band
     // Strategy: keep adding the smallest valid increment until we hit the band
     while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
+      debugInfo.phase2Ran = true;
+      debugInfo.phase2Iterations++;
       iterations++;
 
       // Collect ALL possible increments with their values
@@ -8127,7 +8149,12 @@ document.addEventListener("click", async (e) => {
         }
       });
 
-      if (candidates.length === 0) break; // No slots to increment
+      debugInfo.phase2Candidates = candidates.length;
+
+      if (candidates.length === 0) {
+        debugInfo.phase2WhyNoCandidate = 'No slots with AQH > 0';
+        break; // No slots to increment
+      }
 
       // Sort candidates by value (smallest first)
       candidates.sort((a, b) => a.valuePerMin - b.valuePerMin);
@@ -8167,7 +8194,13 @@ document.addEventListener("click", async (e) => {
         }
       }
 
-      if (!bestCandidate) break; // Can't improve
+      if (!bestCandidate) {
+        // Debug: why no candidate?
+        const smallestVal = candidates[0]?.valuePerMin || 0;
+        const smallestNewTotal = candidates[0]?.newTotal || 0;
+        debugInfo.phase2WhyNoCandidate = `No valid candidate: smallest=${money(smallestVal)}/min, newTotal=${money(smallestNewTotal)}, maxOver=${money(maxOverValue)}, minUnder=${money(minUnderValue)}`;
+        break; // Can't improve
+      }
 
       // Apply the increment
       if (bestCandidate.daypart === 'prime') {
@@ -8182,6 +8215,13 @@ document.addEventListener("click", async (e) => {
       if (totalAllocatedValue >= minUnderValue && totalAllocatedValue <= maxOverValue) {
         break;
       }
+    }
+
+    debugInfo.valueAfterPhase2 = totalAllocatedValue;
+
+    // Check if Phase 2 should have run but didn't
+    if (!debugInfo.phase2Ran && debugInfo.valueAfterPhase1 < minUnderValue) {
+      debugInfo.phase2WhyNoCandidate = `Loop condition false? allocated=${money(debugInfo.valueAfterPhase1)} < minUnder=${money(minUnderValue)} = ${debugInfo.valueAfterPhase1 < minUnderValue}`;
     }
 
     // =========================================================================
@@ -8349,6 +8389,20 @@ document.addEventListener("click", async (e) => {
       <div><strong>Total Minutes/Day:</strong> ${grandTotalPrimeMinutes + grandTotalRosMinutes}</div>
     `;
     breakdown.appendChild(footer);
+
+    // DEBUG footer
+    const debugFooter = document.createElement('div');
+    debugFooter.style.cssText = 'padding:8px 12px; font-size:10px; border-top:1px dashed #666; margin-top:4px; background:rgba(255,100,100,0.1); color:#f99;';
+    debugFooter.innerHTML = `
+      <strong>DEBUG:</strong>
+      Initial: ${money(debugInfo.initialAllocatedValue)} |
+      Target: ${money(debugInfo.targetValue)} |
+      Band: ${money(debugInfo.minUnderValue)}-${money(debugInfo.maxOverValue)} |
+      Phase1: ${debugInfo.phase1Ran ? debugInfo.phase1Iterations + ' iters' : 'skipped'} → ${money(debugInfo.valueAfterPhase1)} |
+      Phase2: ${debugInfo.phase2Ran ? debugInfo.phase2Iterations + ' iters, ' + debugInfo.phase2Candidates + ' candidates' : 'skipped'} → ${money(debugInfo.valueAfterPhase2)} |
+      ${debugInfo.phase2WhyNoCandidate ? 'Why: ' + debugInfo.phase2WhyNoCandidate : ''}
+    `;
+    breakdown.appendChild(debugFooter);
 
     // Update Gap to Value
     const storedTotal = window.productState.lastTotalMonthlyAllStations;
