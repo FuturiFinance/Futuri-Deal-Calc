@@ -909,13 +909,10 @@
     const primeTargetAnnual = targetAnnualValue * primeShare;
     const rosTargetAnnual = targetAnnualValue * rosShare;
 
-    // Calculate per-station allocation
+    // Build per-station allocation array with AQH info for reconciliation
     const perStation = [];
-    let totalPrimeMins = 0;
-    let totalRosMins = 0;
-    let totalAllocatedValue = 0;
 
-    stations.forEach(s => {
+    stations.forEach((s, idx) => {
       const primeAQH = Number(s.primeAQH) || 0;
       const rosAQH = Number(s.rosAQH) || 0;
       const callSign = s.callSign || s.stationCallSign || s.station;
@@ -927,7 +924,7 @@
       const stationPrimeTarget = primeTargetAnnual * stationPrimeShare;
       const stationRosTarget = rosTargetAnnual * stationRosShare;
 
-      // Calculate minutes (round up)
+      // Calculate minutes (round up for initial pass)
       let primeMinsPerDay = 0;
       let rosMinsPerDay = 0;
 
@@ -938,21 +935,104 @@
         rosMinsPerDay = Math.ceil(calculateMinutesFromValue(stationRosTarget, rosAQH, cpm));
       }
 
-      // Calculate actual value from rounded minutes
-      const primeValue = calculateValueFromMinutes(primeMinsPerDay, primeAQH, cpm);
-      const rosValue = calculateValueFromMinutes(rosMinsPerDay, rosAQH, cpm);
-      const stationValue = primeValue + rosValue;
-
-      totalPrimeMins += primeMinsPerDay;
-      totalRosMins += rosMinsPerDay;
-      totalAllocatedValue += stationValue;
-
       perStation.push({
         callSign,
         primeMinsPerDay,
         rosMinsPerDay,
-        annualValue: stationValue
+        primeAQH,  // Keep for reconciliation
+        rosAQH,    // Keep for reconciliation
+        annualValue: 0  // Will be calculated after reconciliation
       });
+    });
+
+    // Helper to calculate total allocated value
+    const calcTotalValue = () => {
+      let total = 0;
+      perStation.forEach(ps => {
+        total += calculateValueFromMinutes(ps.primeMinsPerDay, ps.primeAQH, cpm);
+        total += calculateValueFromMinutes(ps.rosMinsPerDay, ps.rosAQH, cpm);
+      });
+      return total;
+    };
+
+    // Helper to get value per minute for a station/daypart
+    const valuePerMin = (aqh) => {
+      if (!aqh || aqh <= 0) return 0;
+      return (aqh * cpm * BARTER_FORMULA.ANNUAL_MULTIPLIER) / 1000;
+    };
+
+    // =========================================================================
+    // RECONCILIATION: Adjust minutes so total lands within 5% of target
+    // =========================================================================
+    const TOLERANCE = 0.05; // 5%
+    const maxOverValue = targetAnnualValue * (1 + TOLERANCE);
+    let totalAllocatedValue = calcTotalValue();
+    let iterations = 0;
+    const MAX_ITERATIONS = 10000; // Safety limit
+
+    // While we're more than 5% over target, decrement minutes
+    while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
+      iterations++;
+
+      // Find the station/daypart with the highest value-per-minute that has minutes > 0
+      let bestIdx = -1;
+      let bestDaypart = null; // 'prime' or 'ros'
+      let bestValuePerMin = 0;
+
+      perStation.forEach((ps, idx) => {
+        // Check prime
+        if (ps.primeMinsPerDay > 0) {
+          const vpm = valuePerMin(ps.primeAQH);
+          if (vpm > bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'prime';
+          }
+        }
+        // Check ROS
+        if (ps.rosMinsPerDay > 0) {
+          const vpm = valuePerMin(ps.rosAQH);
+          if (vpm > bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'ros';
+          }
+        }
+      });
+
+      // If no station can be decremented, stop
+      if (bestIdx < 0 || bestValuePerMin <= 0) {
+        break;
+      }
+
+      // Decrement one minute from the best candidate
+      if (bestDaypart === 'prime') {
+        perStation[bestIdx].primeMinsPerDay--;
+      } else {
+        perStation[bestIdx].rosMinsPerDay--;
+      }
+
+      // Recalculate total
+      totalAllocatedValue = calcTotalValue();
+    }
+
+    // Final pass: calculate annual value for each station and totals
+    let totalPrimeMins = 0;
+    let totalRosMins = 0;
+    totalAllocatedValue = 0;
+
+    perStation.forEach(ps => {
+      const primeValue = calculateValueFromMinutes(ps.primeMinsPerDay, ps.primeAQH, cpm);
+      const rosValue = calculateValueFromMinutes(ps.rosMinsPerDay, ps.rosAQH, cpm);
+      ps.annualValue = primeValue + rosValue;
+
+      totalPrimeMins += ps.primeMinsPerDay;
+      totalRosMins += ps.rosMinsPerDay;
+      totalAllocatedValue += ps.annualValue;
+
+      // Remove AQH from output (not needed downstream)
+      delete ps.primeAQH;
+      delete ps.rosAQH;
     });
 
     return {
