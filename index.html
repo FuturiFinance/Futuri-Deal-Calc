@@ -1268,6 +1268,9 @@
           <div class="muted" style="font-size:12px;margin-top:12px;">
             After adding stations, select products below. Barter minutes are allocated automatically.
           </div>
+          <!-- Mixed-parent warning (shown when grid has stations from multiple parents) -->
+          <div id="gridMixedParentWarning" class="hidden" style="margin-top:12px;padding:12px;background:rgba(255,152,0,0.1);border:1px solid rgba(255,152,0,0.3);border-radius:8px;color:#e65100;font-size:13px;">
+          </div>
         </section>
 
         <!-- Grid Disambiguation Modal -->
@@ -11688,50 +11691,80 @@ window.ChatPanel = (function() {
    * Sync grid stations to window.state so the structured product picker works.
    * This is the key integration: grid = fast station entry, then use the same
    * product picker and allocation engine as the structured flow.
+   *
+   * IMPORTANT: Must set the SAME properties the structured flow reads:
+   * - window.state.stations (Set of "parent|market|station" keys)
+   * - window.state.markets (Set of market names)
+   * - window.state.parent (single parent string - structured flow filters by this)
    */
   function syncGridToState() {
     if (typeof GridEntry === 'undefined') return;
 
     const rows = GridEntry.getRows();
+    const warningEl = el('gridMixedParentWarning');
 
-    // Convert grid rows to the station format used by structured flow
-    const stations = rows.map(row => ({
-      key: row.key,
-      stationCallSign: row.callSign,
-      parent: row.parent,
-      market: row.market,
-      format: row.format,
-      primeAQH: row.primeAQH,
-      rosAQH: row.rosAQH,
-      isOffBook: row.isOffBook
-    }));
+    // Collect unique parents to detect mixed-parent deals
+    const parentCounts = new Map();
+    rows.forEach(row => {
+      const p = row.parent || 'Unknown';
+      parentCounts.set(p, (parentCounts.get(p) || 0) + 1);
+    });
 
-    // Collect unique markets
-    const markets = GridEntry.getUniqueMarkets();
+    // Find the most common parent
+    let primaryParent = 'Unknown';
+    let maxCount = 0;
+    parentCounts.forEach((count, parent) => {
+      if (count > maxCount) {
+        maxCount = count;
+        primaryParent = parent;
+      }
+    });
 
-    // Update window.state with grid stations
-    if (!window.state) window.state = {};
-    window.state.selectedStations = new Set(stations.map(s => s.key));
-    window.state.stationDetails = new Map(stations.map(s => [s.key, s]));
-    window.state.selectedMarkets = new Set(markets);
+    // Check for mixed-parent situation
+    const isMixedParent = parentCounts.size > 1;
+    const stationsFromPrimaryParent = rows.filter(r => r.parent === primaryParent);
+    const excludedCount = rows.length - stationsFromPrimaryParent.length;
 
-    // Derive parent from first station (for display purposes)
-    if (stations.length > 0) {
-      window.state.selectedParent = stations[0].parent;
+    // Show/hide mixed-parent warning
+    if (warningEl) {
+      if (isMixedParent && excludedCount > 0) {
+        const otherParents = Array.from(parentCounts.keys()).filter(p => p !== primaryParent);
+        warningEl.innerHTML = `<strong>Note:</strong> This deal spans more than one parent company. Only <strong>${primaryParent}</strong>'s ${stationsFromPrimaryParent.length} stations are included in allocation. ${excludedCount} station(s) from ${otherParents.join(', ')} excluded. <em>Cross-parent deals coming soon.</em>`;
+        warningEl.classList.remove('hidden');
+      } else {
+        warningEl.classList.add('hidden');
+      }
     }
+
+    // Use only stations from the primary parent (structured flow filters by single parent)
+    const stationsToSync = isMixedParent ? stationsFromPrimaryParent : rows;
+
+    // Collect unique markets from synced stations
+    const markets = new Set();
+    stationsToSync.forEach(row => {
+      if (row.market && row.market !== 'Unknown') {
+        markets.add(row.market);
+      }
+    });
+
+    // Update window.state with the SAME properties the structured flow reads
+    if (!window.state) window.state = {};
+    window.state.stations = new Set(stationsToSync.map(r => r.key));
+    window.state.markets = markets;
+    window.state.parent = primaryParent;
 
     // Update the market badge and station count displays
     const marketBadge = el('marketBadge');
-    if (marketBadge) marketBadge.textContent = markets.length;
+    if (marketBadge) marketBadge.textContent = markets.size;
 
     const stationBadge = el('stationBadge');
-    if (stationBadge) stationBadge.textContent = stations.length;
+    if (stationBadge) stationBadge.textContent = stationsToSync.length;
 
     // Update TopLine market count if TopLine is selected
     if (window.toplineState) {
-      window.toplineState.numberOfMarkets = markets.length || 1;
+      window.toplineState.numberOfMarkets = markets.size || 1;
       const toplineMarketsInput = el('toplineMarkets');
-      if (toplineMarketsInput) toplineMarketsInput.value = markets.length || 1;
+      if (toplineMarketsInput) toplineMarketsInput.value = markets.size || 1;
     }
 
     // Trigger product list update to reflect new station context
@@ -11742,7 +11775,7 @@ window.ChatPanel = (function() {
       window.updateProductSummary();
     }
 
-    console.log(`[Grid] Synced ${stations.length} stations in ${markets.length} markets to window.state`);
+    console.log(`[Grid] Synced ${stationsToSync.length} stations in ${markets.size} markets to window.state (parent: ${primaryParent})${isMixedParent ? ` [${excludedCount} excluded from other parents]` : ''}`);
   }
 
   function escapeHtml(str) {
