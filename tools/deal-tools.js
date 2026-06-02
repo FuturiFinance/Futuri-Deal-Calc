@@ -1025,49 +1025,54 @@
       totalAllocatedValue = calcTotalValue();
     }
 
-    // Phase 2: While we're more than 5% UNDER target, increment minutes
-    // BUT STOP if the increment would push us above the 5% band
+    // Phase 2: While we're more than 5% UNDER target, find the best slot to increment
+    // Pick the slot that gets us CLOSEST to target while staying within band
     while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
       iterations++;
 
+      // Find ALL candidate increments and pick the one that gets closest to target
       let bestIdx = -1;
       let bestDaypart = null;
-      let bestValuePerMin = Infinity;
+      let bestNewTotal = 0;
+      let bestDistanceToTarget = Infinity;
 
       perStation.forEach((ps, idx) => {
+        // Check prime
         if (ps.primeAQH > 0) {
           const vpm = valuePerMin(ps.primeAQH);
-          if (vpm > 0 && vpm < bestValuePerMin) {
-            bestValuePerMin = vpm;
-            bestIdx = idx;
-            bestDaypart = 'prime';
+          const newTotal = totalAllocatedValue + vpm;
+          // Only consider if it doesn't overshoot the band
+          if (newTotal <= maxOverValue) {
+            const distanceToTarget = Math.abs(newTotal - targetAnnualValue);
+            if (distanceToTarget < bestDistanceToTarget) {
+              bestDistanceToTarget = distanceToTarget;
+              bestNewTotal = newTotal;
+              bestIdx = idx;
+              bestDaypart = 'prime';
+            }
           }
         }
+        // Check ROS
         if (ps.rosAQH > 0) {
           const vpm = valuePerMin(ps.rosAQH);
-          if (vpm > 0 && vpm < bestValuePerMin) {
-            bestValuePerMin = vpm;
-            bestIdx = idx;
-            bestDaypart = 'ros';
+          const newTotal = totalAllocatedValue + vpm;
+          // Only consider if it doesn't overshoot the band
+          if (newTotal <= maxOverValue) {
+            const distanceToTarget = Math.abs(newTotal - targetAnnualValue);
+            if (distanceToTarget < bestDistanceToTarget) {
+              bestDistanceToTarget = distanceToTarget;
+              bestNewTotal = newTotal;
+              bestIdx = idx;
+              bestDaypart = 'ros';
+            }
           }
         }
       });
 
-      if (bestIdx < 0 || bestValuePerMin === Infinity) {
-        break;
-      }
+      // If no valid increment found, we can't get closer without overshooting
+      if (bestIdx < 0) break;
 
-      // Check if this increment would push us ABOVE the band
-      const incrementValue = bestValuePerMin;
-      const newTotal = totalAllocatedValue + incrementValue;
-
-      if (newTotal > maxOverValue) {
-        // This increment would overshoot - DON'T do it
-        // We're as close as we can get without going over
-        break;
-      }
-
-      // Safe to increment
+      // Apply the best increment
       if (bestDaypart === 'prime') {
         perStation[bestIdx].primeMinsPerDay++;
       } else {
