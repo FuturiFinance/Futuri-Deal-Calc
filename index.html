@@ -8156,40 +8156,32 @@ document.addEventListener("click", async (e) => {
         break; // No slots to increment
       }
 
-      // Sort candidates by value (smallest first)
-      candidates.sort((a, b) => a.valuePerMin - b.valuePerMin);
+      // Sort candidates by CURRENT MINUTES first (to distribute evenly), then by value
+      // This prevents putting all increments on one low-AQH station
+      candidates.sort((a, b) => {
+        const slotA = allocationData[a.idx];
+        const slotB = allocationData[b.idx];
+        const minsA = a.daypart === 'prime' ? slotA.primeMinutes : slotA.rosMinutes;
+        const minsB = b.daypart === 'prime' ? slotB.primeMinutes : slotB.rosMinutes;
+        // First sort by current minutes (fewer first)
+        if (minsA !== minsB) return minsA - minsB;
+        // Then by value per minute (smaller first)
+        return a.valuePerMin - b.valuePerMin;
+      });
 
-      // Find the best candidate:
-      // 1. First, try to find one that lands IN the band (>= minUnder AND <= maxOver)
-      // 2. If none, find one that stays <= maxOver (closest to band from below)
-      // 3. If none, pick smallest that at least gets us closer to band
-
+      // Pick the first candidate that doesn't overshoot maxOver
       let bestCandidate = null;
-
-      // Option 1: Find one that lands in the band
       for (const c of candidates) {
-        if (c.newTotal >= minUnderValue && c.newTotal <= maxOverValue) {
+        if (c.newTotal <= maxOverValue) {
           bestCandidate = c;
-          break; // Take first one that lands in band (smallest)
+          break;
         }
       }
 
-      // Option 2: Find one that stays under max but gets us closer
-      if (!bestCandidate) {
-        for (const c of candidates) {
-          if (c.newTotal <= maxOverValue && c.newTotal > totalAllocatedValue) {
-            bestCandidate = c;
-            break; // Take smallest that doesn't overshoot
-          }
-        }
-      }
-
-      // Option 3: If all overshoot, take the smallest one anyway to get as close as possible
-      // (only if it would get us into the band)
+      // If all overshoot, pick the smallest one if it at least enters the band
       if (!bestCandidate && candidates.length > 0) {
         const smallest = candidates[0];
         if (smallest.newTotal >= minUnderValue) {
-          // This overshoots maxOver but at least enters the band from below
           bestCandidate = smallest;
         }
       }
