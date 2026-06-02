@@ -11713,11 +11713,20 @@ window.ChatPanel = (function() {
       if (mode === 'grid') {
         if (broadcastSections) broadcastSections.classList.add('hidden');
         if (gridSection) gridSection.classList.remove('hidden');
-        waitForNielsenData(initGrid);
-        syncGridPricing();
+        waitForNielsenData(() => {
+          initGrid();
+          syncGridPricing();
+          // Rebuild grid from window.state.stations (Structured -> Grid persistence)
+          rebuildGridFromState();
+        });
       } else {
+        // Switching back to structured view
         if (broadcastSections) broadcastSections.classList.remove('hidden');
         if (gridSection) gridSection.classList.add('hidden');
+        // Refresh structured view to reflect any changes made in grid
+        if (typeof window.renderStations === 'function') window.renderStations();
+        if (typeof window.renderMarkets === 'function') window.renderMarkets();
+        if (typeof window.updatePreview === 'function') window.updatePreview();
       }
     };
 
@@ -12023,6 +12032,100 @@ window.ChatPanel = (function() {
     console.log(`[Grid] Synced ${stationsToSync.length} stations in ${markets.size} markets to window.state (parent: ${primaryParent})${isMixedParent ? ` [${excludedCount} excluded from other parents]` : ''}`);
   }
 
+  /**
+   * Rebuild grid rows from window.state.stations (Structured -> Grid persistence)
+   * Called when switching INTO grid view to show stations already selected in structured view.
+   *
+   * This function:
+   * - Reads window.state.stations (Set of "parent|market|station" keys)
+   * - Looks up each station in Nielsen data
+   * - Adds rows to grid (GridEntry.addRow dedupes automatically)
+   * - Renders the grid table
+   */
+  function rebuildGridFromState() {
+    if (typeof GridEntry === 'undefined') return;
+
+    const stateStations = window.state?.stations;
+    if (!stateStations || stateStations.size === 0) {
+      console.log('[Grid] rebuildGridFromState: no stations in window.state');
+      return;
+    }
+
+    // Get current grid keys for efficient comparison
+    const existingRows = GridEntry.getRows();
+    const existingKeys = new Set(existingRows.map(r => r.key));
+
+    // Find station keys that are in state but not in grid
+    const keysToAdd = [];
+    stateStations.forEach(key => {
+      if (!existingKeys.has(key)) {
+        keysToAdd.push(key);
+      }
+    });
+
+    if (keysToAdd.length === 0) {
+      console.log('[Grid] rebuildGridFromState: grid already has all stations from state');
+      renderGridTable();
+      return;
+    }
+
+    // Build a lookup index for Nielsen stations
+    const nielsenStations = window.IDX?.stations || [];
+    const stationIndex = new Map();
+    nielsenStations.forEach(s => {
+      const key = `${s.parent}|${s.market}|${s.station}`;
+      stationIndex.set(key, s);
+    });
+
+    // Add each missing station to the grid
+    let addedCount = 0;
+    let notFoundCount = 0;
+
+    keysToAdd.forEach(key => {
+      const parts = key.split('|');
+      if (parts.length !== 3) return;
+
+      const [parent, market, station] = parts;
+
+      // Look up in Nielsen data
+      const nielsenStation = stationIndex.get(key);
+
+      if (nielsenStation) {
+        // Found in Nielsen - add with full data
+        const result = GridEntry.addRow({
+          parent: nielsenStation.parent,
+          market: nielsenStation.market,
+          stationCallSign: nielsenStation.station,
+          format: nielsenStation.format || '',
+          primeAQH: nielsenStation.primeAQH || 0,
+          rosAQH: nielsenStation.rosAQH || 0
+        });
+        if (!result.duplicate) addedCount++;
+      } else {
+        // Not in Nielsen - add as off-book station
+        const result = GridEntry.addRow({
+          parent: parent,
+          market: market,
+          stationCallSign: station,
+          callSign: station,
+          format: '',
+          primeAQH: null,
+          rosAQH: null,
+          notFound: true
+        });
+        if (!result.duplicate) {
+          addedCount++;
+          notFoundCount++;
+        }
+      }
+    });
+
+    console.log(`[Grid] rebuildGridFromState: added ${addedCount} stations from state (${notFoundCount} off-book)`);
+
+    // Render the updated grid
+    renderGridTable();
+  }
+
   function escapeHtml(str) {
     if (!str) return '';
     return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c] || c);
@@ -12048,7 +12151,7 @@ window.ChatPanel = (function() {
     init();
   }
 
-  window.GridEntryUI = { renderGridTable, syncGridToState };
+  window.GridEntryUI = { renderGridTable, syncGridToState, rebuildGridFromState };
 })();
 </script>
 
