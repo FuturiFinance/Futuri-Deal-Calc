@@ -8054,7 +8054,8 @@ document.addEventListener("click", async (e) => {
       let bestValuePerMin = 0;
 
       allocationData.forEach((slot, idx) => {
-        if (!slot.hasManualPrime && slot.primeMinutes > 0) {
+        // Check prime - can decrement if has minutes
+        if (slot.primeMinutes > 0) {
           const vpm = valuePerMin(slot.primeAQH);
           if (vpm > bestValuePerMin) {
             bestValuePerMin = vpm;
@@ -8062,7 +8063,8 @@ document.addEventListener("click", async (e) => {
             bestDaypart = 'prime';
           }
         }
-        if (!slot.hasManualRos && slot.rosMinutes > 0) {
+        // Check ROS - can decrement if has minutes
+        if (slot.rosMinutes > 0) {
           const vpm = valuePerMin(slot.rosAQH);
           if (vpm > bestValuePerMin) {
             bestValuePerMin = vpm;
@@ -8103,8 +8105,8 @@ document.addEventListener("click", async (e) => {
       const candidates = [];
 
       allocationData.forEach((slot, idx) => {
-        // Check prime (only non-manual slots with AQH)
-        if (!slot.hasManualPrime && slot.primeAQH > 0) {
+        // Check prime - include ALL slots with AQH (reconciliation adjusts all)
+        if (slot.primeAQH > 0) {
           const vpm = valuePerMin(slot.primeAQH);
           candidates.push({
             idx,
@@ -8113,8 +8115,8 @@ document.addEventListener("click", async (e) => {
             newTotal: totalAllocatedValue + vpm
           });
         }
-        // Check ROS (only non-manual slots with AQH)
-        if (!slot.hasManualRos && slot.rosAQH > 0) {
+        // Check ROS - include ALL slots with AQH
+        if (slot.rosAQH > 0) {
           const vpm = valuePerMin(slot.rosAQH);
           candidates.push({
             idx,
