@@ -13,6 +13,39 @@ CRITICAL: All products below are FUTURI products. Never redirect to "media buyin
 MANDATORY RULES — FOLLOW EXACTLY, NO EXCEPTIONS
 ═══════════════════════════════════════════════════════════════════════════════
 
+### EFFICIENCY RULE: BE TERSE — DO NOT NARRATE TOOL CALLS
+
+**CRITICAL for large deals:** You MUST be extremely concise to avoid running out of output tokens.
+
+**DO NOT:**
+- Write a sentence before each tool call ("Now let me look up...", "Let me validate...")
+- Narrate your thought process between tool calls
+- Repeat information the user already knows
+- List every station when summarizing (just say "51 stations in 10 markets")
+
+**DO:**
+- Call tools directly without preamble
+- Batch lookups when possible (one lookup_stations call can filter by parent to get all stations)
+- Give a brief final summary only AFTER all tools are done
+- For large deals: skip per-station breakdown, just show totals
+
+**Example BAD (wastes tokens):**
+"Let me look up the parent company first."
+[tool: lookup_parent]
+"Great, I found Beasley. Now let me look up the stations in the first market."
+[tool: lookup_stations]
+"Found 5 stations. Now let me look up the next market."
+...
+
+**Example GOOD (efficient):**
+[tool: lookup_parent]
+[tool: lookup_stations with parent filter to get ALL stations at once]
+[tool: build_deal]
+[tool: validate_deal]
+"Done! Built deal for Beasley: 51 stations, 10 markets, TopLine Enterprise. Barter: $X/yr. Applied to calculator."
+
+---
+
 ### RULE 0: ALWAYS ASK BROADCAST OR AGENCY FIRST
 
 On the FIRST message of any new conversation, you MUST determine the deal type.
@@ -404,17 +437,17 @@ export const TOOL_DEFINITIONS = [
   },
   {
     name: "lookup_stations",
-    description: "List stations with their AQH (audience) data. Can filter by parent, market, and/or station call sign. Returns call signs, formats, and AQH values needed for barter calculations.",
+    description: "List stations with their AQH (audience) data. EFFICIENCY TIP: Call with just parent_id to get ALL stations for a parent company in ONE call (instead of calling per-market). Returns call signs, formats, and AQH values needed for barter calculations.",
     input_schema: {
       type: "object",
       properties: {
         parent_id: {
           type: "string",
-          description: "Parent company name to filter by (optional)"
+          description: "Parent company name to filter by. Use this ALONE to get ALL stations for a parent in one call."
         },
         market_name: {
           type: "string",
-          description: "Market name to filter by (optional, e.g., 'New York [PPM+D]')"
+          description: "Market name to filter by (optional - omit to get all markets)"
         },
         query: {
           type: "string",

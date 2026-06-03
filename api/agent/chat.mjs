@@ -36,7 +36,7 @@ const CLAUDE_PRICING = {
 
 // Default model
 const DEFAULT_MODEL = "claude-sonnet-4-20250514";
-const MAX_TOKENS = 4096;
+const MAX_TOKENS = 16384;  // Increased from 4096 to handle large deals (50+ stations)
 
 // Cached data (loaded once per cold start)
 let cachedNielsenData = null;
