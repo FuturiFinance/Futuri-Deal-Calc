@@ -8017,14 +8017,13 @@ document.addEventListener("click", async (e) => {
     });
 
     // =========================================================================
-    // RECONCILIATION: Adjust auto-calculated minutes to land within 5% of target
-    // Key: STOP before any adjustment would exit the 5% band on the other side
+    // RECONCILIATION: Use shared function from DealTools (single source of truth)
     // =========================================================================
     const TOLERANCE = 0.05;
     const maxOverValue = grandTotalTargetValue * (1 + TOLERANCE);
     const minUnderValue = grandTotalTargetValue * (1 - TOLERANCE);
 
-    // Helper to calculate total allocated value
+    // Calculate initial value for debug tracking
     const calcTotalValue = () => {
       let total = 0;
       allocationData.forEach(slot => {
@@ -8033,188 +8032,29 @@ document.addEventListener("click", async (e) => {
       });
       return total;
     };
+    const initialAllocatedValue = calcTotalValue();
 
-    // Helper to get value per minute for a given AQH
-    const valuePerMin = (aqh) => {
-      if (!aqh || aqh <= 0) return 0;
-      return (aqh * cpm * BARTER_MULTIPLIER) / 1000;
-    };
-
-    let totalAllocatedValue = calcTotalValue();
-    let iterations = 0;
-    const MAX_ITERATIONS = 10000;
+    // Call shared reconciliation function (modifies allocationData in place)
+    let reconResult = { totalAllocatedValue: initialAllocatedValue, iterations: 0, phase1Ran: false, phase2Ran: false };
+    if (typeof DealTools !== 'undefined' && DealTools.reconcileBarterAllocation) {
+      reconResult = DealTools.reconcileBarterAllocation(allocationData, grandTotalTargetValue, cpm);
+    }
 
     // DEBUG tracking
     const debugInfo = {
-      initialAllocatedValue: totalAllocatedValue,
+      initialAllocatedValue: initialAllocatedValue,
       targetValue: grandTotalTargetValue,
       minUnderValue: minUnderValue,
       maxOverValue: maxOverValue,
-      phase1Ran: false,
-      phase1Iterations: 0,
-      phase2Ran: false,
-      phase2Iterations: 0,
+      phase1Ran: reconResult.phase1Ran,
+      phase1Iterations: reconResult.iterations,
+      phase2Ran: reconResult.phase2Ran,
+      phase2Iterations: reconResult.iterations,
       phase2Candidates: 0,
       phase2WhyNoCandidate: '',
-      valueAfterPhase1: 0,
-      valueAfterPhase2: 0
+      valueAfterPhase1: reconResult.totalAllocatedValue,
+      valueAfterPhase2: reconResult.totalAllocatedValue
     };
-
-    // Phase 1: While more than 5% OVER target, decrement from highest-value auto slots
-    // BUT STOP if the decrement would drop us below the 5% band
-    while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
-      debugInfo.phase1Ran = true;
-      debugInfo.phase1Iterations++;
-      iterations++;
-
-      let bestIdx = -1;
-      let bestDaypart = null;
-      let bestValuePerMin = 0;
-
-      allocationData.forEach((slot, idx) => {
-        // Check prime - can decrement if has minutes
-        if (slot.primeMinutes > 0) {
-          const vpm = valuePerMin(slot.primeAQH);
-          if (vpm > bestValuePerMin) {
-            bestValuePerMin = vpm;
-            bestIdx = idx;
-            bestDaypart = 'prime';
-          }
-        }
-        // Check ROS - can decrement if has minutes
-        if (slot.rosMinutes > 0) {
-          const vpm = valuePerMin(slot.rosAQH);
-          if (vpm > bestValuePerMin) {
-            bestValuePerMin = vpm;
-            bestIdx = idx;
-            bestDaypart = 'ros';
-          }
-        }
-      });
-
-      if (bestIdx < 0) break;
-
-      // Check if this decrement would drop us BELOW the band
-      const decrementValue = bestValuePerMin;
-      const newTotal = totalAllocatedValue - decrementValue;
-
-      if (newTotal < minUnderValue) {
-        // This decrement would overshoot - DON'T do it
-        // We're as close as we can get without going under
-        break;
-      }
-
-      // Safe to decrement
-      if (bestDaypart === 'prime') {
-        allocationData[bestIdx].primeMinutes--;
-      } else {
-        allocationData[bestIdx].rosMinutes--;
-      }
-
-      totalAllocatedValue = calcTotalValue();
-    }
-
-    debugInfo.valueAfterPhase1 = totalAllocatedValue;
-
-    // Phase 2: While more than 5% UNDER target, increment minutes to reach band
-    // Strategy: keep adding the smallest valid increment until we hit the band
-    while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
-      debugInfo.phase2Ran = true;
-      debugInfo.phase2Iterations++;
-      iterations++;
-
-      // Collect ALL possible increments with their values
-      const candidates = [];
-
-      allocationData.forEach((slot, idx) => {
-        // Check prime - include ALL slots with AQH (reconciliation adjusts all)
-        if (slot.primeAQH > 0) {
-          const vpm = valuePerMin(slot.primeAQH);
-          candidates.push({
-            idx,
-            daypart: 'prime',
-            valuePerMin: vpm,
-            newTotal: totalAllocatedValue + vpm
-          });
-        }
-        // Check ROS - include ALL slots with AQH
-        if (slot.rosAQH > 0) {
-          const vpm = valuePerMin(slot.rosAQH);
-          candidates.push({
-            idx,
-            daypart: 'ros',
-            valuePerMin: vpm,
-            newTotal: totalAllocatedValue + vpm
-          });
-        }
-      });
-
-      debugInfo.phase2Candidates = candidates.length;
-
-      if (candidates.length === 0) {
-        debugInfo.phase2WhyNoCandidate = 'No slots with AQH > 0';
-        break; // No slots to increment
-      }
-
-      // Sort candidates by CURRENT MINUTES first (to distribute evenly), then by value
-      // This prevents putting all increments on one low-AQH station
-      candidates.sort((a, b) => {
-        const slotA = allocationData[a.idx];
-        const slotB = allocationData[b.idx];
-        const minsA = a.daypart === 'prime' ? slotA.primeMinutes : slotA.rosMinutes;
-        const minsB = b.daypart === 'prime' ? slotB.primeMinutes : slotB.rosMinutes;
-        // First sort by current minutes (fewer first)
-        if (minsA !== minsB) return minsA - minsB;
-        // Then by value per minute (smaller first)
-        return a.valuePerMin - b.valuePerMin;
-      });
-
-      // Pick the first candidate that doesn't overshoot maxOver
-      let bestCandidate = null;
-      for (const c of candidates) {
-        if (c.newTotal <= maxOverValue) {
-          bestCandidate = c;
-          break;
-        }
-      }
-
-      // If all overshoot, pick the smallest one if it at least enters the band
-      if (!bestCandidate && candidates.length > 0) {
-        const smallest = candidates[0];
-        if (smallest.newTotal >= minUnderValue) {
-          bestCandidate = smallest;
-        }
-      }
-
-      if (!bestCandidate) {
-        // Debug: why no candidate?
-        const smallestVal = candidates[0]?.valuePerMin || 0;
-        const smallestNewTotal = candidates[0]?.newTotal || 0;
-        debugInfo.phase2WhyNoCandidate = `No valid candidate: smallest=${money(smallestVal)}/min, newTotal=${money(smallestNewTotal)}, maxOver=${money(maxOverValue)}, minUnder=${money(minUnderValue)}`;
-        break; // Can't improve
-      }
-
-      // Apply the increment
-      if (bestCandidate.daypart === 'prime') {
-        allocationData[bestCandidate.idx].primeMinutes++;
-      } else {
-        allocationData[bestCandidate.idx].rosMinutes++;
-      }
-
-      totalAllocatedValue = calcTotalValue();
-
-      // If we're now in the band, stop
-      if (totalAllocatedValue >= minUnderValue && totalAllocatedValue <= maxOverValue) {
-        break;
-      }
-    }
-
-    debugInfo.valueAfterPhase2 = totalAllocatedValue;
-
-    // Check if Phase 2 should have run but didn't
-    if (!debugInfo.phase2Ran && debugInfo.valueAfterPhase1 < minUnderValue) {
-      debugInfo.phase2WhyNoCandidate = `Loop condition false? allocated=${money(debugInfo.valueAfterPhase1)} < minUnder=${money(minUnderValue)} = ${debugInfo.valueAfterPhase1 < minUnderValue}`;
-    }
 
     // DEBUG: Count total minutes after reconciliation
     let debugTotalPrime = 0, debugTotalRos = 0;

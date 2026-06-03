@@ -862,11 +862,197 @@
   }
 
   // ============================================================================
+  // SHARED: reconcileBarterAllocation
+  // ============================================================================
+
+  /**
+   * Reconcile barter minute allocation to land within 5% of target value.
+   * This is the SINGLE SOURCE OF TRUTH for barter reconciliation logic.
+   * Used by both the UI (index.html) and the agent (calculateBarterMinutes).
+   *
+   * Algorithm:
+   * - Phase 1: If >5% OVER target, decrement highest-value slots (stop before going under)
+   * - Phase 2: If >5% UNDER target, increment slots with fewest minutes (distribute evenly)
+   *
+   * @param {Array<{primeMinutes: number, rosMinutes: number, primeAQH: number, rosAQH: number}>} slots
+   *        Array of allocation slots. Modified IN PLACE.
+   * @param {number} targetValue - Target annual value to reconcile to
+   * @param {number} cpm - Cost per mille
+   * @returns {{totalAllocatedValue: number, iterations: number, phase1Ran: boolean, phase2Ran: boolean}}
+   */
+  function reconcileBarterAllocation(slots, targetValue, cpm) {
+    if (!slots || !slots.length || !targetValue || targetValue <= 0 || !cpm || cpm <= 0) {
+      return { totalAllocatedValue: 0, iterations: 0, phase1Ran: false, phase2Ran: false };
+    }
+
+    const TOLERANCE = 0.05; // 5%
+    const maxOverValue = targetValue * (1 + TOLERANCE);
+    const minUnderValue = targetValue * (1 - TOLERANCE);
+
+    // Helper to calculate total allocated value
+    const calcTotalValue = () => {
+      let total = 0;
+      slots.forEach(slot => {
+        total += calculateValueFromMinutes(slot.primeMinutes, slot.primeAQH, cpm);
+        total += calculateValueFromMinutes(slot.rosMinutes, slot.rosAQH, cpm);
+      });
+      return total;
+    };
+
+    // Helper to get value per minute for a given AQH
+    const valuePerMin = (aqh) => {
+      if (!aqh || aqh <= 0) return 0;
+      return (aqh * cpm * BARTER_FORMULA.ANNUAL_MULTIPLIER) / 1000;
+    };
+
+    let totalAllocatedValue = calcTotalValue();
+    let iterations = 0;
+    const MAX_ITERATIONS = 10000;
+    let phase1Ran = false;
+    let phase2Ran = false;
+
+    // Phase 1: While more than 5% OVER target, decrement from highest-value slots
+    // BUT STOP if the decrement would drop us below the 5% band
+    while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
+      phase1Ran = true;
+      iterations++;
+
+      let bestIdx = -1;
+      let bestDaypart = null;
+      let bestValuePerMin = 0;
+
+      slots.forEach((slot, idx) => {
+        // Check prime - can decrement if has minutes
+        if (slot.primeMinutes > 0) {
+          const vpm = valuePerMin(slot.primeAQH);
+          if (vpm > bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'prime';
+          }
+        }
+        // Check ROS - can decrement if has minutes
+        if (slot.rosMinutes > 0) {
+          const vpm = valuePerMin(slot.rosAQH);
+          if (vpm > bestValuePerMin) {
+            bestValuePerMin = vpm;
+            bestIdx = idx;
+            bestDaypart = 'ros';
+          }
+        }
+      });
+
+      if (bestIdx < 0 || bestValuePerMin <= 0) break;
+
+      // Check if this decrement would drop us BELOW the band
+      const newTotal = totalAllocatedValue - bestValuePerMin;
+      if (newTotal < minUnderValue) {
+        // This decrement would overshoot - DON'T do it
+        break;
+      }
+
+      // Safe to decrement
+      if (bestDaypart === 'prime') {
+        slots[bestIdx].primeMinutes--;
+      } else {
+        slots[bestIdx].rosMinutes--;
+      }
+
+      totalAllocatedValue = calcTotalValue();
+    }
+
+    // Phase 2: While more than 5% UNDER target, increment minutes to reach band
+    // Strategy: distribute evenly by prioritizing slots with fewer current minutes
+    while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
+      phase2Ran = true;
+      iterations++;
+
+      // Collect ALL possible increments with their values
+      const candidates = [];
+
+      slots.forEach((slot, idx) => {
+        // Check prime
+        if (slot.primeAQH > 0) {
+          const vpm = valuePerMin(slot.primeAQH);
+          candidates.push({
+            idx,
+            daypart: 'prime',
+            valuePerMin: vpm,
+            currentMinutes: slot.primeMinutes,
+            newTotal: totalAllocatedValue + vpm
+          });
+        }
+        // Check ROS
+        if (slot.rosAQH > 0) {
+          const vpm = valuePerMin(slot.rosAQH);
+          candidates.push({
+            idx,
+            daypart: 'ros',
+            valuePerMin: vpm,
+            currentMinutes: slot.rosMinutes,
+            newTotal: totalAllocatedValue + vpm
+          });
+        }
+      });
+
+      if (candidates.length === 0) break;
+
+      // Sort candidates by CURRENT MINUTES first (to distribute evenly), then by value
+      // This prevents putting all increments on one low-AQH station
+      candidates.sort((a, b) => {
+        // First sort by current minutes (fewer first)
+        if (a.currentMinutes !== b.currentMinutes) {
+          return a.currentMinutes - b.currentMinutes;
+        }
+        // Then by value per minute (smaller first)
+        return a.valuePerMin - b.valuePerMin;
+      });
+
+      // Pick the first candidate that doesn't overshoot maxOver
+      let bestCandidate = null;
+      for (const c of candidates) {
+        if (c.newTotal <= maxOverValue) {
+          bestCandidate = c;
+          break;
+        }
+      }
+
+      // If all overshoot, pick the smallest one if it at least enters the band
+      if (!bestCandidate && candidates.length > 0) {
+        const smallest = candidates[0];
+        if (smallest.newTotal >= minUnderValue) {
+          bestCandidate = smallest;
+        }
+      }
+
+      if (!bestCandidate) break;
+
+      // Apply the increment
+      if (bestCandidate.daypart === 'prime') {
+        slots[bestCandidate.idx].primeMinutes++;
+      } else {
+        slots[bestCandidate.idx].rosMinutes++;
+      }
+
+      totalAllocatedValue = calcTotalValue();
+
+      // If we're now in the band, stop
+      if (totalAllocatedValue >= minUnderValue && totalAllocatedValue <= maxOverValue) {
+        break;
+      }
+    }
+
+    return { totalAllocatedValue, iterations, phase1Ran, phase2Ran };
+  }
+
+  // ============================================================================
   // TOOL 6: calculateBarterMinutes
   // ============================================================================
 
   /**
    * Calculate barter minutes to hit target value (pure auto-calc, no manual overrides)
+   * Uses reconcileBarterAllocation() for the reconciliation step.
+   *
    * @param {number} targetAnnualValue - Annual value barter should cover
    * @param {Array<{callSign: string, primeAQH: number, rosAQH: number}>} stations - Station data
    * @param {number} cpm - Cost per mille (default 1.5)
@@ -938,196 +1124,41 @@
 
       perStation.push({
         callSign,
-        primeMinsPerDay,
-        rosMinsPerDay,
-        primeAQH,  // Keep for reconciliation
-        rosAQH,    // Keep for reconciliation
-        annualValue: 0  // Will be calculated after reconciliation
+        primeMinutes: primeMinsPerDay,  // Use shared naming for reconciliation
+        rosMinutes: rosMinsPerDay,
+        primeAQH,
+        rosAQH,
+        annualValue: 0
       });
     });
 
-    // Helper to calculate total allocated value
-    const calcTotalValue = () => {
-      let total = 0;
-      perStation.forEach(ps => {
-        total += calculateValueFromMinutes(ps.primeMinsPerDay, ps.primeAQH, cpm);
-        total += calculateValueFromMinutes(ps.rosMinsPerDay, ps.rosAQH, cpm);
-      });
-      return total;
-    };
-
-    // Helper to get value per minute for a station/daypart
-    const valuePerMin = (aqh) => {
-      if (!aqh || aqh <= 0) return 0;
-      return (aqh * cpm * BARTER_FORMULA.ANNUAL_MULTIPLIER) / 1000;
-    };
-
     // =========================================================================
-    // RECONCILIATION: Adjust minutes so total lands within 5% of target
-    // Key: STOP before any adjustment would exit the 5% band on the other side
+    // RECONCILIATION: Use shared function (single source of truth)
     // =========================================================================
-    const TOLERANCE = 0.05; // 5%
-    const maxOverValue = targetAnnualValue * (1 + TOLERANCE);
-    const minUnderValue = targetAnnualValue * (1 - TOLERANCE);
-    let totalAllocatedValue = calcTotalValue();
-    let iterations = 0;
-    const MAX_ITERATIONS = 10000; // Safety limit
+    reconcileBarterAllocation(perStation, targetAnnualValue, cpm);
 
-    // Phase 1: While we're more than 5% OVER target, decrement minutes
-    // BUT STOP if the decrement would drop us below the 5% band
-    while (totalAllocatedValue > maxOverValue && iterations < MAX_ITERATIONS) {
-      iterations++;
-
-      let bestIdx = -1;
-      let bestDaypart = null;
-      let bestValuePerMin = 0;
-
-      perStation.forEach((ps, idx) => {
-        if (ps.primeMinsPerDay > 0) {
-          const vpm = valuePerMin(ps.primeAQH);
-          if (vpm > bestValuePerMin) {
-            bestValuePerMin = vpm;
-            bestIdx = idx;
-            bestDaypart = 'prime';
-          }
-        }
-        if (ps.rosMinsPerDay > 0) {
-          const vpm = valuePerMin(ps.rosAQH);
-          if (vpm > bestValuePerMin) {
-            bestValuePerMin = vpm;
-            bestIdx = idx;
-            bestDaypart = 'ros';
-          }
-        }
-      });
-
-      if (bestIdx < 0 || bestValuePerMin <= 0) {
-        break;
-      }
-
-      // Check if this decrement would drop us BELOW the band
-      const decrementValue = bestValuePerMin;
-      const newTotal = totalAllocatedValue - decrementValue;
-
-      if (newTotal < minUnderValue) {
-        // This decrement would overshoot - DON'T do it
-        // We're as close as we can get without going under
-        break;
-      }
-
-      // Safe to decrement
-      if (bestDaypart === 'prime') {
-        perStation[bestIdx].primeMinsPerDay--;
-      } else {
-        perStation[bestIdx].rosMinsPerDay--;
-      }
-
-      totalAllocatedValue = calcTotalValue();
-    }
-
-    // Phase 2: While more than 5% UNDER target, increment minutes to reach band
-    // Strategy: keep adding the smallest valid increment until we hit the band
-    while (totalAllocatedValue < minUnderValue && iterations < MAX_ITERATIONS) {
-      iterations++;
-
-      // Collect ALL possible increments with their values
-      const candidates = [];
-
-      perStation.forEach((ps, idx) => {
-        // Check prime
-        if (ps.primeAQH > 0) {
-          const vpm = valuePerMin(ps.primeAQH);
-          candidates.push({
-            idx,
-            daypart: 'prime',
-            valuePerMin: vpm,
-            newTotal: totalAllocatedValue + vpm
-          });
-        }
-        // Check ROS
-        if (ps.rosAQH > 0) {
-          const vpm = valuePerMin(ps.rosAQH);
-          candidates.push({
-            idx,
-            daypart: 'ros',
-            valuePerMin: vpm,
-            newTotal: totalAllocatedValue + vpm
-          });
-        }
-      });
-
-      if (candidates.length === 0) break; // No slots to increment
-
-      // Sort candidates by value (smallest first)
-      candidates.sort((a, b) => a.valuePerMin - b.valuePerMin);
-
-      // Find the best candidate:
-      // 1. First, try to find one that lands IN the band (>= minUnder AND <= maxOver)
-      // 2. If none, find one that stays <= maxOver (closest to band from below)
-      // 3. If none, pick smallest that at least gets us closer to band
-
-      let bestCandidate = null;
-
-      // Option 1: Find one that lands in the band
-      for (const c of candidates) {
-        if (c.newTotal >= minUnderValue && c.newTotal <= maxOverValue) {
-          bestCandidate = c;
-          break; // Take first one that lands in band (smallest)
-        }
-      }
-
-      // Option 2: Find one that stays under max but gets us closer
-      if (!bestCandidate) {
-        for (const c of candidates) {
-          if (c.newTotal <= maxOverValue && c.newTotal > totalAllocatedValue) {
-            bestCandidate = c;
-            break; // Take smallest that doesn't overshoot
-          }
-        }
-      }
-
-      // Option 3: If all overshoot, take the smallest one anyway to get as close as possible
-      // (only if it would get us into the band)
-      if (!bestCandidate && candidates.length > 0) {
-        const smallest = candidates[0];
-        if (smallest.newTotal >= minUnderValue) {
-          // This overshoots maxOver but at least enters the band from below
-          bestCandidate = smallest;
-        }
-      }
-
-      if (!bestCandidate) break; // Can't improve
-
-      // Apply the increment
-      if (bestCandidate.daypart === 'prime') {
-        perStation[bestCandidate.idx].primeMinsPerDay++;
-      } else {
-        perStation[bestCandidate.idx].rosMinsPerDay++;
-      }
-
-      totalAllocatedValue = calcTotalValue();
-
-      // If we're now in the band, stop
-      if (totalAllocatedValue >= minUnderValue && totalAllocatedValue <= maxOverValue) {
-        break;
-      }
-    }
-
-    // Final pass: calculate annual value for each station and totals
+    // Final pass: calculate annual value for each station, rename props for output, and compute totals
     let totalPrimeMins = 0;
     let totalRosMins = 0;
-    totalAllocatedValue = 0;
+    let totalAllocatedValue = 0;
 
     perStation.forEach(ps => {
-      const primeValue = calculateValueFromMinutes(ps.primeMinsPerDay, ps.primeAQH, cpm);
-      const rosValue = calculateValueFromMinutes(ps.rosMinsPerDay, ps.rosAQH, cpm);
+      // Calculate value from reconciled minutes
+      const primeValue = calculateValueFromMinutes(ps.primeMinutes, ps.primeAQH, cpm);
+      const rosValue = calculateValueFromMinutes(ps.rosMinutes, ps.rosAQH, cpm);
       ps.annualValue = primeValue + rosValue;
+
+      // Rename to output format (primeMinsPerDay, rosMinsPerDay)
+      ps.primeMinsPerDay = ps.primeMinutes;
+      ps.rosMinsPerDay = ps.rosMinutes;
 
       totalPrimeMins += ps.primeMinsPerDay;
       totalRosMins += ps.rosMinsPerDay;
       totalAllocatedValue += ps.annualValue;
 
-      // Remove AQH from output (not needed downstream)
+      // Remove internal properties from output
+      delete ps.primeMinutes;
+      delete ps.rosMinutes;
       delete ps.primeAQH;
       delete ps.rosAQH;
     });
@@ -1704,11 +1735,12 @@
     buildDeal,
     validateDeal,
 
-    // Helpers (exposed for testing)
+    // Helpers (exposed for testing and shared use)
     calculateValueFromMinutes,
     calculateMinutesFromValue,
     createOffBookStation,
     isOffBookStation,
+    reconcileBarterAllocation,  // Shared barter reconciliation (used by UI and agent)
 
     // Constants (exposed for reference)
     BARTER_FORMULA,
