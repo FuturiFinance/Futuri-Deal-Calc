@@ -54,12 +54,16 @@
 
   const CONTENT_AUTOMATION_PRICING = {
     tiers: {
-      xs:     { name: 'XS',     credits: 5000,  monthly: 6500,  costPerCredit: 1.30 },
-      small:  { name: 'Small',  credits: 10000, monthly: 12000, costPerCredit: 1.20 },
-      medium: { name: 'Medium', credits: 15000, monthly: 16500, costPerCredit: 1.10 },
-      large:  { name: 'Large',  credits: 20000, monthly: 19000, costPerCredit: 0.95 },
-      xl:     { name: 'XL',     credits: 50000, monthly: 40000, costPerCredit: 0.80 }
-    }
+      tier1:      { name: 'Tier 1',     credits: 1950,  monthly: 2500,  costPerCredit: 1.28 },
+      tier2:      { name: 'Tier 2',     credits: 4000,  monthly: 5000,  costPerCredit: 1.25 },
+      tier3:      { name: 'Tier 3',     credits: 8750,  monthly: 10000, costPerCredit: 1.14 },
+      tier4:      { name: 'Tier 4',     credits: 13750, monthly: 15000, costPerCredit: 1.09 },
+      custom:     { name: 'Custom',     credits: 0,     monthly: 0,     costPerCredit: 1.50 },  // Rep enters $ amount, credits = $ ÷ 1.50
+      enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 0 }      // Contact for pricing
+    },
+    customCostPerCredit: 1.50,  // For custom tier: $1.50/credit
+    maxCustomMonthly: 2500,     // Custom tier max (below Tier 1)
+    minEnterpriseMonthly: 15001 // Enterprise starts above Tier 4
   };
 
   // SpotOn credit pricing
@@ -722,9 +726,45 @@
   }
 
   function calculateContentAutomationPrice(extras, multiplier) {
-    const tier = extras.tier || 'xs';
-    const tierData = CONTENT_AUTOMATION_PRICING.tiers[tier] || CONTENT_AUTOMATION_PRICING.tiers.xs;
+    const tier = extras.tier || 'tier1';
 
+    // Handle enterprise tier (contact for pricing)
+    if (tier === 'enterprise') {
+      return {
+        monthly: 0,
+        annual: 0,
+        breakdown: {
+          tier: 'enterprise',
+          tierName: 'Enterprise',
+          credits: 0,
+          costPerCredit: 0,
+          isEnterprise: true,
+          message: 'Contact for pricing'
+        }
+      };
+    }
+
+    // Handle custom tier (rep enters dollar amount)
+    if (tier === 'custom') {
+      const customMonthly = extras.customMonthly || 0;
+      const credits = Math.round(customMonthly / CONTENT_AUTOMATION_PRICING.customCostPerCredit);
+      const monthlyCost = customMonthly * multiplier;
+
+      return {
+        monthly: monthlyCost,
+        annual: monthlyCost * 12,
+        breakdown: {
+          tier: 'custom',
+          tierName: 'Custom',
+          credits: credits,
+          costPerCredit: CONTENT_AUTOMATION_PRICING.customCostPerCredit,
+          isCustom: true
+        }
+      };
+    }
+
+    // Standard tier handling
+    const tierData = CONTENT_AUTOMATION_PRICING.tiers[tier] || CONTENT_AUTOMATION_PRICING.tiers.tier1;
     const monthlyCost = tierData.monthly * multiplier;
 
     return {
