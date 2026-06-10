@@ -914,7 +914,12 @@
    * - Phase 1: If >5% OVER target, decrement highest-value slots (stop before going under)
    * - Phase 2: If >5% UNDER target, increment slots with fewest minutes (distribute evenly)
    *
-   * @param {Array<{primeMinutes: number, rosMinutes: number, primeAQH: number, rosAQH: number}>} slots
+   * Manual lock flags (optional):
+   * - slot.hasManualPrime: if truthy, prime minutes are locked and won't be changed
+   * - slot.hasManualRos: if truthy, ROS minutes are locked and won't be changed
+   * - Undefined flags behave as false (not locked)
+   *
+   * @param {Array<{primeMinutes: number, rosMinutes: number, primeAQH: number, rosAQH: number, hasManualPrime?: boolean, hasManualRos?: boolean}>} slots
    *        Array of allocation slots. Modified IN PLACE.
    * @param {number} targetValue - Target annual value to reconcile to
    * @param {number} cpm - Cost per mille
@@ -962,8 +967,8 @@
       let bestValuePerMin = 0;
 
       slots.forEach((slot, idx) => {
-        // Check prime - can decrement if has minutes
-        if (slot.primeMinutes > 0) {
+        // Check prime - can decrement if has minutes AND not manually locked
+        if (slot.primeMinutes > 0 && !slot.hasManualPrime) {
           const vpm = valuePerMin(slot.primeAQH);
           if (vpm > bestValuePerMin) {
             bestValuePerMin = vpm;
@@ -971,8 +976,8 @@
             bestDaypart = 'prime';
           }
         }
-        // Check ROS - can decrement if has minutes
-        if (slot.rosMinutes > 0) {
+        // Check ROS - can decrement if has minutes AND not manually locked
+        if (slot.rosMinutes > 0 && !slot.hasManualRos) {
           const vpm = valuePerMin(slot.rosAQH);
           if (vpm > bestValuePerMin) {
             bestValuePerMin = vpm;
@@ -1011,8 +1016,8 @@
       const candidates = [];
 
       slots.forEach((slot, idx) => {
-        // Check prime
-        if (slot.primeAQH > 0) {
+        // Check prime - exclude if manually locked
+        if (slot.primeAQH > 0 && !slot.hasManualPrime) {
           const vpm = valuePerMin(slot.primeAQH);
           candidates.push({
             idx,
@@ -1022,8 +1027,8 @@
             newTotal: totalAllocatedValue + vpm
           });
         }
-        // Check ROS
-        if (slot.rosAQH > 0) {
+        // Check ROS - exclude if manually locked
+        if (slot.rosAQH > 0 && !slot.hasManualRos) {
           const vpm = valuePerMin(slot.rosAQH);
           candidates.push({
             idx,
