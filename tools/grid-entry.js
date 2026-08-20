@@ -471,7 +471,7 @@
 
     // Handle Content Automation
     if (productsSet.has('content_automation')) {
-      config.contentAutomationConfig = productConfigs.content_automation || { tier: 'xs' };
+      config.contentAutomationConfig = productConfigs.content_automation || { tier: 'tier1' };
     }
 
     // Handle FAAI

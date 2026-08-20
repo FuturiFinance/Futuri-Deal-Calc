@@ -166,12 +166,88 @@
 
   test('calculateProductPrice: Content Automation tier selection', () => {
     const price = DealTools.calculateProductPrice('content_automation', {}, {
-      tier: 'large',
+      tier: 'tier4',
       pricingType: 'cash'
     });
-    assertEqual(price.monthly, 19000, 'Content Automation Large = $19K/month');
-    assertEqual(price.annual, 228000, 'Content Automation Large = $228K/year');
-    assertEqual(price.breakdown.credits, 20000, 'Large tier = 20,000 credits');
+    assertEqual(price.monthly, 15000, 'Content Automation Tier 4 = $15K/month');
+    assertEqual(price.annual, 180000, 'Content Automation Tier 4 = $180K/year');
+    assertEqual(price.breakdown.credits, 13045, 'Tier 4 = 13,045 credits');
+    assertEqual(price.breakdown.costPerCredit, 1.15, 'Tier 4 = $1.15/credit');
+  });
+
+  test('calculateProductPrice: Content Automation custom tier', () => {
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'custom',
+      customMonthly: 1500,
+      pricingType: 'cash'
+    });
+    assertEqual(price.monthly, 1500, 'Custom $1,500/mo passes through');
+    assertEqual(price.breakdown.credits, 1000, '$1,500 ÷ $1.50 = 1,000 credits');
+  });
+
+  test('calculateProductPrice: Content Automation enterprise is metered above the floor', () => {
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'enterprise',
+      enterpriseCredits: 10833,
+      pricingType: 'cash'
+    });
+    // 10,833 × $1.05 = $11,374.65 → $11,375, above the tier3 floor of $10,000
+    assertEqual(price.monthly, 11375, '10,833 credits = $11,375/month');
+    assertEqual(price.breakdown.credits, 10833, 'Enterprise reports entered credits');
+    assertEqual(price.breakdown.costPerCredit, 1.05, 'Enterprise = $1.05/credit');
+  });
+
+  test('calculateProductPrice: Content Automation enterprise floors at the covered tier', () => {
+    // 13,500 × $1.05 = $14,175, but 13,500 covers Tier 4's 13,045 allotment,
+    // so the price may not fall below Tier 4's $15,000.
+    const floored = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'enterprise',
+      enterpriseCredits: 13500,
+      pricingType: 'cash'
+    });
+    assertEqual(floored.monthly, 15000, '13,500 credits floors at $15,000/month');
+
+    // 20,000 × $1.05 = $21,000, already above the $15,000 floor
+    const metered = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'enterprise',
+      enterpriseCredits: 20000,
+      pricingType: 'cash'
+    });
+    assertEqual(metered.monthly, 21000, '20,000 credits = $21,000/month');
+  });
+
+  test('calculateProductPrice: Content Automation enterprise below threshold is unpriced', () => {
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'enterprise',
+      enterpriseCredits: 8000,
+      pricingType: 'cash'
+    });
+    assertEqual(price.monthly, 0, 'Below 8,336 credits does not price as enterprise');
+    assertTrue(!!price.breakdown.message, 'Below-threshold enterprise explains why');
+  });
+
+  test('calculateProductPrice: Content Automation trusts the resolved price from the UI', () => {
+    // buildConfigFromState sends the already-resolved price. Custom deals used to
+    // reach the agent as $0 because only the tier label was sent.
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'custom',
+      credits: 1000,
+      monthlyPrice: 1500,
+      costPerCredit: 1.50,
+      pricingType: 'cash'
+    });
+    assertEqual(price.monthly, 1500, 'Resolved custom price is honored');
+    assertEqual(price.breakdown.credits, 1000, 'Resolved credits are honored');
+
+    // monthlyPrice is pre-multiplier, so barter applies once and only once
+    const barter = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'custom',
+      credits: 1000,
+      monthlyPrice: 1500,
+      costPerCredit: 1.50,
+      pricingType: 'barter'
+    });
+    assertEqual(barter.monthly, 2100, 'Barter applies 1.4x exactly once');
   });
 
   test('calculateProductPrice: SpotOn credits', () => {
