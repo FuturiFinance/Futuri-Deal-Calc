@@ -1462,11 +1462,11 @@
               <label for="contentAutomationTier">Select Tier</label>
               <select id="contentAutomationTier">
                 <option value="custom">Custom (under $2,500/mo) — Enter amount below</option>
-                <option value="tier1" selected>Tier 1 — 1,950 credits/mo — $2,500/mo ($1.28/credit)</option>
+                <option value="tier1" selected>Tier 1 — 1,925 credits/mo — $2,500/mo ($1.30/credit)</option>
                 <option value="tier2">Tier 2 — 4,000 credits/mo — $5,000/mo ($1.25/credit)</option>
-                <option value="tier3">Tier 3 — 8,750 credits/mo — $10,000/mo ($1.14/credit)</option>
-                <option value="tier4">Tier 4 — 13,750 credits/mo — $15,000/mo ($1.09/credit)</option>
-                <option value="enterprise">Enterprise (over $15,000/mo) — Contact for pricing</option>
+                <option value="tier3">Tier 3 — 8,335 credits/mo — $10,000/mo ($1.20/credit)</option>
+                <option value="tier4">Tier 4 — 13,045 credits/mo — $15,000/mo ($1.15/credit)</option>
+                <option value="enterprise">Enterprise (over 8,335 credits/mo) — Metered at $1.05/credit</option>
               </select>
             </div>
 
@@ -1477,17 +1477,20 @@
               <div class="muted" style="font-size:11px; margin-top:4px;">Credits = $ ÷ $1.50/credit</div>
             </div>
 
-            <!-- Enterprise Notice (shown only when Enterprise selected) -->
-            <div id="caEnterpriseNotice" class="hidden" style="padding:10px; background:rgba(255,165,0,.12); border:1px solid rgba(255,165,0,.3); border-radius:8px; margin-bottom:12px; font-size:13px;">
-              <strong>Enterprise Pricing:</strong> For deals over $15,000/mo, please contact your sales manager for custom pricing.
+            <!-- Enterprise Credit Input (shown only when Enterprise selected) -->
+            <div id="caEnterpriseSection" class="field hidden" style="margin-bottom:12px;">
+              <label for="caEnterpriseCredits">Credits per Month</label>
+              <input type="number" id="caEnterpriseCredits" min="8336" step="1" placeholder="Enter credits/mo (min 8,336)">
+              <div class="muted" style="font-size:11px; margin-top:4px;">Metered at $1.05/credit, never below the highest tier the credits already cover.</div>
+              <div id="caEnterpriseWarning" class="hidden" style="font-size:11px; margin-top:4px; color:#e0a030;"></div>
             </div>
 
             <!-- Selected Tier Summary -->
             <div id="contentAutomationTierSummary" style="padding:10px; background:rgba(103,36,119,.06); border-radius:8px; margin-bottom:16px;">
               <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; font-size:13px;">
-                <div><strong>Credits/Month:</strong> <span id="caTierCredits">1,950</span></div>
+                <div><strong>Credits/Month:</strong> <span id="caTierCredits">1,925</span></div>
                 <div><strong>Monthly Cost:</strong> <span id="caTierMonthly">$2,500</span></div>
-                <div><strong>Cost/Credit:</strong> <span id="caTierCostPerCredit">$1.28</span></div>
+                <div><strong>Cost/Credit:</strong> <span id="caTierCostPerCredit">$1.30</span></div>
               </div>
             </div>
 
@@ -1507,11 +1510,10 @@
                     <tr><td style="padding:4px 8px;">Press Release → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
                     <tr><td style="padding:4px 8px;">News Package (A/V) → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
                     <tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
-                    <tr><td style="padding:4px 8px;">Press Conference → Notable Clips</td><td style="padding:4px 8px;">per source video</td><td style="padding:4px 8px; text-align:right;">10</td></tr>
-                    <tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                    <tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file, up to 60 min</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
                     <tr><td style="padding:4px 8px;">Apply Graphic Template to Video</td><td style="padding:4px 8px;">per output minute</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
-                    <tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">5</td></tr>
-                    <tr><td style="padding:4px 8px;">Newscast → Segment Slicing</td><td style="padding:4px 8px;">per 30 minute newscast</td><td style="padding:4px 8px; text-align:right;">15</td></tr>
+                    <tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
+                    <tr><td style="padding:4px 8px;">Broadcast → Clips</td><td style="padding:4px 8px;">per 30 min of source</td><td style="padding:4px 8px; text-align:right;">5</td></tr>
                     <tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute per format</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
                   </tbody>
                 </table>
@@ -4735,23 +4737,42 @@ document.addEventListener("click", async (e) => {
     window.contentAutomationState = {
       enabled: false,
       tier: 'tier1',           // 'tier1', 'tier2', 'tier3', 'tier4', 'custom', 'enterprise'
-      customMonthly: null      // Dollar amount for custom tier
+      customMonthly: null,     // Dollar amount for custom tier
+      enterpriseCredits: null  // Credits/mo for enterprise tier (metered)
     };
 
     // Content Automation pricing constants (dollar-keyed tiers)
+    // Monthly dollars are the anchor; credits are derived from the intended rate and
+    // rounded UP to the next whole credit block. Rounding up keeps the effective rate
+    // at or just below the advertised costPerCredit (1,925 ÷ $2,500 = $1.2987 vs $1.30),
+    // so a customer dividing their invoice by their allotment never sees a rate HIGHER
+    // than the rate card states.
+    // NOTE: mirrored in tools/deal-tools.js — keep both copies identical.
     const CONTENT_AUTOMATION_PRICING = {
       tiers: {
-        tier1:      { name: 'Tier 1',     credits: 1950,  monthly: 2500,  costPerCredit: 1.28 },
+        tier1:      { name: 'Tier 1',     credits: 1925,  monthly: 2500,  costPerCredit: 1.30 },
         tier2:      { name: 'Tier 2',     credits: 4000,  monthly: 5000,  costPerCredit: 1.25 },
-        tier3:      { name: 'Tier 3',     credits: 8750,  monthly: 10000, costPerCredit: 1.14 },
-        tier4:      { name: 'Tier 4',     credits: 13750, monthly: 15000, costPerCredit: 1.09 },
+        tier3:      { name: 'Tier 3',     credits: 8335,  monthly: 10000, costPerCredit: 1.20 },
+        tier4:      { name: 'Tier 4',     credits: 13045, monthly: 15000, costPerCredit: 1.15 },
         custom:     { name: 'Custom',     credits: 0,     monthly: 0,     costPerCredit: 1.50 },  // Rep enters $ amount
-        enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 0 }      // Contact for pricing
+        enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 1.05 }   // Rep enters credits, metered
       },
-      customCostPerCredit: 1.50,  // For custom tier: $1.50/credit
-      maxCustomMonthly: 2500,     // Custom tier max (below Tier 1)
-      minEnterpriseMonthly: 15001 // Enterprise starts above Tier 4
+      customCostPerCredit: 1.50,      // For custom tier: $1.50/credit
+      maxCustomMonthly: 2500,         // Custom tier max (below Tier 1)
+      enterpriseCostPerCredit: 1.05,  // For enterprise tier: $1.05/credit, metered
+      enterpriseMinCredits: 8336      // Enterprise unlocks above Tier 3's allotment
     };
+
+    // Enterprise price floor: the monthly of the highest standard tier whose credit
+    // allotment the entered credits already cover. Prevents a metered enterprise deal
+    // from undercutting the tier it just grew out of (e.g. 13,500 × $1.05 = $14,175
+    // would otherwise land below Tier 4's $15,000).
+    function getEnterpriseFloor(credits) {
+      const t = CONTENT_AUTOMATION_PRICING.tiers;
+      return [t.tier1, t.tier2, t.tier3, t.tier4]
+        .filter(tier => tier.credits <= credits)
+        .reduce((floor, tier) => Math.max(floor, tier.monthly), 0);
+    }
 
     // TopLine pricing constants
     const TOPLINE_PRICING = {
@@ -5098,21 +5119,36 @@ document.addEventListener("click", async (e) => {
       const pricingType = window.productState.pricingType;
       const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
 
+      // monthlyBase is the pre-barter-multiplier price. monthlyCost carries the
+      // multiplier. Consumers that hand the price to deal-tools (which applies the
+      // multiplier itself) must use monthlyBase or the 1.4x lands twice.
       if (!s.enabled) {
-        return { enabled: false, tier: null, credits: 0, monthlyCost: 0, annualCost: 0, costPerCredit: 0 };
+        return { enabled: false, tier: null, credits: 0, monthlyBase: 0, monthlyCost: 0, annualCost: 0, costPerCredit: 0 };
       }
 
-      // Handle enterprise tier (contact for pricing)
+      // Handle enterprise tier (rep enters credits, priced metered with a tier floor)
       if (s.tier === 'enterprise') {
+        const credits = Math.max(0, parseInt(s.enterpriseCredits, 10) || 0);
+        const belowThreshold = credits < pricing.enterpriseMinCredits;
+
+        // Below the unlock threshold there is no enterprise price — a standard tier
+        // covers it. Zeroed shape reads as "not yet priced" rather than pricing it.
+        const monthlyPrice = belowThreshold
+          ? 0
+          : Math.max(Math.round(credits * pricing.enterpriseCostPerCredit), getEnterpriseFloor(credits));
+        const monthlyCost = monthlyPrice * multiplier;
+
         return {
           enabled: true,
           tier: 'enterprise',
           tierName: 'Enterprise',
-          credits: 0,
-          monthlyCost: 0,
-          annualCost: 0,
-          costPerCredit: 0,
-          isEnterprise: true
+          credits: credits,
+          monthlyBase: monthlyPrice,
+          monthlyCost: monthlyCost,
+          annualCost: monthlyCost * 12,
+          costPerCredit: pricing.enterpriseCostPerCredit,
+          isEnterprise: true,
+          belowThreshold: belowThreshold
         };
       }
 
@@ -5127,6 +5163,7 @@ document.addEventListener("click", async (e) => {
           tier: 'custom',
           tierName: 'Custom',
           credits: credits,
+          monthlyBase: customMonthly,
           monthlyCost: monthlyCost,
           annualCost: monthlyCost * 12,
           costPerCredit: pricing.customCostPerCredit,
@@ -5143,6 +5180,7 @@ document.addEventListener("click", async (e) => {
         tier: s.tier,
         tierName: tierData.name,
         credits: tierData.credits,
+        monthlyBase: tierData.monthly,
         monthlyCost,
         annualCost: monthlyCost * 12,
         costPerCredit: tierData.costPerCredit
@@ -5169,9 +5207,25 @@ document.addEventListener("click", async (e) => {
         if (monthlyEl) monthlyEl.textContent = '$' + customMonthly.toLocaleString();
         if (costPerCreditEl) costPerCreditEl.textContent = '$' + pricing.customCostPerCredit.toFixed(2);
       } else if (tier === 'enterprise') {
-        if (creditsEl) creditsEl.textContent = 'Contact';
-        if (monthlyEl) monthlyEl.textContent = 'Contact';
-        if (costPerCreditEl) costPerCreditEl.textContent = 'Contact';
+        // Show the metered result once past the unlock threshold; em-dash until then.
+        const priced = !costs.belowThreshold && costs.credits > 0;
+        // monthlyCost carries the barter multiplier; the tier summary shows base rate.
+        const basePrice = priced
+          ? Math.max(Math.round(costs.credits * pricing.enterpriseCostPerCredit), getEnterpriseFloor(costs.credits))
+          : 0;
+        if (creditsEl) creditsEl.textContent = priced ? costs.credits.toLocaleString() : '—';
+        if (monthlyEl) monthlyEl.textContent = priced ? '$' + basePrice.toLocaleString() : '—';
+        if (costPerCreditEl) costPerCreditEl.textContent = priced ? '$' + pricing.enterpriseCostPerCredit.toFixed(2) : '—';
+
+        // Inline warning when the rep enters a figure a standard tier already covers
+        const warnEl = el('caEnterpriseWarning');
+        if (warnEl) {
+          const show = costs.belowThreshold && costs.credits > 0;
+          warnEl.classList.toggle('hidden', !show);
+          if (show) {
+            warnEl.textContent = `⚠ Under ${pricing.enterpriseMinCredits.toLocaleString()} credits — use Tier 3 ($${pricing.tiers.tier3.monthly.toLocaleString()}/mo) instead.`;
+          }
+        }
       } else {
         if (creditsEl) creditsEl.textContent = tierData.credits.toLocaleString();
         if (monthlyEl) monthlyEl.textContent = '$' + tierData.monthly.toLocaleString();
@@ -5190,15 +5244,16 @@ document.addEventListener("click", async (e) => {
       const tierEl = el('contentAutomationTier');
       const customSection = el('caCustomTierSection');
       const customInput = el('caCustomMonthly');
-      const enterpriseNotice = el('caEnterpriseNotice');
+      const enterpriseSection = el('caEnterpriseSection');
+      const enterpriseInput = el('caEnterpriseCredits');
 
       if (!tierEl) return;
 
-      // Show/hide custom input and enterprise notice based on tier
+      // Show/hide the custom and enterprise inputs based on tier
       const updateTierVisibility = () => {
         const tier = tierEl.value;
         if (customSection) customSection.classList.toggle('hidden', tier !== 'custom');
-        if (enterpriseNotice) enterpriseNotice.classList.toggle('hidden', tier !== 'enterprise');
+        if (enterpriseSection) enterpriseSection.classList.toggle('hidden', tier !== 'enterprise');
       };
 
       const syncState = () => {
@@ -5214,6 +5269,15 @@ document.addEventListener("click", async (e) => {
           s.customMonthly = null;
         }
 
+        // Handle enterprise tier input. Unlike custom (which clamps silently), keep the
+        // rep's raw entry so updateContentAutomationSummary can warn that a standard
+        // tier already covers it rather than quietly repricing it.
+        if (s.tier === 'enterprise' && enterpriseInput) {
+          s.enterpriseCredits = Math.max(0, parseInt(enterpriseInput.value, 10) || 0);
+        } else {
+          s.enterpriseCredits = null;
+        }
+
         updateTierVisibility();
         updateContentAutomationSummary();
         window.updateProductSummary();
@@ -5224,6 +5288,9 @@ document.addEventListener("click", async (e) => {
         if (tierEl) tierEl.value = s.tier;
         if (customInput && s.customMonthly !== null) {
           customInput.value = s.customMonthly;
+        }
+        if (enterpriseInput && s.enterpriseCredits !== null) {
+          enterpriseInput.value = s.enterpriseCredits;
         }
         updateTierVisibility();
         updateContentAutomationSummary();
@@ -5237,6 +5304,12 @@ document.addEventListener("click", async (e) => {
       if (customInput) {
         customInput.addEventListener('change', syncState);
         customInput.addEventListener('input', syncState);
+      }
+
+      // Wire up enterprise input events
+      if (enterpriseInput) {
+        enterpriseInput.addEventListener('change', syncState);
+        enterpriseInput.addEventListener('input', syncState);
       }
 
       // Initial state apply
@@ -8843,9 +8916,20 @@ window.buildConfigFromState = function buildConfigFromState() {
       priceOverride: window.toplineState.priceOverride || null
     } : undefined,
 
-    contentAutomationConfig: window.productState.selectedProducts.has('content_automation') ? {
-      tier: window.contentAutomationState.tier || 'xs'
-    } : undefined,
+    // Send the RESOLVED price, not just the tier label. Custom and Enterprise are
+    // rep-entered, so a label-only payload leaves the agent re-deriving a price from
+    // a constant that has no entry for them — Custom deals reached the agent as $0
+    // for exactly this reason. Sending the computed result closes that blind spot for
+    // any future tier that takes a rep-entered input.
+    contentAutomationConfig: window.productState.selectedProducts.has('content_automation') ? (() => {
+      const ca = calculateContentAutomationCosts();
+      return {
+        tier: window.contentAutomationState.tier || 'tier1',
+        credits: ca.credits || 0,
+        monthlyPrice: ca.monthlyBase || 0,   // pre-multiplier; deal-tools applies barter itself
+        costPerCredit: ca.costPerCredit || 0
+      };
+    })() : undefined,
 
     spotonConfig: window.productState.selectedProducts.has('spoton') ? {
       creditsPerMonth: window.spotonState.creditsPerMonth || 0
@@ -9057,7 +9141,7 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
   if (productValues.content_automation) {
     const ca = productValues.content_automation;
     const bd = ca.breakdown || {};
-    const tierName = bd.tierName || bd.tier || 'XS';
+    const tierName = bd.tierName || bd.tier || 'Tier 1';
     const credits = bd.credits || 0;
 
     lines.push(`<div class="subtle-divider"></div>`);
@@ -10139,11 +10223,10 @@ window.generateProposalLegacy = function generateProposalLegacy() {
     lines.push(`<tr><td style="padding:4px 8px;">Press Release → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">News Package (A/V) → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
-    lines.push(`<tr><td style="padding:4px 8px;">Press Conference → Notable Clips</td><td style="padding:4px 8px;">per source video</td><td style="padding:4px 8px; text-align:right;">10</td></tr>`);
-    lines.push(`<tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file, up to 60 min</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Apply Graphic Template to Video</td><td style="padding:4px 8px;">per output minute</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
-    lines.push(`<tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">5</td></tr>`);
-    lines.push(`<tr><td style="padding:4px 8px;">Newscast → Segment Slicing</td><td style="padding:4px 8px;">per 30 minute newscast</td><td style="padding:4px 8px; text-align:right;">15</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Broadcast → Clips</td><td style="padding:4px 8px;">per 30 min of source</td><td style="padding:4px 8px; text-align:right;">5</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute per format</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
     lines.push(`</tbody></table>`);
     lines.push(`</div>`);

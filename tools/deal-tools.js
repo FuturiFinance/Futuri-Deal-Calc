@@ -52,19 +52,36 @@
     tvHardCostsAnnual: 4800
   };
 
+  // Monthly dollars are the anchor; credits are derived from the intended rate and
+  // rounded UP to the next whole credit block. Rounding up keeps the effective rate
+  // at or just below the advertised costPerCredit (1,925 ÷ $2,500 = $1.2987 vs $1.30),
+  // so a customer dividing their invoice by their allotment never sees a rate HIGHER
+  // than the rate card states.
   const CONTENT_AUTOMATION_PRICING = {
     tiers: {
-      tier1:      { name: 'Tier 1',     credits: 1950,  monthly: 2500,  costPerCredit: 1.28 },
+      tier1:      { name: 'Tier 1',     credits: 1925,  monthly: 2500,  costPerCredit: 1.30 },
       tier2:      { name: 'Tier 2',     credits: 4000,  monthly: 5000,  costPerCredit: 1.25 },
-      tier3:      { name: 'Tier 3',     credits: 8750,  monthly: 10000, costPerCredit: 1.14 },
-      tier4:      { name: 'Tier 4',     credits: 13750, monthly: 15000, costPerCredit: 1.09 },
+      tier3:      { name: 'Tier 3',     credits: 8335,  monthly: 10000, costPerCredit: 1.20 },
+      tier4:      { name: 'Tier 4',     credits: 13045, monthly: 15000, costPerCredit: 1.15 },
       custom:     { name: 'Custom',     credits: 0,     monthly: 0,     costPerCredit: 1.50 },  // Rep enters $ amount, credits = $ ÷ 1.50
-      enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 0 }      // Contact for pricing
+      enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 1.05 }   // Rep enters credits, $ = credits × 1.05 (floored)
     },
-    customCostPerCredit: 1.50,  // For custom tier: $1.50/credit
-    maxCustomMonthly: 2500,     // Custom tier max (below Tier 1)
-    minEnterpriseMonthly: 15001 // Enterprise starts above Tier 4
+    customCostPerCredit: 1.50,      // For custom tier: $1.50/credit
+    maxCustomMonthly: 2500,         // Custom tier max (below Tier 1)
+    enterpriseCostPerCredit: 1.05,  // For enterprise tier: $1.05/credit, metered
+    enterpriseMinCredits: 8336      // Enterprise unlocks above Tier 3's allotment
   };
+
+  // Enterprise price floor: the monthly of the highest standard tier whose credit
+  // allotment the entered credits already cover. Prevents a metered enterprise deal
+  // from undercutting the tier it just grew out of (e.g. 13,500 × $1.05 = $14,175
+  // would otherwise land below Tier 4's $15,000).
+  function getEnterpriseFloor(credits) {
+    const t = CONTENT_AUTOMATION_PRICING.tiers;
+    return [t.tier1, t.tier2, t.tier3, t.tier4]
+      .filter(tier => tier.credits <= credits)
+      .reduce((floor, tier) => Math.max(floor, tier.monthly), 0);
+  }
 
   // SpotOn credit pricing
   // Credit value derived from clip-based cost model:
@@ -728,18 +745,63 @@
   function calculateContentAutomationPrice(extras, multiplier) {
     const tier = extras.tier || 'tier1';
 
-    // Handle enterprise tier (contact for pricing)
-    if (tier === 'enterprise') {
+    // The UI sends the already-resolved price (see buildConfigFromState in index.html).
+    // Trust it when present: Custom and Enterprise are rep-entered, so re-deriving them
+    // from the tier label alone yields $0. monthlyPrice is the pre-multiplier base, so
+    // the barter multiplier is applied here exactly as it is for a standard tier.
+    const resolvedPrice = Number(extras.monthlyPrice);
+    if (Number.isFinite(resolvedPrice) && resolvedPrice > 0) {
+      const tierData = CONTENT_AUTOMATION_PRICING.tiers[tier];
+      const monthlyCost = resolvedPrice * multiplier;
       return {
-        monthly: 0,
-        annual: 0,
+        monthly: monthlyCost,
+        annual: monthlyCost * 12,
+        breakdown: {
+          tier,
+          tierName: (tierData && tierData.name) || tier,
+          credits: Math.max(0, parseInt(extras.credits, 10) || 0),
+          costPerCredit: Number(extras.costPerCredit) || (tierData && tierData.costPerCredit) || 0,
+          isCustom: tier === 'custom',
+          isEnterprise: tier === 'enterprise'
+        }
+      };
+    }
+
+    // Handle enterprise tier (rep enters credits, priced metered with a tier floor)
+    if (tier === 'enterprise') {
+      const credits = Math.max(0, parseInt(extras.enterpriseCredits, 10) || 0);
+
+      // Below the unlock threshold there is no enterprise price — a standard tier
+      // covers it. Return the zeroed shape so the deal reads as "not yet priced"
+      // rather than silently pricing at the metered rate.
+      if (credits < CONTENT_AUTOMATION_PRICING.enterpriseMinCredits) {
+        return {
+          monthly: 0,
+          annual: 0,
+          breakdown: {
+            tier: 'enterprise',
+            tierName: 'Enterprise',
+            credits: credits,
+            costPerCredit: CONTENT_AUTOMATION_PRICING.enterpriseCostPerCredit,
+            isEnterprise: true,
+            message: `Enterprise requires at least ${CONTENT_AUTOMATION_PRICING.enterpriseMinCredits.toLocaleString()} credits/mo — use a standard tier below that.`
+          }
+        };
+      }
+
+      const metered = Math.round(credits * CONTENT_AUTOMATION_PRICING.enterpriseCostPerCredit);
+      const monthlyPrice = Math.max(metered, getEnterpriseFloor(credits));
+      const monthlyCost = monthlyPrice * multiplier;
+
+      return {
+        monthly: monthlyCost,
+        annual: monthlyCost * 12,
         breakdown: {
           tier: 'enterprise',
           tierName: 'Enterprise',
-          credits: 0,
-          costPerCredit: 0,
-          isEnterprise: true,
-          message: 'Contact for pricing'
+          credits: credits,
+          costPerCredit: CONTENT_AUTOMATION_PRICING.enterpriseCostPerCredit,
+          isEnterprise: true
         }
       };
     }

@@ -291,16 +291,39 @@ PRODUCT CATALOG
 - Extra accounts (5): $25/mo each
 
 ### Content Automation — Tiered Monthly
-| Tier | Credits/mo | Cost/mo |
-|------|-----------|---------|
-| XS | 5,000 | $6,500 |
-| Small | 10,000 | $12,000 |
-| Medium | 15,000 | $16,500 |
-| Large | 20,000 | $19,000 |
-| XL | 50,000 | $40,000 |
+Monthly dollars are the anchor; credit allotments are derived from the rate and rounded up.
 
-Workflow credits: Article=1, Newscast Slicing=15, Notable Clips=10, AI VO=5/min
-Direct tier recommendation: 100 articles + 30 newscasts = 550 credits → XS tier
+| Tier | Credits/mo | Cost/mo | Cost/credit |
+|------|-----------|---------|-------------|
+| Custom | rep-entered ÷ $1.50 | up to $2,500 | $1.50 |
+| Tier 1 | 1,925 | $2,500 | $1.30 |
+| Tier 2 | 4,000 | $5,000 | $1.25 |
+| Tier 3 | 8,335 | $10,000 | $1.20 |
+| Tier 4 | 13,045 | $15,000 | $1.15 |
+| Enterprise | rep-entered, 8,336+ | metered | $1.05 |
+
+**Custom** is for deals under $2,500/mo: the rep enters a dollar amount and credits = $ ÷ $1.50.
+
+**Enterprise** unlocks above Tier 3's allotment (8,336+ credits/mo). The rep enters credits
+directly and monthly = credits × $1.05, floored at the monthly of the highest tier whose
+allotment the credits already cover — so 8,336–13,045 credits never price below $10,000, and
+13,046+ never below $15,000. Examples: 10,833 credits → $11,375/mo; 13,500 credits → $15,000/mo
+(metered $14,175 raised to the floor); 20,000 credits → $21,000/mo.
+
+### Content Automation — Credit Usage by Workflow
+| Workflow | Unit | Credits |
+|----------|------|---------|
+| Press Release → Web Article | per article | 1 |
+| News Package (A/V) → Web Article | per article | 1 |
+| Press Conference → Web Article | per article | 2 |
+| Audio → Story Teases | per source file, up to 60 min | 2 |
+| Apply Graphic Template to Video | per output minute | 1 |
+| Script → AI VO + B-roll Package | per finished minute | 2 |
+| Broadcast → Clips | per 30 min of source | 5 |
+| Video Versioning (16:9 → 9:16 / 1:1) | per output minute per format | 1 |
+
+Direct tier recommendation: 100 articles + 20 hours of broadcast source
+= 100 + (40 × 5) = 300 credits → Custom ($450/mo at $1.50/credit)
 
 ### Per-Station Products
 | Product | Cash/mo | Barter/mo |
@@ -525,7 +548,15 @@ export const TOOL_DEFINITIONS = [
             },
             tier: {
               type: "string",
-              description: "For TopLine: 'access', 'enterprise', or 'both'. For Content Automation: 'xs', 'small', 'medium', 'large', 'xl'"
+              description: "For TopLine: 'access', 'enterprise', or 'both'. For Content Automation: 'tier1', 'tier2', 'tier3', 'tier4', 'custom' (pair with customMonthly), or 'enterprise' (pair with enterpriseCredits)"
+            },
+            customMonthly: {
+              type: "number",
+              description: "Monthly dollar amount for Content Automation 'custom' tier (max $2,500). Credits = amount ÷ $1.50."
+            },
+            enterpriseCredits: {
+              type: "number",
+              description: "Monthly credits for Content Automation 'enterprise' tier (min 8,336). Priced at $1.05/credit, floored at the monthly of the highest tier those credits already cover."
             },
             numberOfMarkets: {
               type: "number",
