@@ -226,6 +226,97 @@
     assertTrue(!!price.breakdown.message, 'Below-threshold enterprise explains why');
   });
 
+  test('calculateLiveStreamCapture: 1080p and 720p rates', () => {
+    const hd = DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: 11, resolution: '1080p', months: 12 }, 1);
+    assertEqual(hd.monthlyTotal, 13750, '11 streams @ 1080p = $13,750/mo');
+    assertEqual(hd.annualTotal, 165000, '11 streams @ 1080p annual run rate = $165,000');
+    assertEqual(hd.termTotal, 165000, '11 streams @ 1080p × 12 mo term = $165,000');
+
+    const sd = DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: 11, resolution: '720p', months: 12 }, 1);
+    assertEqual(sd.monthlyTotal, 11000, '11 streams @ 720p = $11,000/mo');
+    assertEqual(sd.termTotal, 132000, '11 streams @ 720p × 12 mo term = $132,000');
+  });
+
+  test('calculateLiveStreamCapture: term scales with the deal term', () => {
+    const mo = 13750;
+    [12, 24, 36, 48, 60].forEach(months => {
+      const c = DealTools.calculateLiveStreamCapture(
+        { enabled: true, streamCount: 11, resolution: '1080p', months }, 1);
+      assertEqual(c.monthlyTotal, mo, `${months}mo: monthly is term-independent`);
+      assertEqual(c.annualTotal, mo * 12, `${months}mo: annual run rate is always monthly × 12`);
+      assertEqual(c.termTotal, mo * months, `${months}mo: term total scales with the deal term`);
+    });
+
+    // An 18-month custom term is honored exactly.
+    const custom = DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: 11, resolution: '1080p', months: 18 }, 1);
+    assertEqual(custom.termTotal, 247500, '18mo custom term = $247,500');
+  });
+
+  test('calculateLiveStreamCapture: omitted term falls back to the 36mo deal default', () => {
+    const c = DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: 11, resolution: '1080p' }, 1);
+    assertEqual(c.months, 36, 'Defaults to the deal-term default of 36 months');
+    assertEqual(c.termTotal, 495000, '11 streams @ 1080p × 36 mo = $495,000');
+  });
+
+  test('calculateLiveStreamCapture: disabled or zero streams yields nothing', () => {
+    const off = DealTools.calculateLiveStreamCapture({ enabled: false, streamCount: 11, months: 12 }, 1);
+    assertEqual(off.monthlyTotal, 0, 'Disabled capture is $0');
+    const zero = DealTools.calculateLiveStreamCapture({ enabled: true, streamCount: 0, months: 12 }, 1);
+    assertEqual(zero.monthlyTotal, 0, 'Zero streams is $0');
+  });
+
+  test('calculateProductPrice: capture-only Content Automation deal is valid', () => {
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'none',
+      capture: { enabled: true, streamCount: 11, resolution: '1080p', months: 12 },
+      pricingType: 'cash'
+    });
+    assertEqual(price.monthly, 13750, 'Capture-only monthly = capture total');
+    assertEqual(price.annual, 165000, 'Capture-only annual = annual run rate');
+    assertEqual(price.breakdown.credits, 0, 'No credits on a capture-only deal');
+    assertEqual(price.breakdown.tierName, 'None', 'Tier is None, not a phantom Tier 1');
+    assertTrue(price.breakdown.hasCredits === false, 'hasCredits is false');
+    assertTrue(price.breakdown.contributesNothing === false, 'Capture alone still contributes');
+  });
+
+  test('calculateProductPrice: neither credits nor capture contributes nothing', () => {
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'none',
+      pricingType: 'cash'
+    });
+    assertEqual(price.monthly, 0, 'No credits and no capture = $0');
+    assertTrue(price.breakdown.contributesNothing === true, 'Flagged as contributing nothing');
+  });
+
+  test('calculateProductPrice: credits and capture combine', () => {
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'tier1',
+      capture: { enabled: true, streamCount: 11, resolution: '1080p', months: 12 },
+      pricingType: 'cash'
+    });
+    assertEqual(price.monthly, 16250, 'Tier 1 $2,500 + capture $13,750 = $16,250/mo');
+    assertEqual(price.breakdown.creditMonthly, 2500, 'Credit portion stays addressable');
+    assertEqual(price.breakdown.capture.monthlyTotal, 13750, 'Capture portion stays addressable');
+  });
+
+  test('calculateProductPrice: capture does not affect the Enterprise unlock', () => {
+    // Capture dollars are not credits; an 8,000-credit deal stays below the 8,336
+    // threshold no matter how much capture is attached.
+    const price = DealTools.calculateProductPrice('content_automation', {}, {
+      tier: 'enterprise',
+      enterpriseCredits: 8000,
+      capture: { enabled: true, streamCount: 50, resolution: '1080p', months: 12 },
+      pricingType: 'cash'
+    });
+    assertEqual(price.breakdown.creditMonthly, 0, 'Still below the Enterprise threshold');
+    assertTrue(!!price.breakdown.message, 'Still explains the threshold');
+    assertEqual(price.breakdown.capture.monthlyTotal, 62500, 'Capture still prices normally');
+  });
+
   test('calculateProductPrice: Content Automation trusts the resolved price from the UI', () => {
     // buildConfigFromState sends the already-resolved price. Custom deals used to
     // reach the agent as $0 because only the tier label was sent.

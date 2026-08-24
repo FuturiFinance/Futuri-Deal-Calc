@@ -1461,6 +1461,7 @@
             <div class="field" style="margin-bottom:12px;">
               <label for="contentAutomationTier">Select Tier</label>
               <select id="contentAutomationTier">
+                <option value="none">None — no credit tier</option>
                 <option value="custom">Custom (under $2,500/mo) — Enter amount below</option>
                 <option value="tier1" selected>Tier 1 — 1,925 credits/mo — $2,500/mo ($1.30/credit)</option>
                 <option value="tier2">Tier 2 — 4,000 credits/mo — $5,000/mo ($1.25/credit)</option>
@@ -1494,6 +1495,41 @@
               </div>
             </div>
 
+            <!-- Live Stream Capture (per-stream monthly subscription, not credits) -->
+            <div style="margin-bottom:16px; padding:12px; background:rgba(103,36,119,.06); border-radius:8px;">
+              <label style="display:flex; align-items:center; gap:8px; font-weight:600; cursor:pointer;">
+                <input type="checkbox" id="caCaptureEnabled">
+                <span>Live Stream Capture</span>
+              </label>
+              <div class="muted" style="font-size:11px; margin-top:6px;">
+                Always-on recording, transcription, and segmentation of a live stream. Billed monthly per configured stream whether or not clips are pulled. Clip and versioning credits are billed separately.
+              </div>
+
+              <div id="caCaptureFields" class="hidden" style="margin-top:12px;">
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                  <div class="field">
+                    <label for="caCaptureStreams">Number of streams</label>
+                    <input type="number" id="caCaptureStreams" min="1" step="1" placeholder="e.g. 11">
+                    <div class="muted" style="font-size:11px; margin-top:4px;">A station with an HD subchannel is two streams.</div>
+                  </div>
+                  <div class="field">
+                    <label for="caCaptureResolution">Capture resolution</label>
+                    <select id="caCaptureResolution">
+                      <option value="1080p">1080p</option>
+                      <option value="720p">720p</option>
+                    </select>
+                    <div class="muted" style="font-size:11px; margin-top:4px;"><span id="caCaptureRate">$1,250</span>/stream/mo</div>
+                  </div>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; font-size:13px;">
+                  <div><strong>Capture Monthly:</strong> <span id="caCaptureMonthly">$0</span></div>
+                  <div><strong>Capture Annual:</strong> <span id="caCaptureAnnual">$0</span></div>
+                  <div><strong>Term Total <span id="caCaptureTermLabel" class="muted" style="font-weight:400;">(36 mo)</span>:</strong> <span id="caCaptureTerm">$0</span></div>
+                </div>
+                <div class="muted" style="font-size:11px; margin-top:6px;">Capture is billed for the full deal term. Change it under Deal Terms.</div>
+              </div>
+            </div>
+
             <!-- Credit Usage Reference Table -->
             <div style="margin-top:12px;">
               <div style="font-weight:600; margin-bottom:8px; color:var(--muted);">Credit Usage by Workflow (Reference)</div>
@@ -1509,12 +1545,12 @@
                   <tbody>
                     <tr><td style="padding:4px 8px;">Press Release → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
                     <tr><td style="padding:4px 8px;">News Package (A/V) → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
-                    <tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
+                    <tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article, source up to 60 min</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
                     <tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file, up to 60 min</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
                     <tr><td style="padding:4px 8px;">Apply Graphic Template to Video</td><td style="padding:4px 8px;">per output minute</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
                     <tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">2</td></tr>
                     <tr><td style="padding:4px 8px;">Broadcast → Clips</td><td style="padding:4px 8px;">per 30 min of source</td><td style="padding:4px 8px; text-align:right;">5</td></tr>
-                    <tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute per format</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
+                    <tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute, any number of formats</td><td style="padding:4px 8px; text-align:right;">1</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -2897,7 +2933,11 @@ function loadDeal(payload){
     if (typeof window.applyTopLineStateToUI === "function") window.applyTopLineStateToUI();
   }, 0);
 
-  // Restore Content Automation configuration
+  // Restore Content Automation configuration.
+  // Reset to defaults FIRST. Object.assign alone only overwrites keys the payload
+  // carries, so a deal saved without (say) enterpriseCredits or the capture fields
+  // would silently inherit the previously loaded deal's values.
+  Object.assign(window.contentAutomationState, contentAutomationDefaults());
   if (payload.contentAutomationConfig && typeof payload.contentAutomationConfig === "object") {
     Object.assign(window.contentAutomationState, payload.contentAutomationConfig);
   }
@@ -4734,12 +4774,22 @@ document.addEventListener("click", async (e) => {
     /**********************
      * Content Automation Configuration State
      **********************/
-    window.contentAutomationState = {
-      enabled: false,
-      tier: 'tier1',           // 'tier1', 'tier2', 'tier3', 'tier4', 'custom', 'enterprise'
-      customMonthly: null,     // Dollar amount for custom tier
-      enterpriseCredits: null  // Credits/mo for enterprise tier (metered)
-    };
+    // Defaults live in one place so loadDeal can reset before applying a saved payload.
+    // Object.assign alone leaves keys absent from the payload holding the PREVIOUS
+    // deal's values — see restoreContentAutomationDefaults() in loadDeal.
+    function contentAutomationDefaults() {
+      return {
+        enabled: false,
+        tier: 'tier1',            // 'none' | 'tier1'..'tier4' | 'custom' | 'enterprise'
+        customMonthly: null,      // Dollar amount for custom tier
+        enterpriseCredits: null,  // Credits/mo for enterprise tier (metered)
+        captureEnabled: false,    // Live Stream Capture (per-stream monthly subscription)
+        captureStreams: null,     // Number of streams (NOT station count)
+        captureResolution: '1080p'
+        // No capture-specific term: it always follows dealMetaState.termMonths.
+      };
+    }
+    window.contentAutomationState = contentAutomationDefaults();
 
     // Content Automation pricing constants (dollar-keyed tiers)
     // Monthly dollars are the anchor; credits are derived from the intended rate and
@@ -4755,13 +4805,19 @@ document.addEventListener("click", async (e) => {
         tier3:      { name: 'Tier 3',     credits: 8335,  monthly: 10000, costPerCredit: 1.20 },
         tier4:      { name: 'Tier 4',     credits: 13045, monthly: 15000, costPerCredit: 1.15 },
         custom:     { name: 'Custom',     credits: 0,     monthly: 0,     costPerCredit: 1.50 },  // Rep enters $ amount
-        enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 1.05 }   // Rep enters credits, metered
+        enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 1.05 },  // Rep enters credits, metered
+        none:       { name: 'None',       credits: 0,     monthly: 0,     costPerCredit: 0 }      // Capture-only deal
       },
       customCostPerCredit: 1.50,      // For custom tier: $1.50/credit
       maxCustomMonthly: 2500,         // Custom tier max (below Tier 1)
       enterpriseCostPerCredit: 1.05,  // For enterprise tier: $1.05/credit, metered
       enterpriseMinCredits: 8336      // Enterprise unlocks above Tier 3's allotment
     };
+
+    // Live Stream Capture pricing is NOT mirrored here. tools/deal-tools.js (loaded at
+    // the top of this file) is the single source of truth; we reference it so the
+    // numbers exist exactly once in the browser bundle.
+    const LIVE_STREAM_CAPTURE = DealTools.LIVE_STREAM_CAPTURE;
 
     // Enterprise price floor: the monthly of the highest standard tier whose credit
     // allotment the entered credits already cover. Prevents a metered enterprise deal
@@ -5113,7 +5169,55 @@ document.addEventListener("click", async (e) => {
     /**********************
      * Content Automation Configuration Functions
      **********************/
+    // Live Stream Capture, resolved from UI state. Delegates to deal-tools so the
+    // pricing lives in exactly one place.
+    function calculateCaptureCosts() {
+      const s = window.contentAutomationState;
+      const multiplier = (window.productState.pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+      return DealTools.calculateLiveStreamCapture({
+        enabled: s.captureEnabled,
+        streamCount: s.captureStreams,
+        resolution: s.captureResolution,
+        // Always the deal term — never a capture-specific value.
+        months: (window.dealMetaState && window.dealMetaState.termMonths) || LIVE_STREAM_CAPTURE.defaultTermMonths
+      }, multiplier);
+    }
+
+    // Content Automation = credits + capture. Either, both, or neither.
+    // monthlyCost/annualCost are the COMBINED totals so product roll-ups pick capture
+    // up automatically; credit-only and capture-only figures stay separately addressable
+    // because the proposal renders two lines and Financial Allocation allocates them
+    // differently (credits account-level, capture split across stations).
     function calculateContentAutomationCosts() {
+      const credit = calculateContentAutomationCreditCosts();
+      const capture = calculateCaptureCosts();
+
+      if (!credit.enabled) {
+        return Object.assign({}, credit, {
+          capture,
+          creditMonthlyCost: 0, creditAnnualCost: 0,
+          hasCredits: false, contributesNothing: true
+        });
+      }
+
+      const hasCredits = credit.monthlyCost > 0;
+      return Object.assign({}, credit, {
+        capture,
+        creditMonthlyBase: credit.monthlyBase,
+        creditMonthlyCost: credit.monthlyCost,
+        creditAnnualCost: credit.annualCost,
+        hasCredits,
+        // Neither credits nor capture: render no line item at all.
+        contributesNothing: !hasCredits && !capture.enabled,
+        monthlyBase: credit.monthlyBase + capture.monthlyBase,
+        monthlyCost: credit.monthlyCost + capture.monthlyTotal,
+        // Annual run rate, comparable to every other annual figure. The full contract
+        // value over the deal term is capture.termTotal.
+        annualCost: credit.annualCost + capture.annualTotal
+      });
+    }
+
+    function calculateContentAutomationCreditCosts() {
       const s = window.contentAutomationState;
       const pricing = CONTENT_AUTOMATION_PRICING;
       const pricingType = window.productState.pricingType;
@@ -5124,6 +5228,20 @@ document.addEventListener("click", async (e) => {
       // multiplier itself) must use monthlyBase or the 1.4x lands twice.
       if (!s.enabled) {
         return { enabled: false, tier: null, credits: 0, monthlyBase: 0, monthlyCost: 0, annualCost: 0, costPerCredit: 0 };
+      }
+
+      // Capture-only deal: no credit tier selected.
+      if (s.tier === 'none') {
+        return {
+          enabled: true,
+          tier: 'none',
+          tierName: 'None',
+          credits: 0,
+          monthlyBase: 0,
+          monthlyCost: 0,
+          annualCost: 0,
+          costPerCredit: 0
+        };
       }
 
       // Handle enterprise tier (rep enters credits, priced metered with a tier floor)
@@ -5226,11 +5344,33 @@ document.addEventListener("click", async (e) => {
             warnEl.textContent = `⚠ Under ${pricing.enterpriseMinCredits.toLocaleString()} credits — use Tier 3 ($${pricing.tiers.tier3.monthly.toLocaleString()}/mo) instead.`;
           }
         }
+      } else if (tier === 'none') {
+        // Capture-only: no credit tier, so no credit figures to show.
+        if (creditsEl) creditsEl.textContent = '—';
+        if (monthlyEl) monthlyEl.textContent = '—';
+        if (costPerCreditEl) costPerCreditEl.textContent = '—';
       } else {
         if (creditsEl) creditsEl.textContent = tierData.credits.toLocaleString();
         if (monthlyEl) monthlyEl.textContent = '$' + tierData.monthly.toLocaleString();
         if (costPerCreditEl) costPerCreditEl.textContent = '$' + tierData.costPerCredit.toFixed(2);
       }
+
+      // Live Stream Capture summary
+      const cap = costs.capture || { monthlyTotal: 0, annualTotal: 0, termTotal: 0, ratePerStream: 0 };
+      const rateEl = el('caCaptureRate');
+      const capMonthlyEl = el('caCaptureMonthly');
+      const capAnnualEl = el('caCaptureAnnual');
+      const capTermEl = el('caCaptureTerm');
+      const capTermLabelEl = el('caCaptureTermLabel');
+      const resolution = LIVE_STREAM_CAPTURE.price[state.captureResolution]
+        ? state.captureResolution
+        : LIVE_STREAM_CAPTURE.defaultResolution;
+      const dealTermMonths = (window.dealMetaState && window.dealMetaState.termMonths) || LIVE_STREAM_CAPTURE.defaultTermMonths;
+      if (rateEl) rateEl.textContent = '$' + LIVE_STREAM_CAPTURE.price[resolution].toLocaleString();
+      if (capMonthlyEl) capMonthlyEl.textContent = '$' + Math.round(cap.monthlyTotal).toLocaleString();
+      if (capAnnualEl) capAnnualEl.textContent = '$' + Math.round(cap.annualTotal).toLocaleString();
+      if (capTermEl) capTermEl.textContent = '$' + Math.round(cap.termTotal).toLocaleString();
+      if (capTermLabelEl) capTermLabelEl.textContent = `(${dealTermMonths} mo)`;
 
       // Update cost summary
       const monthlyCostEl = el('caMonthlyCost');
@@ -5246,6 +5386,10 @@ document.addEventListener("click", async (e) => {
       const customInput = el('caCustomMonthly');
       const enterpriseSection = el('caEnterpriseSection');
       const enterpriseInput = el('caEnterpriseCredits');
+      const captureCheckbox = el('caCaptureEnabled');
+      const captureFields = el('caCaptureFields');
+      const captureStreams = el('caCaptureStreams');
+      const captureResolution = el('caCaptureResolution');
 
       if (!tierEl) return;
 
@@ -5254,6 +5398,7 @@ document.addEventListener("click", async (e) => {
         const tier = tierEl.value;
         if (customSection) customSection.classList.toggle('hidden', tier !== 'custom');
         if (enterpriseSection) enterpriseSection.classList.toggle('hidden', tier !== 'enterprise');
+        if (captureFields) captureFields.classList.toggle('hidden', !(captureCheckbox && captureCheckbox.checked));
       };
 
       const syncState = () => {
@@ -5278,6 +5423,14 @@ document.addEventListener("click", async (e) => {
           s.enterpriseCredits = null;
         }
 
+        // Live Stream Capture. Independent of the credit tier — never derived from
+        // station count, since a station with an HD subchannel is two streams.
+        s.captureEnabled = !!(captureCheckbox && captureCheckbox.checked);
+        if (s.captureEnabled) {
+          if (captureStreams) s.captureStreams = Math.max(0, parseInt(captureStreams.value, 10) || 0);
+          if (captureResolution) s.captureResolution = captureResolution.value || LIVE_STREAM_CAPTURE.defaultResolution;
+        }
+
         updateTierVisibility();
         updateContentAutomationSummary();
         window.updateProductSummary();
@@ -5292,6 +5445,10 @@ document.addEventListener("click", async (e) => {
         if (enterpriseInput && s.enterpriseCredits !== null) {
           enterpriseInput.value = s.enterpriseCredits;
         }
+        // Capture fields — restored on deal load, so a saved capture config reappears.
+        if (captureCheckbox) captureCheckbox.checked = !!s.captureEnabled;
+        if (captureStreams && s.captureStreams !== null) captureStreams.value = s.captureStreams;
+        if (captureResolution) captureResolution.value = s.captureResolution || LIVE_STREAM_CAPTURE.defaultResolution;
         updateTierVisibility();
         updateContentAutomationSummary();
       };
@@ -5311,6 +5468,13 @@ document.addEventListener("click", async (e) => {
         enterpriseInput.addEventListener('change', syncState);
         enterpriseInput.addEventListener('input', syncState);
       }
+
+      // Wire up Live Stream Capture events
+      [captureCheckbox, captureStreams, captureResolution].forEach(node => {
+        if (!node) return;
+        node.addEventListener('change', syncState);
+        node.addEventListener('input', syncState);
+      });
 
       // Initial state apply
       applyStateToUI();
@@ -8923,11 +9087,20 @@ window.buildConfigFromState = function buildConfigFromState() {
     // any future tier that takes a rep-entered input.
     contentAutomationConfig: window.productState.selectedProducts.has('content_automation') ? (() => {
       const ca = calculateContentAutomationCosts();
+      const cap = ca.capture || {};
       return {
         tier: window.contentAutomationState.tier || 'tier1',
         credits: ca.credits || 0,
-        monthlyPrice: ca.monthlyBase || 0,   // pre-multiplier; deal-tools applies barter itself
-        costPerCredit: ca.costPerCredit || 0
+        monthlyPrice: ca.creditMonthlyBase || 0,  // credits only, pre-multiplier; deal-tools applies barter itself
+        costPerCredit: ca.costPerCredit || 0,
+        // Live Stream Capture — resolved values, not just flags, for the same reason.
+        captureEnabled: !!cap.enabled,
+        streamCount: cap.streamCount || 0,
+        resolution: cap.resolution || LIVE_STREAM_CAPTURE.defaultResolution,
+        months: cap.months || 0,          // the DEAL term, not a capture-specific value
+        monthlyTotal: cap.monthlyTotal || 0,
+        annualTotal: cap.annualTotal || 0,
+        termTotal: cap.termTotal || 0
       };
     })() : undefined,
 
@@ -9138,17 +9311,26 @@ window.renderProposalFromDeal = function renderProposalFromDeal(deal) {
   }
 
   // --- Content Automation (per-station breakdown) ---
-  if (productValues.content_automation) {
+  // contributesNothing = neither a credit tier nor capture; render no line item at all.
+  if (productValues.content_automation && !(productValues.content_automation.breakdown || {}).contributesNothing) {
     const ca = productValues.content_automation;
     const bd = ca.breakdown || {};
     const tierName = bd.tierName || bd.tier || 'Tier 1';
     const credits = bd.credits || 0;
+    const cap = bd.capture || { enabled: false };
 
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">Content Automation</div>`);
     lines.push(`<div class="row" style="gap:8px; margin-bottom:8px;">`);
-    lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Tier: ${tierName}</span>`);
-    lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${credits.toLocaleString()} credits/mo</span>`);
+    if (bd.hasCredits) {
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Tier: ${tierName}</span>`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${credits.toLocaleString()} credits/mo</span>`);
+    }
+    if (cap.enabled) {
+      // Capture config only — never the internal cost or margin, which are customer-facing forbidden.
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">Live Stream Capture: ${cap.streamCount} stream${cap.streamCount === 1 ? '' : 's'} @ ${cap.resolution}</span>`);
+      lines.push(`<span class="badge" style="background:rgba(103,36,119,.1);">${cap.months} mo term · ${money(cap.termTotal)} total</span>`);
+    }
     lines.push(`</div>`);
 
     // Distribute across stations
@@ -10183,9 +10365,12 @@ window.generateProposalLegacy = function generateProposalLegacy() {
     lines.push(`</div>`);
   }
 
-  // Content Automation section if selected and enabled
-  if (contentAutomationSelected && contentAutomationCosts && contentAutomationCosts.enabled) {
+  // Content Automation section if selected and enabled.
+  // contributesNothing means neither credits nor capture — render no line item at all.
+  if (contentAutomationSelected && contentAutomationCosts && contentAutomationCosts.enabled
+      && !contentAutomationCosts.contributesNothing) {
     const ca = contentAutomationCosts;
+    const cap = ca.capture || { enabled: false };
 
     lines.push(`<div class="subtle-divider"></div>`);
     lines.push(`<div class="title" style="margin-bottom:6px;">Content Automation</div>`);
@@ -10198,14 +10383,27 @@ window.generateProposalLegacy = function generateProposalLegacy() {
       <th style="text-align:right; padding:8px; border-bottom:1px solid var(--edge);">Annual</th>
     </tr></thead><tbody>`);
 
-    lines.push(`<tr>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
-        <strong>Content Automation — ${ca.tierName}</strong><br>
-        <span style="font-size:11px;color:var(--muted);">${ca.credits.toLocaleString()} credits/mo @ $${ca.costPerCredit.toFixed(2)}/credit</span>
-      </td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.monthlyCost)}</strong></td>
-      <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.annualCost)}</strong></td>
-    </tr>`);
+    if (ca.hasCredits) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+          <strong>Content Automation — ${ca.tierName}</strong><br>
+          <span style="font-size:11px;color:var(--muted);">${ca.credits.toLocaleString()} credits/mo @ $${ca.costPerCredit.toFixed(2)}/credit</span>
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.creditMonthlyCost)}</strong></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(ca.creditAnnualCost)}</strong></td>
+      </tr>`);
+    }
+
+    if (cap.enabled) {
+      lines.push(`<tr>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">
+          <strong>Live Stream Capture</strong><br>
+          <span style="font-size:11px;color:var(--muted);">${cap.streamCount} stream${cap.streamCount === 1 ? '' : 's'} @ ${cap.resolution} · ${cap.months} mo term · ${money(cap.termTotal)} total</span>
+        </td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(cap.monthlyTotal)}</strong></td>
+        <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35); text-align:right;"><strong>${money(cap.annualTotal)}</strong></td>
+      </tr>`);
+    }
 
     lines.push(`</tbody></table>`);
     lines.push(`</div>`);
@@ -10222,12 +10420,12 @@ window.generateProposalLegacy = function generateProposalLegacy() {
     </tr></thead><tbody>`);
     lines.push(`<tr><td style="padding:4px 8px;">Press Release → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">News Package (A/V) → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
-    lines.push(`<tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Press Conference → Web Article</td><td style="padding:4px 8px;">per article, source up to 60 min</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Audio → Story Teases</td><td style="padding:4px 8px;">per source file, up to 60 min</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Apply Graphic Template to Video</td><td style="padding:4px 8px;">per output minute</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Script → AI VO + B-roll Package</td><td style="padding:4px 8px;">per finished minute</td><td style="padding:4px 8px; text-align:right;">2</td></tr>`);
     lines.push(`<tr><td style="padding:4px 8px;">Broadcast → Clips</td><td style="padding:4px 8px;">per 30 min of source</td><td style="padding:4px 8px; text-align:right;">5</td></tr>`);
-    lines.push(`<tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute per format</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
+    lines.push(`<tr><td style="padding:4px 8px;">Video Versioning (16:9 → 9:16 / 1:1)</td><td style="padding:4px 8px;">per output minute, any number of formats</td><td style="padding:4px 8px; text-align:right;">1</td></tr>`);
     lines.push(`</tbody></table>`);
     lines.push(`</div>`);
     lines.push(`</div>`);
@@ -10724,28 +10922,95 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
   if (window.productState.selectedProducts.has('content_automation')) {
     const costs = calculateContentAutomationCosts();
-    if (costs.enabled) {
-      totalCashAnnual += costs.annualCost;
-      totalListPrice += costs.annualCost;
-      specialProducts.push({
-        station: '— Account Level —',
-        market: '—',
-        product: `Content Automation (${costs.tierName})`,
-        productId: 'content_automation',
-        format: '—',
-        simulcast: '—',
-        hd: '—',
-        primeAQH: 0,
-        rosAQH: 0,
-        cashMonthly: costs.monthlyCost,
-        cashAnnual: costs.annualCost,
-        revenueAllocated: costs.annualCost,
-        barterValue: 0,
-        primeMinutes: 0,
-        rosMinutes: 0,
-        stationType: 'Cash',
-        listPriceAnnual: costs.annualCost
-      });
+    // contributesNothing = no credit tier AND no capture; contribute no rows at all.
+    if (costs.enabled && !costs.contributesNothing) {
+      const cap = costs.capture || { enabled: false };
+
+      // Credit tier stays an account-level line, as it has always been.
+      if (costs.hasCredits) {
+        totalCashAnnual += costs.creditAnnualCost;
+        totalListPrice += costs.creditAnnualCost;
+        specialProducts.push({
+          station: '— Account Level —',
+          market: '—',
+          product: `Content Automation (${costs.tierName})`,
+          productId: 'content_automation',
+          format: '—',
+          simulcast: '—',
+          hd: '—',
+          primeAQH: 0,
+          rosAQH: 0,
+          cashMonthly: costs.creditMonthlyCost,
+          cashAnnual: costs.creditAnnualCost,
+          revenueAllocated: costs.creditAnnualCost,
+          barterValue: 0,
+          primeMinutes: 0,
+          rosMinutes: 0,
+          stationType: 'Cash',
+          listPriceAnnual: costs.creditAnnualCost
+        });
+      }
+
+      // Live Stream Capture spreads across the STATIONS carrying Content Automation —
+      // never across stream count, which differs when a station has an HD subchannel.
+      // Same equal-split rule TopLine uses.
+      if (cap.enabled) {
+        const caStations = getSelectedStationsDetailed();
+        const stationCount = caStations.length;
+        // Cash/Yr is an annual column, so capture contributes its annual run rate here —
+        // consistent with every other line. Full contract value is cap.termTotal.
+        totalCashAnnual += cap.annualTotal;
+        totalListPrice += cap.annualTotal;
+
+        const perStationRevenue = stationCount > 0 ? (cap.annualTotal / stationCount) : cap.annualTotal;
+        const perStationMonthly = stationCount > 0 ? (cap.monthlyTotal / stationCount) : cap.monthlyTotal;
+        const captureLabel = `Live Stream Capture (${cap.streamCount} × ${cap.resolution}, ${cap.months} mo term)`;
+
+        if (stationCount > 0) {
+          caStations.forEach(st => {
+            specialProducts.push({
+              station: st.station,
+              market: st.market || '—',
+              product: captureLabel,
+              productId: 'content_automation_capture',
+              format: st.format || '—',
+              simulcast: st.simulcast || '—',
+              hd: st.hd ? 'Yes' : 'No',
+              primeAQH: 0,
+              rosAQH: 0,
+              cashMonthly: perStationMonthly,
+              cashAnnual: perStationRevenue,
+              revenueAllocated: perStationRevenue,
+              barterValue: 0,
+              primeMinutes: 0,
+              rosMinutes: 0,
+              stationType: 'Cash',
+              listPriceAnnual: perStationRevenue
+            });
+          });
+        } else {
+          // Agency deal: no stations to spread across, so it stays account-level.
+          specialProducts.push({
+            station: '— Account Level —',
+            market: '—',
+            product: captureLabel,
+            productId: 'content_automation_capture',
+            format: '—',
+            simulcast: '—',
+            hd: '—',
+            primeAQH: 0,
+            rosAQH: 0,
+            cashMonthly: cap.monthlyTotal,
+            cashAnnual: cap.annualTotal,
+            revenueAllocated: cap.annualTotal,
+            barterValue: 0,
+            primeMinutes: 0,
+            rosMinutes: 0,
+            stationType: 'Cash',
+            listPriceAnnual: cap.annualTotal
+          });
+        }
+      }
     }
   }
 
