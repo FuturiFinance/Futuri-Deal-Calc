@@ -64,7 +64,8 @@
       tier3:      { name: 'Tier 3',     credits: 8335,  monthly: 10000, costPerCredit: 1.20 },
       tier4:      { name: 'Tier 4',     credits: 13045, monthly: 15000, costPerCredit: 1.15 },
       custom:     { name: 'Custom',     credits: 0,     monthly: 0,     costPerCredit: 1.50 },  // Rep enters $ amount, credits = $ ÷ 1.50
-      enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 1.05 }   // Rep enters credits, $ = credits × 1.05 (floored)
+      enterprise: { name: 'Enterprise', credits: 0,     monthly: 0,     costPerCredit: 1.05 },  // Rep enters credits, $ = credits × 1.05 (floored)
+      none:       { name: 'None',       credits: 0,     monthly: 0,     costPerCredit: 0 }      // Capture-only deal: no credit tier
     },
     customCostPerCredit: 1.50,      // For custom tier: $1.50/credit
     maxCustomMonthly: 2500,         // Custom tier max (below Tier 1)
@@ -81,6 +82,66 @@
     return [t.tier1, t.tier2, t.tier3, t.tier4]
       .filter(tier => tier.credits <= credits)
       .reduce((floor, tier) => Math.max(floor, tier.monthly), 0);
+  }
+
+  // Live Stream Capture — a per-stream, per-month subscription inside Content
+  // Automation. NOT credits: capture dollars never convert to credits, never draw
+  // from the credit pool, and never count toward the Enterprise unlock (which is
+  // credit-volume based). A deal may have credits, capture, both, or neither.
+  //
+  // SINGLE SOURCE OF TRUTH. index.html references this via DealTools.LIVE_STREAM_CAPTURE
+  // rather than restating the numbers. api/agent/system-prompt.mjs carries a prose copy
+  // for the agent, which is a MANUAL MIRROR and will drift if these prices change.
+  const LIVE_STREAM_CAPTURE = {
+    price: { '1080p': 1250, '720p': 1000 },       // per stream per month, customer-facing
+    cost:  { '1080p': 490.75, '720p': 380.75 },   // per stream per month, INTERNAL ONLY — never render customer-facing
+    defaultResolution: '1080p',
+    defaultTermMonths: 36                         // matches dealMetaState.termMonths default
+  };
+
+  // Resolve a capture configuration into dollars. `multiplier` is the barter
+  // multiplier, applied to revenue exactly as it is for every other line item.
+  // Internal cost is deliberately NOT multiplied — it is a real cost, not deal value.
+  //
+  // `months` is the DEAL term (dealMetaState.termMonths), never a capture-specific
+  // field. An independent capture term is a silent mismatch waiting to happen: a rep
+  // sets a 24-month deal, leaves capture at 12, and the calculator prices half the
+  // capture the customer thinks they are buying — with no error and no warning.
+  function calculateLiveStreamCapture(capture, multiplier) {
+    const enabled = !!(capture && capture.enabled);
+    const streamCount = Math.max(0, parseInt(capture && capture.streamCount, 10) || 0);
+    const resolution = (capture && LIVE_STREAM_CAPTURE.price[capture.resolution])
+      ? capture.resolution
+      : LIVE_STREAM_CAPTURE.defaultResolution;
+    const months = Math.max(0, parseInt(capture && capture.months, 10) || LIVE_STREAM_CAPTURE.defaultTermMonths);
+
+    if (!enabled || streamCount <= 0 || months <= 0) {
+      return {
+        enabled: false, streamCount: 0, resolution, months: 0,
+        ratePerStream: LIVE_STREAM_CAPTURE.price[resolution],
+        monthlyBase: 0, monthlyTotal: 0, annualTotal: 0, termTotal: 0,
+        monthlyCost: 0, termCost: 0, marginPct: 0
+      };
+    }
+
+    const ratePerStream = LIVE_STREAM_CAPTURE.price[resolution];
+    const monthlyBase = streamCount * ratePerStream;
+    const monthlyTotal = monthlyBase * multiplier;
+    // annualTotal is the yearly run rate — what belongs in any "/Yr" column, so it is
+    // directly comparable to every other annual figure. termTotal is the full contract
+    // value over the deal term and is shown as its own labelled figure.
+    const annualTotal = monthlyTotal * 12;
+    const termTotal = monthlyTotal * months;
+
+    const monthlyCost = streamCount * LIVE_STREAM_CAPTURE.cost[resolution];
+    const termCost = monthlyCost * months;
+    const marginPct = termTotal > 0 ? ((termTotal - termCost) / termTotal) * 100 : 0;
+
+    return {
+      enabled: true, streamCount, resolution, months, ratePerStream,
+      monthlyBase, monthlyTotal, annualTotal, termTotal,
+      monthlyCost, termCost, marginPct
+    };
   }
 
   // SpotOn credit pricing
@@ -742,8 +803,55 @@
     };
   }
 
+  // Combine the credit-tier result with the capture result into one Content Automation
+  // total. Credits and capture stay separately addressable on the breakdown because the
+  // proposal renders them as two lines and Financial Allocation allocates them
+  // differently (credits account-level, capture split across stations).
+  function withCapture(creditResult, capture) {
+    const hasCredits = creditResult.breakdown.hasCredits !== false && creditResult.monthly > 0;
+    return {
+      monthly: creditResult.monthly + capture.monthlyTotal,
+      // Annual run rate, so this stays comparable to every other annual figure.
+      // Capture's full contract value over the deal term is breakdown.capture.termTotal.
+      annual: creditResult.annual + capture.annualTotal,
+      breakdown: Object.assign({}, creditResult.breakdown, {
+        hasCredits,
+        creditMonthly: creditResult.monthly,
+        creditAnnual: creditResult.annual,
+        capture,
+        // Neither credits nor capture: Content Automation contributes nothing and
+        // callers should render no line item at all.
+        contributesNothing: !hasCredits && !capture.enabled
+      })
+    };
+  }
+
   function calculateContentAutomationPrice(extras, multiplier) {
     const tier = extras.tier || 'tier1';
+
+    // Live Stream Capture is independent of the credit tier — resolve it first so it
+    // survives every credit branch below, including 'none' and unpriced Enterprise.
+    const capture = calculateLiveStreamCapture(extras.capture || {
+      enabled: extras.captureEnabled,
+      streamCount: extras.streamCount,
+      resolution: extras.resolution,
+      months: extras.months
+    }, multiplier);
+
+    // Capture-only deal: no credit tier selected. Valid as long as capture carries it.
+    if (tier === 'none') {
+      return withCapture({
+        monthly: 0,
+        annual: 0,
+        breakdown: {
+          tier: 'none',
+          tierName: 'None',
+          credits: 0,
+          costPerCredit: 0,
+          hasCredits: false
+        }
+      }, capture);
+    }
 
     // The UI sends the already-resolved price (see buildConfigFromState in index.html).
     // Trust it when present: Custom and Enterprise are rep-entered, so re-deriving them
@@ -753,7 +861,7 @@
     if (Number.isFinite(resolvedPrice) && resolvedPrice > 0) {
       const tierData = CONTENT_AUTOMATION_PRICING.tiers[tier];
       const monthlyCost = resolvedPrice * multiplier;
-      return {
+      return withCapture({
         monthly: monthlyCost,
         annual: monthlyCost * 12,
         breakdown: {
@@ -764,7 +872,7 @@
           isCustom: tier === 'custom',
           isEnterprise: tier === 'enterprise'
         }
-      };
+      }, capture);
     }
 
     // Handle enterprise tier (rep enters credits, priced metered with a tier floor)
@@ -775,7 +883,7 @@
       // covers it. Return the zeroed shape so the deal reads as "not yet priced"
       // rather than silently pricing at the metered rate.
       if (credits < CONTENT_AUTOMATION_PRICING.enterpriseMinCredits) {
-        return {
+        return withCapture({
           monthly: 0,
           annual: 0,
           breakdown: {
@@ -786,14 +894,14 @@
             isEnterprise: true,
             message: `Enterprise requires at least ${CONTENT_AUTOMATION_PRICING.enterpriseMinCredits.toLocaleString()} credits/mo — use a standard tier below that.`
           }
-        };
+        }, capture);
       }
 
       const metered = Math.round(credits * CONTENT_AUTOMATION_PRICING.enterpriseCostPerCredit);
       const monthlyPrice = Math.max(metered, getEnterpriseFloor(credits));
       const monthlyCost = monthlyPrice * multiplier;
 
-      return {
+      return withCapture({
         monthly: monthlyCost,
         annual: monthlyCost * 12,
         breakdown: {
@@ -803,7 +911,7 @@
           costPerCredit: CONTENT_AUTOMATION_PRICING.enterpriseCostPerCredit,
           isEnterprise: true
         }
-      };
+      }, capture);
     }
 
     // Handle custom tier (rep enters dollar amount)
@@ -812,7 +920,7 @@
       const credits = Math.round(customMonthly / CONTENT_AUTOMATION_PRICING.customCostPerCredit);
       const monthlyCost = customMonthly * multiplier;
 
-      return {
+      return withCapture({
         monthly: monthlyCost,
         annual: monthlyCost * 12,
         breakdown: {
@@ -822,14 +930,14 @@
           costPerCredit: CONTENT_AUTOMATION_PRICING.customCostPerCredit,
           isCustom: true
         }
-      };
+      }, capture);
     }
 
     // Standard tier handling
     const tierData = CONTENT_AUTOMATION_PRICING.tiers[tier] || CONTENT_AUTOMATION_PRICING.tiers.tier1;
     const monthlyCost = tierData.monthly * multiplier;
 
-    return {
+    return withCapture({
       monthly: monthlyCost,
       annual: monthlyCost * 12,
       breakdown: {
@@ -838,7 +946,7 @@
         credits: tierData.credits,
         costPerCredit: tierData.costPerCredit
       }
-    };
+    }, capture);
   }
 
   function calculateSpotOnPrice(extras, multiplier) {
@@ -1845,6 +1953,7 @@
     // Helpers (exposed for testing and shared use)
     calculateValueFromMinutes,
     calculateMinutesFromValue,
+    calculateLiveStreamCapture,  // Shared capture pricing (used by UI and agent)
     createOffBookStation,
     isOffBookStation,
     reconcileBarterAllocation,  // Shared barter reconciliation (used by UI and agent)
@@ -1854,6 +1963,7 @@
     BARTER_MULTIPLIER,
     TOPLINE_PRICING,
     CONTENT_AUTOMATION_PRICING,
+    LIVE_STREAM_CAPTURE,
     SPOTON_PRICING,
     DEFAULT_PRODUCTS,
     MEDIA_TYPES

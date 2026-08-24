@@ -28,6 +28,7 @@ const RATE_LIMIT_MAX_REQUESTS = 20;
 
 // Claude pricing (per million tokens) - as of 2024
 const CLAUDE_PRICING = {
+  "claude-sonnet-5": { input: 3.0, output: 15.0 },
   "claude-sonnet-4-20250514": { input: 3.0, output: 15.0 },
   "claude-3-5-sonnet-20241022": { input: 3.0, output: 15.0 },
   "claude-3-opus-20240229": { input: 15.0, output: 75.0 },
@@ -35,7 +36,7 @@ const CLAUDE_PRICING = {
 };
 
 // Default model
-const DEFAULT_MODEL = "claude-sonnet-4-20250514";
+const DEFAULT_MODEL = "claude-sonnet-5";
 const MAX_TOKENS = 16384;  // Increased from 4096 to handle large deals (50+ stations)
 
 // Cached data (loaded once per cold start)

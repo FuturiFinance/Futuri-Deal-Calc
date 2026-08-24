@@ -315,15 +315,48 @@ allotment the credits already cover — so 8,336–13,045 credits never price be
 |----------|------|---------|
 | Press Release → Web Article | per article | 1 |
 | News Package (A/V) → Web Article | per article | 1 |
-| Press Conference → Web Article | per article | 2 |
+| Press Conference → Web Article | per article, source up to 60 min | 2 |
 | Audio → Story Teases | per source file, up to 60 min | 2 |
 | Apply Graphic Template to Video | per output minute | 1 |
 | Script → AI VO + B-roll Package | per finished minute | 2 |
 | Broadcast → Clips | per 30 min of source | 5 |
-| Video Versioning (16:9 → 9:16 / 1:1) | per output minute per format | 1 |
+| Video Versioning (16:9 → 9:16 / 1:1) | per output minute, any number of formats | 1 |
+
+Video Versioning is billed once per output minute regardless of how many aspect ratios
+are produced — rendering additional formats adds no delivery cost. Do NOT multiply
+versioning credits by the number of formats.
 
 Direct tier recommendation: 100 articles + 20 hours of broadcast source
 = 100 + (40 × 5) = 300 credits → Custom ($450/mo at $1.50/credit)
+
+### Content Automation — Live Stream Capture
+A per-stream, per-month subscription inside Content Automation. NOT credits: capture
+dollars never convert to credits, never draw from the credit pool, and never count
+toward the Enterprise unlock (which is credit-volume based).
+
+| Resolution | Price per stream per month |
+|------------|----------------------------|
+| 1080p | $1,250 |
+| 720p | $1,000 |
+
+monthlyTotal = streamCount × rate
+annualTotal = monthlyTotal × 12
+termTotal = monthlyTotal × the DEAL term (dealMeta.termMonths, default 36)
+
+Capture has no term of its own — it always bills for the full deal term. Never ask for
+a separate capture duration; use the deal term.
+
+Always-on recording, transcription, and segmentation of a live stream. Billed monthly
+per configured stream whether or not clips are pulled. Clip and versioning credits are
+billed separately.
+
+Streams are NOT stations — a station with an HD subchannel is two streams. Never derive
+stream count from station count.
+
+A Content Automation deal may have credits, capture, both, or neither. Capture without
+any credit tier is valid (tier "none"). Example: 11 streams at 1080p = $13,750/mo and
+$165,000/yr; on a 36-month deal the term total is $495,000, on a 24-month deal
+$330,000.
 
 ### Per-Station Products
 | Product | Cash/mo | Barter/mo |
