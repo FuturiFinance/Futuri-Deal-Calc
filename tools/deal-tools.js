@@ -144,18 +144,27 @@
     };
   }
 
-  // SpotOn credit pricing
-  // Credit value derived from clip-based cost model:
-  // - Broadcast clip = 3 credits, draft clip = 1 credit
-  // - Video tiers assume broadcast clips: :10=2 clips, :15=4 clips, :30=9 clips
-  // - Regens absorbed in clip pricing (~3 gens/clip assumed)
+  // SpotOn credit pricing. $1 per credit, bought in blocks of 50.
+  //
+  // Video comes in two quality tiers of the SAME deliverable, not two products:
+  //   spec      = 540p draft pitch spot (same script, VO and music over draft video)
+  //   broadcast = delivered final: 1080p master, two takes per shot, full two-reviewer
+  //               fidelity review, broadcast conform, loudness and captions
+  //
+  // These are prices, not derived costs. Do not reintroduce a clips-x-3 model here —
+  // the credit values no longer follow it.
+  //
+  // SINGLE SOURCE OF TRUTH. index.html references this via DealTools.SPOTON_PRICING
+  // rather than restating the numbers. api/agent/system-prompt.mjs carries a prose copy
+  // for the agent, which is a MANUAL MIRROR and will drift if these values change.
   const SPOTON_PRICING = {
     pricePerCredit: 1,
     creditIncrement: 50,
-    audioCredits: 1,
-    video10Credits: 6,
-    video15Credits: 12,
-    video30Credits: 27
+    audioCredits: 6,
+    video15SpecCredits: 12,
+    video30SpecCredits: 24,
+    video15BroadcastCredits: 45,
+    video30BroadcastCredits: 90
   };
 
   const FB_GROUPS_PRICING = {
@@ -965,10 +974,12 @@
         pricePerCredit: SPOTON_PRICING.pricePerCredit,
         audioCredits,
         videoCredits,
-        audioSpots: audioCredits,
-        video10s: Math.floor(videoCredits / SPOTON_PRICING.video10Credits),
-        video15s: Math.floor(videoCredits / SPOTON_PRICING.video15Credits),
-        video30s: Math.floor(videoCredits / SPOTON_PRICING.video30Credits)
+        // Spot count, not a credit count — divide by the audio credit cost.
+        audioSpots: Math.floor(audioCredits / SPOTON_PRICING.audioCredits),
+        video15Spec: Math.floor(videoCredits / SPOTON_PRICING.video15SpecCredits),
+        video30Spec: Math.floor(videoCredits / SPOTON_PRICING.video30SpecCredits),
+        video15Broadcast: Math.floor(videoCredits / SPOTON_PRICING.video15BroadcastCredits),
+        video30Broadcast: Math.floor(videoCredits / SPOTON_PRICING.video30BroadcastCredits)
       }
     };
   }
