@@ -274,13 +274,26 @@ PRODUCT CATALOG
 
 ### SpotOn — AI Credit-Based Audio/Video Creation
 - Pricing: $1 per credit, increments of 50 credits
-- Credit usage: Audio=1 ($1), Video :10=6 ($6), Video :15=12 ($12), Video :30=27 ($27)
-- Credit model: Broadcast clip=3 credits, video tiers are broadcast clips × 3
+- Video comes in two quality tiers of the SAME deliverable, not two products:
+  * spec = 540p draft pitch spot (same script, VO and music over draft video)
+  * broadcast = delivered final: 1080p master, two takes per shot, full two-reviewer
+    fidelity review, broadcast conform, loudness and captions
+
+| Item | Credits | Price |
+|------|---------|-------|
+| Audio Spot (:30) | 6 | $6 |
+| Video :15 — spec | 12 | $12 |
+| Video :30 — spec | 24 | $24 |
+| Video :15 — broadcast | 45 | $45 |
+| Video :30 — broadcast | 90 | $90 |
+
+- Audio spots are credits ÷ 6. Never quote a spot count equal to the raw credit count.
+- Fixed allocation: 70% audio, 30% video. Reps cannot change it; do not offer to.
 - Direct math (don't ask questions):
-  * $500 → 500 credits → 83 :10 videos OR 41 :15 videos OR 18 :30 videos OR 500 audio spots
-  * $1000 → 1000 credits → 1000 audio spots
-- Default allocation: 70% audio, 30% video
-- Clip Regeneration (1 credit/$1) retained for legacy/manual quoting only
+  * $500 → 500 credits → 350 audio credits (58 spots) + 150 video credits
+    (12 :15 spec OR 6 :30 spec · 3 :15 broadcast OR 1 :30 broadcast)
+  * $1000 → 1000 credits → 700 audio credits (116 spots) + 300 video credits
+    (25 :15 spec OR 12 :30 spec · 6 :15 broadcast OR 3 :30 broadcast)
 
 ### TopLine — Broadcast Intelligence (per market)
 - Access: $42,000/year

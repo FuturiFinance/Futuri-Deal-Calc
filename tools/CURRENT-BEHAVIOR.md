@@ -1,5 +1,9 @@
 # Current Behavior Documentation
 
+> **STALE — last verified 2026-05-21.** Pricing values in this document do not match
+> the live rate card and have not for some time. `tools/deal-tools.js` is the single
+> source of truth for all pricing constants. Do not quote figures from this file.
+
 This document describes how the existing Deal Calculator app works. This is a reference for building standalone tool functions that replicate this behavior exactly.
 
 ## Table of Contents

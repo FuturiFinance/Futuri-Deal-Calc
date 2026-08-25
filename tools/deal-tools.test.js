@@ -341,6 +341,53 @@
     assertEqual(barter.monthly, 2100, 'Barter applies 1.4x exactly once');
   });
 
+  test('calculateProductPrice: SpotOn audio spots divide by the audio credit cost', () => {
+    // The bug this guards: audioSpots used to be the raw credit count. At 6 credits
+    // per spot that reports 6x too many spots while dollars stay correct.
+    const p = DealTools.calculateProductPrice('spoton', {}, {
+      creditsPerMonth: 1000, pricingType: 'cash'
+    });
+    assertEqual(p.breakdown.audioCredits, 700, '70% of 1,000 credits is audio');
+    assertEqual(p.breakdown.audioSpots, 116, '700 audio credits / 6 = 116 spots, not 700');
+  });
+
+  test('calculateProductPrice: SpotOn spec and broadcast video tiers', () => {
+    const p = DealTools.calculateProductPrice('spoton', {}, {
+      creditsPerMonth: 1000, pricingType: 'cash'
+    });
+    assertEqual(p.breakdown.videoCredits, 300, '30% of 1,000 credits is video');
+    assertEqual(p.breakdown.video15Spec, 25, '300 / 12 = 25 :15 spec');
+    assertEqual(p.breakdown.video30Spec, 12, '300 / 24 = 12 :30 spec');
+    assertEqual(p.breakdown.video15Broadcast, 6, '300 / 45 = 6 :15 broadcast');
+    assertEqual(p.breakdown.video30Broadcast, 3, '300 / 90 = 3 :30 broadcast');
+    assertTrue(p.breakdown.video10s === undefined, ':10 tier is gone entirely');
+  });
+
+  test('SPOTON_PRICING: rates match the published card', () => {
+    const sp = DealTools.SPOTON_PRICING;
+    assertEqual(sp.pricePerCredit, 1, '$1 per credit');
+    assertEqual(sp.creditIncrement, 50, 'bought in blocks of 50');
+    assertEqual(sp.audioCredits, 6, 'Audio Spot (:30) = 6');
+    assertEqual(sp.video15SpecCredits, 12, ':15 spec = 12');
+    assertEqual(sp.video30SpecCredits, 24, ':30 spec = 24');
+    assertEqual(sp.video15BroadcastCredits, 45, ':15 broadcast = 45');
+    assertEqual(sp.video30BroadcastCredits, 90, ':30 broadcast = 90');
+    assertTrue(sp.video10Credits === undefined, ':10 constant removed');
+  });
+
+  test('calculateProductPrice: SpotOn barter runs through the universal multiplier', () => {
+    const cash = DealTools.calculateProductPrice('spoton', {}, {
+      creditsPerMonth: 1000, pricingType: 'cash'
+    });
+    const barter = DealTools.calculateProductPrice('spoton', {}, {
+      creditsPerMonth: 1000, pricingType: 'barter'
+    });
+    assertEqual(cash.monthly, 1000, '1,000 credits at $1 = $1,000/mo cash');
+    assertClose(barter.monthly, 1400, 0.01, 'barter is cash x 1.4, no SpotOn-specific path');
+    // Deliverable counts are credit-derived and must NOT scale with the barter multiplier
+    assertEqual(barter.breakdown.audioSpots, cash.breakdown.audioSpots, 'counts unchanged by barter');
+  });
+
   test('calculateProductPrice: SpotOn credits', () => {
     const price = DealTools.calculateProductPrice('spoton', {}, {
       creditsPerMonth: 200,
