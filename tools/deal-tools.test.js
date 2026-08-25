@@ -342,13 +342,13 @@
   });
 
   test('calculateProductPrice: SpotOn audio spots divide by the audio credit cost', () => {
-    // The bug this guards: audioSpots used to be the raw credit count. At 6 credits
+    // The bug this guards: audioSpots used to be the raw credit count. At 3 credits
     // per spot that reports 6x too many spots while dollars stay correct.
     const p = DealTools.calculateProductPrice('spoton', {}, {
       creditsPerMonth: 1000, pricingType: 'cash'
     });
     assertEqual(p.breakdown.audioCredits, 700, '70% of 1,000 credits is audio');
-    assertEqual(p.breakdown.audioSpots, 116, '700 audio credits / 6 = 116 spots, not 700');
+    assertEqual(p.breakdown.audioSpots, 233, '700 audio credits / 3 = 233 spots, not 700');
   });
 
   test('calculateProductPrice: SpotOn spec and broadcast video tiers', () => {
@@ -367,7 +367,7 @@
     const sp = DealTools.SPOTON_PRICING;
     assertEqual(sp.pricePerCredit, 1, '$1 per credit');
     assertEqual(sp.creditIncrement, 50, 'bought in blocks of 50');
-    assertEqual(sp.audioCredits, 6, 'Audio Spot (:30) = 6');
+    assertEqual(sp.audioCredits, 3, 'Audio Spot (:30) = 3');
     assertEqual(sp.video15SpecCredits, 12, ':15 spec = 12');
     assertEqual(sp.video30SpecCredits, 24, ':30 spec = 24');
     assertEqual(sp.video15BroadcastCredits, 45, ':15 broadcast = 45');

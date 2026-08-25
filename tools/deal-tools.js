@@ -160,7 +160,7 @@
   const SPOTON_PRICING = {
     pricePerCredit: 1,
     creditIncrement: 50,
-    audioCredits: 6,
+    audioCredits: 3,
     video15SpecCredits: 12,
     video30SpecCredits: 24,
     video15BroadcastCredits: 45,

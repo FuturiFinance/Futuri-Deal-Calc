@@ -281,7 +281,7 @@ PRODUCT CATALOG
 
 | Item | Credits | Price |
 |------|---------|-------|
-| Audio Spot (:30) | 6 | $6 |
+| Audio Spot (:30) | 3 | $3 |
 | Video :15 — spec | 12 | $12 |
 | Video :30 — spec | 24 | $24 |
 | Video :15 — broadcast | 45 | $45 |
@@ -291,12 +291,12 @@ PRODUCT CATALOG
 - Direct math (don't ask questions). ALWAYS compute from the credit pool with these
   four steps — do not copy numbers from an example:
   1. audioCredits = floor(totalCredits × 0.70); videoCredits = totalCredits − audioCredits
-  2. audio spots  = floor(audioCredits ÷ 6)      ← never the raw credit count
+  2. audio spots  = floor(audioCredits ÷ 3)      ← never the raw credit count
   3. spec         = floor(videoCredits ÷ 12) for :15, floor(videoCredits ÷ 24) for :30
   4. broadcast    = floor(videoCredits ÷ 45) for :15, floor(videoCredits ÷ 90) for :30
 - The video tiers are alternatives, not a bundle: the same videoCredits buys EITHER
   the spec count OR the broadcast count, not both.
-- Worked example, $1000 → 1000 credits: 700 audio credits = 116 spots; 300 video
+- Worked example, $1000 → 1000 credits: 700 audio credits = 233 spots; 300 video
   credits = 25 :15 spec, or 12 :30 spec, or 6 :15 broadcast, or 3 :30 broadcast.
 
 ### TopLine — Broadcast Intelligence (per market)
