@@ -287,13 +287,17 @@ PRODUCT CATALOG
 | Video :15 — broadcast | 45 | $45 |
 | Video :30 — broadcast | 90 | $90 |
 
-- Audio spots are credits ÷ 6. Never quote a spot count equal to the raw credit count.
 - Fixed allocation: 70% audio, 30% video. Reps cannot change it; do not offer to.
-- Direct math (don't ask questions):
-  * $500 → 500 credits → 350 audio credits (58 spots) + 150 video credits
-    (12 :15 spec OR 6 :30 spec · 3 :15 broadcast OR 1 :30 broadcast)
-  * $1000 → 1000 credits → 700 audio credits (116 spots) + 300 video credits
-    (25 :15 spec OR 12 :30 spec · 6 :15 broadcast OR 3 :30 broadcast)
+- Direct math (don't ask questions). ALWAYS compute from the credit pool with these
+  four steps — do not copy numbers from an example:
+  1. audioCredits = floor(totalCredits × 0.70); videoCredits = totalCredits − audioCredits
+  2. audio spots  = floor(audioCredits ÷ 6)      ← never the raw credit count
+  3. spec         = floor(videoCredits ÷ 12) for :15, floor(videoCredits ÷ 24) for :30
+  4. broadcast    = floor(videoCredits ÷ 45) for :15, floor(videoCredits ÷ 90) for :30
+- The video tiers are alternatives, not a bundle: the same videoCredits buys EITHER
+  the spec count OR the broadcast count, not both.
+- Worked example, $1000 → 1000 credits: 700 audio credits = 116 spots; 300 video
+  credits = 25 :15 spec, or 12 :30 spec, or 6 :15 broadcast, or 3 :30 broadcast.
 
 ### TopLine — Broadcast Intelligence (per market)
 - Access: $42,000/year
