@@ -226,21 +226,69 @@
     assertTrue(!!price.breakdown.message, 'Below-threshold enterprise explains why');
   });
 
+  test('getCaptureRate: ladder boundaries resolve to the right tier', () => {
+    const cases = [
+      [1,'1080p',1750,'1-4 streams'], [4,'1080p',1750,'1-4 streams'],
+      [5,'1080p',1500,'5-14 streams'], [14,'1080p',1500,'5-14 streams'],
+      [15,'1080p',1350,'15-29 streams'], [29,'1080p',1350,'15-29 streams'],
+      [30,'1080p',1250,'30+ streams'], [500,'1080p',1250,'30+ streams'],
+      [1,'720p',1400,'1-4 streams'], [5,'720p',1200,'5-14 streams'],
+      [15,'720p',1080,'15-29 streams'], [30,'720p',1000,'30+ streams']
+    ];
+    cases.forEach(([n,res,rate,label]) => {
+      const r = DealTools.getCaptureRate(n, res);
+      assertEqual(r.ratePerStream, rate, `${n} streams @ ${res} = $${rate}`);
+      assertEqual(r.label, label, `${n} streams is ${label}`);
+    });
+  });
+
+  test('calculateLiveStreamCapture: pricing is flat per tier, not marginal', () => {
+    // 5 streams must be 5 x $1,500, never 4 x $1,750 + 1 x $1,500 (= $8,500).
+    const five = DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: 5, resolution: '1080p', months: 12 }, 1);
+    assertEqual(five.monthlyTotal, 7500, '5 streams = 5 x $1,500');
+
+    // The cliff is intended: 4 streams costs LESS per month than 5 despite a higher rate.
+    const four = DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: 4, resolution: '1080p', months: 12 }, 1);
+    assertEqual(four.monthlyTotal, 7000, '4 streams = 4 x $1,750');
+    assertTrue(four.monthlyTotal < five.monthlyTotal, 'cliff at the 4->5 boundary is present');
+  });
+
+  test('calculateLiveStreamCapture: ladder totals across tiers and resolutions', () => {
+    const t = (n,res,m) => DealTools.calculateLiveStreamCapture(
+      { enabled: true, streamCount: n, resolution: res, months: m }, 1);
+    assertEqual(t(1,'1080p',12).monthlyTotal, 1750, '1 stream 1080p');
+    assertEqual(t(1,'1080p',12).annualTotal, 21000, '1 stream 1080p annual');
+    assertEqual(t(15,'1080p',12).monthlyTotal, 20250, '15 streams 1080p');
+    assertEqual(t(30,'1080p',12).monthlyTotal, 37500, '30 streams 1080p');
+    assertEqual(t(1,'720p',12).monthlyTotal, 1400, '1 stream 720p');
+    assertEqual(t(5,'720p',12).monthlyTotal, 6000, '5 streams 720p');
+    assertEqual(t(15,'720p',12).monthlyTotal, 16200, '15 streams 720p');
+    assertEqual(t(30,'720p',12).monthlyTotal, 30000, '30 streams 720p');
+    // Term still derives from the deal term
+    const eleven = t(11,'1080p',36);
+    assertEqual(eleven.monthlyTotal, 16500, '11 streams 1080p monthly');
+    assertEqual(eleven.annualTotal, 198000, '11 streams 1080p annual');
+    assertEqual(eleven.termTotal, 594000, '11 streams 1080p over 36 months');
+  });
+
   test('calculateLiveStreamCapture: 1080p and 720p rates', () => {
+    // 11 streams falls in the 5-14 tier: $1,500 / $1,200
     const hd = DealTools.calculateLiveStreamCapture(
       { enabled: true, streamCount: 11, resolution: '1080p', months: 12 }, 1);
-    assertEqual(hd.monthlyTotal, 13750, '11 streams @ 1080p = $13,750/mo');
-    assertEqual(hd.annualTotal, 165000, '11 streams @ 1080p annual run rate = $165,000');
-    assertEqual(hd.termTotal, 165000, '11 streams @ 1080p × 12 mo term = $165,000');
+    assertEqual(hd.monthlyTotal, 16500, '11 streams @ 1080p = $16,500/mo');
+    assertEqual(hd.annualTotal, 198000, '11 streams @ 1080p annual run rate = $198,000');
+    assertEqual(hd.termTotal, 198000, '11 streams @ 1080p × 12 mo term = $198,000');
 
     const sd = DealTools.calculateLiveStreamCapture(
       { enabled: true, streamCount: 11, resolution: '720p', months: 12 }, 1);
-    assertEqual(sd.monthlyTotal, 11000, '11 streams @ 720p = $11,000/mo');
-    assertEqual(sd.termTotal, 132000, '11 streams @ 720p × 12 mo term = $132,000');
+    assertEqual(sd.monthlyTotal, 13200, '11 streams @ 720p = $13,200/mo');
+    assertEqual(sd.termTotal, 158400, '11 streams @ 720p × 12 mo term = $158,400');
   });
 
   test('calculateLiveStreamCapture: term scales with the deal term', () => {
-    const mo = 13750;
+    const mo = 16500;   // 11 streams falls in the 5-14 tier: 11 x $1,500
     [12, 24, 36, 48, 60].forEach(months => {
       const c = DealTools.calculateLiveStreamCapture(
         { enabled: true, streamCount: 11, resolution: '1080p', months }, 1);
@@ -252,14 +300,14 @@
     // An 18-month custom term is honored exactly.
     const custom = DealTools.calculateLiveStreamCapture(
       { enabled: true, streamCount: 11, resolution: '1080p', months: 18 }, 1);
-    assertEqual(custom.termTotal, 247500, '18mo custom term = $247,500');
+    assertEqual(custom.termTotal, 297000, '18mo custom term = $297,000');
   });
 
   test('calculateLiveStreamCapture: omitted term falls back to the 36mo deal default', () => {
     const c = DealTools.calculateLiveStreamCapture(
       { enabled: true, streamCount: 11, resolution: '1080p' }, 1);
     assertEqual(c.months, 36, 'Defaults to the deal-term default of 36 months');
-    assertEqual(c.termTotal, 495000, '11 streams @ 1080p × 36 mo = $495,000');
+    assertEqual(c.termTotal, 594000, '11 streams @ 1080p × 36 mo = $594,000');
   });
 
   test('calculateLiveStreamCapture: disabled or zero streams yields nothing', () => {
@@ -275,8 +323,8 @@
       capture: { enabled: true, streamCount: 11, resolution: '1080p', months: 12 },
       pricingType: 'cash'
     });
-    assertEqual(price.monthly, 13750, 'Capture-only monthly = capture total');
-    assertEqual(price.annual, 165000, 'Capture-only annual = annual run rate');
+    assertEqual(price.monthly, 16500, 'Capture-only monthly = capture total');
+    assertEqual(price.annual, 198000, 'Capture-only annual = annual run rate');
     assertEqual(price.breakdown.credits, 0, 'No credits on a capture-only deal');
     assertEqual(price.breakdown.tierName, 'None', 'Tier is None, not a phantom Tier 1');
     assertTrue(price.breakdown.hasCredits === false, 'hasCredits is false');
@@ -298,9 +346,9 @@
       capture: { enabled: true, streamCount: 11, resolution: '1080p', months: 12 },
       pricingType: 'cash'
     });
-    assertEqual(price.monthly, 16250, 'Tier 1 $2,500 + capture $13,750 = $16,250/mo');
+    assertEqual(price.monthly, 19000, 'Tier 1 $2,500 + capture $16,500 = $19,000/mo');
     assertEqual(price.breakdown.creditMonthly, 2500, 'Credit portion stays addressable');
-    assertEqual(price.breakdown.capture.monthlyTotal, 13750, 'Capture portion stays addressable');
+    assertEqual(price.breakdown.capture.monthlyTotal, 16500, 'Capture portion stays addressable');
   });
 
   test('calculateProductPrice: capture does not affect the Enterprise unlock', () => {
