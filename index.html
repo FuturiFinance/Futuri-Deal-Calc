@@ -1519,7 +1519,7 @@
                       <option value="1080p">1080p</option>
                       <option value="720p">720p</option>
                     </select>
-                    <div class="muted" style="font-size:11px; margin-top:4px;"><span id="caCaptureRate">$1,250</span>/stream/mo</div>
+                    <div class="muted" style="font-size:11px; margin-top:4px;"><span id="caCaptureRate">$1,750</span>/stream/mo <span id="caCaptureRateTier">(1-4 streams)</span></div>
                   </div>
                 </div>
                 <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; font-size:13px;">
@@ -5349,11 +5349,14 @@ document.addEventListener("click", async (e) => {
       const capAnnualEl = el('caCaptureAnnual');
       const capTermEl = el('caCaptureTerm');
       const capTermLabelEl = el('caCaptureTermLabel');
-      const resolution = LIVE_STREAM_CAPTURE.price[state.captureResolution]
-        ? state.captureResolution
-        : LIVE_STREAM_CAPTURE.defaultResolution;
+      // Rate shown next to the resolution toggle must reflect the tier the CURRENT
+      // stream count falls into, or it contradicts the total below it. Routed through
+      // the same helper the calculation uses so tier selection lives in one place.
+      const rate = DealTools.getCaptureRate(state.captureStreams, state.captureResolution);
       const dealTermMonths = (window.dealMetaState && window.dealMetaState.termMonths) || LIVE_STREAM_CAPTURE.defaultTermMonths;
-      if (rateEl) rateEl.textContent = '$' + LIVE_STREAM_CAPTURE.price[resolution].toLocaleString();
+      if (rateEl) rateEl.textContent = '$' + rate.ratePerStream.toLocaleString();
+      const rateTierEl = el('caCaptureRateTier');
+      if (rateTierEl) rateTierEl.textContent = `(${rate.label})`;
       if (capMonthlyEl) capMonthlyEl.textContent = '$' + Math.round(cap.monthlyTotal).toLocaleString();
       if (capAnnualEl) capAnnualEl.textContent = '$' + Math.round(cap.annualTotal).toLocaleString();
       if (capTermEl) capTermEl.textContent = '$' + Math.round(cap.termTotal).toLocaleString();
@@ -9085,6 +9088,8 @@ window.buildConfigFromState = function buildConfigFromState() {
         streamCount: cap.streamCount || 0,
         resolution: cap.resolution || LIVE_STREAM_CAPTURE.defaultResolution,
         months: cap.months || 0,          // the DEAL term, not a capture-specific value
+        ratePerStream: cap.ratePerStream || 0,
+        tierLabel: cap.tierLabel || '',
         monthlyTotal: cap.monthlyTotal || 0,
         annualTotal: cap.annualTotal || 0,
         termTotal: cap.termTotal || 0

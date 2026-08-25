@@ -351,10 +351,22 @@ A per-stream, per-month subscription inside Content Automation. NOT credits: cap
 dollars never convert to credits, never draw from the credit pool, and never count
 toward the Enterprise unlock (which is credit-volume based).
 
-| Resolution | Price per stream per month |
-|------------|----------------------------|
-| 1080p | $1,250 |
-| 720p | $1,000 |
+Price per stream per month follows a stream-count volume ladder:
+
+| Streams | 1080p | 720p |
+|---------|-------|------|
+| 1-4 | $1,750 | $1,400 |
+| 5-14 | $1,500 | $1,200 |
+| 15-29 | $1,350 | $1,080 |
+| 30+ | $1,250 | $1,000 |
+
+FLAT RATE PER TIER, NOT MARGINAL. Every stream bills at the rate of the tier the TOTAL
+stream count falls into. A 5-stream deal is 5 × $1,500 = $7,500/mo, NEVER
+4 × $1,750 + 1 × $1,500. Do not blend rates across tiers.
+
+This creates an intended price cliff at each boundary: 4 streams at 1080p is $7,000/mo
+while 5 streams is $7,500/mo. That is correct — a rep crossing into a bigger tier gets
+a lower per-stream rate but a higher total. Do not describe it as an error.
 
 monthlyTotal = streamCount × rate
 annualTotal = monthlyTotal × 12

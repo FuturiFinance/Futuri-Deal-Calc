@@ -92,12 +92,52 @@
   // SINGLE SOURCE OF TRUTH. index.html references this via DealTools.LIVE_STREAM_CAPTURE
   // rather than restating the numbers. api/agent/system-prompt.mjs carries a prose copy
   // for the agent, which is a MANUAL MIRROR and will drift if these prices change.
+  // Stream-count volume ladder. FLAT RATE PER TIER, NOT MARGINAL: every stream bills at
+  // the rate of the tier the TOTAL stream count falls into. A 5-stream deal is
+  // 5 x $1,500, never 4 x $1,750 + 1 x $1,500.
+  //
+  // This produces an intended price cliff at each boundary — 4 streams at $1,750 is
+  // $7,000/mo while 5 at $1,500 is $7,500/mo. That is the designed behavior; do not
+  // add logic to smooth it.
   const LIVE_STREAM_CAPTURE = {
-    price: { '1080p': 1250, '720p': 1000 },       // per stream per month, customer-facing
+    tiers: [
+      { minStreams: 1,  maxStreams: 4,    price: { '1080p': 1750, '720p': 1400 } },
+      { minStreams: 5,  maxStreams: 14,   price: { '1080p': 1500, '720p': 1200 } },
+      { minStreams: 15, maxStreams: 29,   price: { '1080p': 1350, '720p': 1080 } },
+      { minStreams: 30, maxStreams: null, price: { '1080p': 1250, '720p': 1000 } }  // null = unbounded
+    ],
     cost:  { '1080p': 490.75, '720p': 380.75 },   // per stream per month, INTERNAL ONLY — never render customer-facing
     defaultResolution: '1080p',
     defaultTermMonths: 36                         // matches dealMetaState.termMonths default
   };
+
+  const CAPTURE_RESOLUTIONS = Object.keys(LIVE_STREAM_CAPTURE.tiers[0].price);
+
+  // THE one place that maps a stream count to a rate. Every price computation and every
+  // rate display must call this — no site may re-implement tier selection.
+  // Returns the tier object plus its rate for the given resolution.
+  function getCaptureRate(streamCount, resolution) {
+    const res = LIVE_STREAM_CAPTURE.tiers[0].price[resolution]
+      ? resolution
+      : LIVE_STREAM_CAPTURE.defaultResolution;
+    const n = Math.max(0, parseInt(streamCount, 10) || 0);
+    const tiers = LIVE_STREAM_CAPTURE.tiers;
+    // Below the first tier there is no deal to price; report the entry tier so callers
+    // and the UI have a sensible rate to show before a count is entered.
+    const tier = tiers.find(t => n >= t.minStreams && (t.maxStreams === null || n <= t.maxStreams))
+      || tiers[0];
+    return {
+      tier,
+      resolution: res,
+      ratePerStream: tier.price[res],
+      minStreams: tier.minStreams,
+      maxStreams: tier.maxStreams,
+      // e.g. "5-14 streams" / "30+ streams" — for display next to the rate.
+      label: tier.maxStreams === null
+        ? `${tier.minStreams}+ streams`
+        : `${tier.minStreams}-${tier.maxStreams} streams`
+    };
+  }
 
   // Resolve a capture configuration into dollars. `multiplier` is the barter
   // multiplier, applied to revenue exactly as it is for every other line item.
@@ -110,21 +150,20 @@
   function calculateLiveStreamCapture(capture, multiplier) {
     const enabled = !!(capture && capture.enabled);
     const streamCount = Math.max(0, parseInt(capture && capture.streamCount, 10) || 0);
-    const resolution = (capture && LIVE_STREAM_CAPTURE.price[capture.resolution])
-      ? capture.resolution
-      : LIVE_STREAM_CAPTURE.defaultResolution;
     const months = Math.max(0, parseInt(capture && capture.months, 10) || LIVE_STREAM_CAPTURE.defaultTermMonths);
+    const rate = getCaptureRate(streamCount, capture && capture.resolution);
+    const resolution = rate.resolution;
 
     if (!enabled || streamCount <= 0 || months <= 0) {
       return {
         enabled: false, streamCount: 0, resolution, months: 0,
-        ratePerStream: LIVE_STREAM_CAPTURE.price[resolution],
+        ratePerStream: rate.ratePerStream, tierLabel: rate.label,
         monthlyBase: 0, monthlyTotal: 0, annualTotal: 0, termTotal: 0,
         monthlyCost: 0, termCost: 0, marginPct: 0
       };
     }
 
-    const ratePerStream = LIVE_STREAM_CAPTURE.price[resolution];
+    const ratePerStream = rate.ratePerStream;
     const monthlyBase = streamCount * ratePerStream;
     const monthlyTotal = monthlyBase * multiplier;
     // annualTotal is the yearly run rate — what belongs in any "/Yr" column, so it is
@@ -139,6 +178,7 @@
 
     return {
       enabled: true, streamCount, resolution, months, ratePerStream,
+      tierLabel: rate.label,
       monthlyBase, monthlyTotal, annualTotal, termTotal,
       monthlyCost, termCost, marginPct
     };
@@ -1965,6 +2005,7 @@
     calculateValueFromMinutes,
     calculateMinutesFromValue,
     calculateLiveStreamCapture,  // Shared capture pricing (used by UI and agent)
+    getCaptureRate,              // THE tier-resolution helper — never re-implement tier selection
     createOffBookStation,
     isOffBookStation,
     reconcileBarterAllocation,  // Shared barter reconciliation (used by UI and agent)
