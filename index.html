@@ -5806,10 +5806,17 @@ document.addEventListener("click", async (e) => {
      * Lazy Loading with IndexedDB Cache
      **********************/
     const RADIO_DB_NAME = 'FuturiRadioCache';
-    const RADIO_DB_VERSION = 1;
+    const RADIO_DB_VERSION = 2;              // v2: cache is keyed per Nielsen book
     const RADIO_STORE_NAME = 'radioData';
-    const RADIO_CACHE_KEY = 'mainDataset';
+    const LEGACY_RADIO_CACHE_KEY = 'mainDataset';  // v1 key — unkeyed, deleted on upgrade
     const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+    // The cache key MUST carry the book id. Under a single shared key the first book
+    // cached won every subsequent load, so a rep holding a cached Fall 2025 dataset
+    // saw Fall 2025 AQH while the dropdown read Spring 2026 — wrong numbers, no error.
+    function radioCacheKey() {
+      return `radio_${window._selectedBundledBook}`;
+    }
 
     let radioDataLoading = false;
     let radioDataLoaded = false;
@@ -5824,6 +5831,15 @@ document.addEventListener("click", async (e) => {
           if (!db.objectStoreNames.contains(RADIO_STORE_NAME)) {
             db.createObjectStore(RADIO_STORE_NAME);
           }
+          // v1 -> v2: remove the book-agnostic record left by earlier versions.
+          if (event.oldVersion < 2 && db.objectStoreNames.contains(RADIO_STORE_NAME)) {
+            try {
+              event.target.transaction.objectStore(RADIO_STORE_NAME).delete(LEGACY_RADIO_CACHE_KEY);
+              console.log('Cleared legacy book-agnostic radio cache');
+            } catch (e) {
+              console.warn('Legacy radio cache cleanup skipped', e);
+            }
+          }
         };
       });
     }
@@ -5834,7 +5850,7 @@ document.addEventListener("click", async (e) => {
         return new Promise((resolve, reject) => {
           const tx = db.transaction(RADIO_STORE_NAME, 'readonly');
           const store = tx.objectStore(RADIO_STORE_NAME);
-          const request = store.get(RADIO_CACHE_KEY);
+          const request = store.get(radioCacheKey());
           request.onsuccess = () => resolve(request.result);
           request.onerror = () => reject(request.error);
         });
@@ -5851,7 +5867,7 @@ document.addEventListener("click", async (e) => {
           const tx = db.transaction(RADIO_STORE_NAME, 'readwrite');
           const store = tx.objectStore(RADIO_STORE_NAME);
           const record = { data, timestamp: Date.now() };
-          const request = store.put(record, RADIO_CACHE_KEY);
+          const request = store.put(record, radioCacheKey());
           request.onsuccess = () => resolve();
           request.onerror = () => reject(request.error);
         });
