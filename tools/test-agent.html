@@ -469,7 +469,7 @@
     async function init() {
       try {
         // Load Nielsen data
-        const nielsenResponse = await fetch('../radio_data_fall2025.json');
+        const nielsenResponse = await fetch('../radio_data_spring2026.json');
         nielsenData = await nielsenResponse.json();
         DealTools.loadNielsenBook(nielsenData);
         document.getElementById('nielsenStatus').className = 'status-dot ready';

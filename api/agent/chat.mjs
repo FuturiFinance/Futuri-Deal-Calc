@@ -52,7 +52,7 @@ function loadNielsenData() {
   if (cachedNielsenData) return cachedNielsenData;
 
   try {
-    const dataPath = join(__dirname, "../../radio_data_fall2025.json");
+    const dataPath = join(__dirname, "../../radio_data_spring2026.json");
     cachedNielsenData = JSON.parse(readFileSync(dataPath, "utf8"));
     return cachedNielsenData;
   } catch (error) {

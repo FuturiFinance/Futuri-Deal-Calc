@@ -789,6 +789,7 @@
     <div style="position:absolute; right:16px; top:12px; display:flex; gap:8px; align-items:center;">
       <span id="whois" class="role-badge" title="Current role">Role: —</span>
       <select id="bookSelector" class="role-badge" title="Select Nielsen Book" style="background:var(--brand);color:#fff;border:none;padding:4px 8px;border-radius:4px;font-size:11px;cursor:pointer;">
+        <option value="spring2026">Book: Spring 2026 [RADIO]</option>
         <option value="fall2025">Book: Fall 2025 [RADIO]</option>
         <option value="spring2025">Book: Spring 2025 [RADIO]</option>
       </select>
@@ -4382,10 +4383,11 @@ document.addEventListener("click", async (e) => {
 
     // Bundled Nielsen books configuration
     const BUNDLED_BOOKS = {
+      spring2026: { name: 'Spring 2026', type: 'RADIO', file: './radio_data_spring2026.json' },
       fall2025: { name: 'Fall 2025', type: 'RADIO', file: './radio_data_fall2025.json' },
       spring2025: { name: 'Spring 2025', type: 'RADIO', file: './radio_data.json' }
     };
-    window._selectedBundledBook = 'fall2025'; // Default to Fall 2025
+    window._selectedBundledBook = 'spring2026'; // Default to Spring 2026
     const DATA_URL = BUNDLED_BOOKS[window._selectedBundledBook].file;
 
     window.DS = { parents: [], markets: [], stations: [] };

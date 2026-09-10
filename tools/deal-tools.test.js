@@ -14,7 +14,7 @@
 
     // Load test data
     const nielsenData = JSON.parse(
-      fs.readFileSync(path.join(__dirname, '..', 'radio_data_fall2025.json'), 'utf8')
+      fs.readFileSync(path.join(__dirname, '..', 'radio_data_spring2026.json'), 'utf8')
     );
     const rateCard = JSON.parse(
       fs.readFileSync(path.join(__dirname, '..', 'radio_rate_card.json'), 'utf8')
