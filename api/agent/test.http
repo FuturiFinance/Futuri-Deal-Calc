@@ -24,7 +24,6 @@ Content-Type: application/json
   ],
   "context": {
     "mediaType": "Radio",
-    "nielsenBook": "spring2026",
     "cpm": 1.50
   }
 }
@@ -42,7 +41,6 @@ Content-Type: application/json
   ],
   "context": {
     "mediaType": "Radio",
-    "nielsenBook": "spring2026",
     "cpm": 1.50
   }
 }
@@ -91,8 +89,7 @@ Content-Type: application/json
     }
   ],
   "context": {
-    "mediaType": "Radio",
-    "nielsenBook": "spring2026"
+    "mediaType": "Radio"
   }
 }
 
@@ -108,8 +105,7 @@ Content-Type: application/json
     }
   ],
   "context": {
-    "mediaType": "Radio",
-    "nielsenBook": "spring2026"
+    "mediaType": "Radio"
   }
 }
 
@@ -126,7 +122,6 @@ Content-Type: application/json
   ],
   "context": {
     "mediaType": "Radio",
-    "nielsenBook": "spring2026",
     "cpm": 1.50
   }
 }
@@ -156,7 +151,7 @@ Content-Type: application/json
 #   -H "Content-Type: application/json" \
 #   -d '{
 #     "messages": [{"role": "user", "content": "Cumulus wants POST on KHCM at $700/mo cash"}],
-#     "context": {"mediaType": "Radio", "nielsenBook": "spring2026", "cpm": 1.50}
+#     "context": {"mediaType": "Radio", "cpm": 1.50}
 #   }'
 
 # Test 2: Multi-product mixed deal
@@ -164,7 +159,7 @@ Content-Type: application/json
 #   -H "Content-Type: application/json" \
 #   -d '{
 #     "messages": [{"role": "user", "content": "Cumulus wants to add POST on KHCM at $700/mo and Streaming on all Honolulu stations at $275/mo each. Mixed deal, $400 cash per station per month."}],
-#     "context": {"mediaType": "Radio", "nielsenBook": "spring2026", "cpm": 1.50}
+#     "context": {"mediaType": "Radio", "cpm": 1.50}
 #   }'
 
 # Test 3: Agency deal
@@ -188,5 +183,5 @@ Content-Type: application/json
 #   -H "Content-Type: application/json" \
 #   -d '{
 #     "messages": [{"role": "user", "content": "iHeart wants TopLine and some TopicPulse"}],
-#     "context": {"mediaType": "Radio", "nielsenBook": "spring2026"}
+#     "context": {"mediaType": "Radio"}
 #   }'
