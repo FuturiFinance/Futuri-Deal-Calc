@@ -8313,6 +8313,19 @@ document.addEventListener("click", async (e) => {
 
       if (p.isSpecialProduct) {
         productListPriceTotal = unitPrice;
+        // Special products never had their cash summed here, so the barter target was
+        // always the FULL list price: a rep who put $1,000 cash on a $1,500/mo Content
+        // Automation deal was still asked to fill $18,000/yr of minutes instead of the
+        // $6,000/yr actually left over. Sum cash from the same location keys
+        // renderCashValues() wrote, per market or per station.
+        if (window.productState.pricingType === 'mixed') {
+          const locationKeys = isMarketLevelProduct(p.id)
+            ? Array.from(getProductAssignments(p.id))
+            : assignedStations.map(st => st.key);
+          locationKeys.forEach(locationKey => {
+            productCashTotal += window.productState.productCashValues.get(getCashKey(p.id, locationKey)) || 0;
+          });
+        }
       } else {
         assignedStations.forEach(st => {
           const cashKey = getCashKey(p.id, st.key);
