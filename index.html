@@ -7654,23 +7654,60 @@ document.addEventListener("click", async (e) => {
   // Products that should NOT participate in barter calculation at all (cash-only or non-convertible)
   const BARTER_EXCLUDED_PRODUCTS = ['topline_cx_war_room']; // CX War Room is cash-only
 
-  // Special products that SHOULD appear in cash input (allow cash override)
-  const SPECIAL_PRODUCTS_WITH_CASH_INPUT = ['topline'];
+  // Resolve a special product's monthly deal value from its own pricing function.
+  // ONE resolver shared by both allocation panels so they cannot drift apart: a
+  // product that is priced in the deal is a product that can be allocated in it.
+  function getSpecialProductMonthlyValue(productId) {
+    if (productId === 'topline') {
+      return calculateTopLineCosts().totalMonthly || 0;
+    }
+    if (productId === 'content_automation') {
+      const costs = calculateContentAutomationCosts();
+      // monthlyCost already combines credits and Live Stream Capture.
+      return costs.enabled ? (costs.monthlyCost || 0) : 0;
+    }
+    if (productId === 'spoton') {
+      return calculateSpotOnCosts().monthlyCost || 0;
+    }
+    if (productId === 'topicpulse_community_radar_fb') {
+      return calculateFbGroupsCosts().monthlyCost || 0;
+    }
+    if (productId === 'faai') {
+      return (calculateFaaiCosts().annualCost || 0) / 12;
+    }
+    // Special products with no dedicated calculator fall back to the rate card.
+    return 0;
+  }
+
+  // Rate-card / override value for a product that has no calculated price.
+  function getRateCardMonthlyValue(p) {
+    return window.productState.customPrices.get(p.id) ?? p.barter ?? p.cash ?? 0;
+  }
 
   // Get products eligible for per-product cash input (includes TopLine for cash override)
   function getProductsForCashInput() {
-    const products = getSelectedProductsDetailed();
-    return products.filter(p => !SPECIAL_PRODUCTS.includes(p.id) || SPECIAL_PRODUCTS_WITH_CASH_INPUT.includes(p.id)).map(p => {
-      // For special products, add their calculated value
-      if (p.id === 'topline') {
-        const costs = calculateTopLineCosts();
-        const numMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
-        // Per-market monthly value (total divided by number of markets)
-        const perMarketMonthly = (costs.totalMonthly || 0) / numMarkets;
-        return { ...p, calculatedValue: perMarketMonthly, isSpecialProduct: true };
-      }
-      return p;
-    });
+    return getSelectedProductsDetailed()
+      .map(p => {
+        if (!SPECIAL_PRODUCTS.includes(p.id)) return p;
+        if (p.id === 'topline') {
+          // TopLine is entered PER MARKET in this panel. Unchanged.
+          const costs = calculateTopLineCosts();
+          const numMarkets = Math.max(1, window.toplineState?.numberOfMarkets || 1);
+          return { ...p, calculatedValue: (costs.totalMonthly || 0) / numMarkets, isSpecialProduct: true };
+        }
+        const calculated = getSpecialProductMonthlyValue(p.id);
+        return {
+          ...p,
+          calculatedValue: calculated > 0 ? calculated : getRateCardMonthlyValue(p),
+          isSpecialProduct: true
+        };
+      })
+      // STRUCTURAL eligibility: selected AND carrying a non-zero monthly value.
+      // Replaces a hardcoded allow-list that named only 'topline' and silently
+      // dropped Content Automation, SpotOn, FAAI and Community Radar -- leaving a
+      // mixed deal with no cash inputs AND no per-station barter panel, because
+      // renderCashValues() hides the barter section when this list comes back empty.
+      .filter(p => (p.isSpecialProduct ? (p.calculatedValue || 0) : getRateCardMonthlyValue(p)) > 0);
   }
 
   // Get products eligible for barter calculation (includes special products with calculated values)
@@ -7684,30 +7721,9 @@ document.addEventListener("click", async (e) => {
 
       // For special products, get their calculated monthly value
       if (SPECIAL_PRODUCTS.includes(p.id)) {
-        let monthlyValue = 0;
-        let productName = p.name;
-
-        if (p.id === 'topline') {
-          // Use calculateTopLineCosts() - the single source of truth for TopLine pricing.
-          // totalMonthly is the DEAL VALUE which includes:
-          // - Barter multiplier (1.4x) for barter/mixed deals WITHOUT price override
-          // - Override value (no multiplier) when price override is set
-          // - Cash price for cash deals
-          const costs = calculateTopLineCosts();
-          monthlyValue = costs.totalMonthly;
-        } else if (p.id === 'content_automation') {
-          const costs = calculateContentAutomationCosts();
-          monthlyValue = costs.enabled ? (costs.monthlyCost || 0) : 0;
-        } else if (p.id === 'spoton') {
-          const costs = calculateSpotOnCosts();
-          monthlyValue = costs.monthlyCost || 0;
-        } else if (p.id === 'topicpulse_community_radar_fb') {
-          const costs = calculateFbGroupsCosts();
-          monthlyValue = costs.monthlyCost || 0;
-        } else if (p.id === 'faai') {
-          const costs = calculateFaaiCosts();
-          monthlyValue = (costs.annualCost || 0) / 12;
-        }
+        // Same resolver the cash panel uses. TopLine's totalMonthly already carries
+        // the 1.4x barter multiplier (and skips it on a price override).
+        const monthlyValue = getSpecialProductMonthlyValue(p.id);
 
         if (monthlyValue > 0) {
           result.push({
@@ -8055,10 +8071,17 @@ document.addEventListener("click", async (e) => {
         // Do NOT multiply by market count again - just use the calculated value directly
         productListPriceTotal = unitPrice;  // This is already the total for all assigned markets
 
-        if (pricingType === 'mixed' && isMarketLevelProduct(p.id)) {
-          const assignments = getProductAssignments(p.id);
-          assignments.forEach(market => {
-            const cashKey = getCashKey(p.id, market);
+        if (pricingType === 'mixed') {
+          // Sum cash using the SAME location keys renderCashValues() wrote, whether
+          // this product is allocated per market or per station. The old form only
+          // summed market-level specials, so a station-level special (Content
+          // Automation, FAAI, Community Radar) reported $0 cash in Gap to Value no
+          // matter what the rep entered.
+          const locationKeys = isMarketLevelProduct(p.id)
+            ? Array.from(getProductAssignments(p.id))
+            : assignedStations.map(st => st.key);
+          locationKeys.forEach(locationKey => {
+            const cashKey = getCashKey(p.id, locationKey);
             productCashTotal += window.productState.productCashValues.get(cashKey) || 0;
           });
         }
