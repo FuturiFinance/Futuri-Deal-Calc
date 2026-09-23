@@ -4727,6 +4727,9 @@ document.addEventListener("click", async (e) => {
 
     // Global barter multiplier (barter = cash × this value)
     const BARTER_MULTIPLIER = 1.4;
+    // Same 1.4 under a name that cannot be shadowed by the local BARTER_MULTIPLIER = 728
+    // (the annual minutes formula) inside calculateBarterMinutes().
+    const CASH_TO_BARTER_RATE = 1.4;
 
     /**********************
      * FB Groups Configuration State
@@ -8339,7 +8342,15 @@ document.addEventListener("click", async (e) => {
         });
       }
 
-      const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
+      // Barter costs 1.4x cash to deliver the same value, so the UNPAID remainder has
+      // to be grossed up: a $1,500/mo deal with $1,000 cash leaves $500 of value, which
+      // takes $500 x 1.4 = $700 of inventory to cover. Applied to Content Automation
+      // only -- TopicPulse, TopLine and the rate-card products keep today's arithmetic.
+      const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
+      const needsGrossUp = (p.id === 'content_automation'
+        && window.productState.pricingType === 'mixed'
+        && productCashTotal > 0);
+      const productBarterMonthly = needsGrossUp ? barterRemainder * CASH_TO_BARTER_RATE : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
 
       if (productBarterMonthly <= 0) return;
@@ -8763,7 +8774,15 @@ function computeBarterAllocationPerProduct() {
         });
       }
 
-      const productBarterMonthly = Math.max(0, productListPriceTotal - productCashTotal);
+      // Barter costs 1.4x cash to deliver the same value, so the UNPAID remainder has
+      // to be grossed up: a $1,500/mo deal with $1,000 cash leaves $500 of value, which
+      // takes $500 x 1.4 = $700 of inventory to cover. Applied to Content Automation
+      // only -- TopicPulse, TopLine and the rate-card products keep today's arithmetic.
+      const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
+      const needsGrossUp = (p.id === 'content_automation'
+        && window.productState.pricingType === 'mixed'
+        && productCashTotal > 0);
+      const productBarterMonthly = needsGrossUp ? barterRemainder * CASH_TO_BARTER_RATE : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
 
       if (productBarterMonthly <= 0) {
