@@ -7827,7 +7827,6 @@ document.addEventListener("click", async (e) => {
     let currentProductId = null;
 
     products.forEach(p => {
-      const unitPrice = getProductUnitListPrice(p);
       const isMarketLevel = isMarketLevelProduct(p.id);
       const assignments = getProductAssignments(p.id);
 
@@ -7837,6 +7836,16 @@ document.addEventListener("click", async (e) => {
         : stations.filter(s => assignments.has(s.key)).map(s => ({ key: s.key, name: s.station, market: s.market }));
 
       if (locations.length === 0) return;
+
+      // Station-level special products (Content Automation, FAAI, Community Radar) are
+      // priced ONCE for the deal, not per station. Their calculatedValue is the account
+      // total, so split it evenly across the stations carrying the product -- otherwise
+      // the rows multiply the deal: a $1,500/mo deal on 3 stations would show $4,500 of
+      // list price and invite the rep to quote against money that does not exist.
+      // TopLine pre-divides per market upstream and is left alone.
+      const unitPrice = (p.isSpecialProduct && !isMarketLevel)
+        ? getProductUnitListPrice(p) / locations.length
+        : getProductUnitListPrice(p);
 
       // Product header
       if (currentProductId !== p.id) {
@@ -7928,7 +7937,6 @@ document.addEventListener("click", async (e) => {
     let totalCash = 0;
 
     products.forEach(p => {
-      const unitPrice = getProductUnitListPrice(p);
       const isMarketLevel = isMarketLevelProduct(p.id);
       const assignments = getProductAssignments(p.id);
 
@@ -7936,6 +7944,15 @@ document.addEventListener("click", async (e) => {
       const locations = isMarketLevel
         ? Array.from(assignments)
         : stations.filter(s => assignments.has(s.key)).map(s => s.key);
+
+      if (locations.length === 0) return;
+
+      // Same split the rows use: a station-level special product is priced once for
+      // the deal, so its per-station share is the total divided by the stations
+      // carrying it. Without this the Total row multiplies the deal by station count.
+      const unitPrice = (p.isSpecialProduct && !isMarketLevel)
+        ? getProductUnitListPrice(p) / locations.length
+        : getProductUnitListPrice(p);
 
       locations.forEach(locationKey => {
         const cashKey = getCashKey(p.id, locationKey);
