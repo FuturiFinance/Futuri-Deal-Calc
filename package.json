@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Futuri Deal Calculator with AI-powered pricing assistant",
   "scripts": {
-    "test:tools": "node tools/deal-tools.test.js"
+    "stamp": "node tools/stamp-version.js",
+    "test:stamp": "node tools/stamp-version.js --check",
+    "test:tools": "node tools/deal-tools.test.js && node tools/stamp-version.js --check"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0"

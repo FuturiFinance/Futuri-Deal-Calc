@@ -768,8 +768,20 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="tools/deal-tools.js"></script>
-  <script src="tools/grid-entry.js"></script>
+  <script src="tools/deal-tools.js?v=b008b81f69"></script>
+  <script src="tools/grid-entry.js?v=b008b81f69"></script>
+  <script>
+    // Cache-busting stamp. Content hash of the assets this page loads by URL,
+    // written by tools/stamp-version.js and enforced by tools/deal-tools.test.js.
+    // Do not edit by hand -- run `npm run stamp`.
+    const APP_VERSION = 'b008b81f69';
+    // Appends the stamp to a same-origin asset URL so browsers refetch it on deploy.
+    function versioned(url) {
+      return url + (url.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
+    }
+    window.APP_VERSION = APP_VERSION;
+    window.versioned = versioned;
+  </script>
 </head>
 
 <body>
@@ -4225,7 +4237,7 @@ async function renderAllUsersDeals(){
 
       async function init(baseUrl){
         try {
-          const res = await fetch(baseUrl || 'radio_data.json', { cache: 'no-store' });
+          const res = await fetch(versioned(baseUrl || 'radio_data.json'));
           baseData = normalizeSchema(await res.json());
         } catch (e){
           console.warn('Could not load base radio_data.json; using empty base.', e);
@@ -4448,7 +4460,7 @@ document.addEventListener("click", async (e) => {
     // Load products from rate card JSON
     async function loadRateCard() {
       try {
-        const response = await fetch('radio_rate_card.json?v=' + Date.now());
+        const response = await fetch(versioned('radio_rate_card.json'));
         if (!response.ok) throw new Error('Failed to fetch rate card');
         const data = await response.json();
         if (data.products && Array.isArray(data.products)) {
@@ -4469,7 +4481,7 @@ document.addEventListener("click", async (e) => {
     // Load PrecisionTrak data
     async function loadPrecisionTrakData() {
       try {
-        const response = await fetch('precisiontrak_data.json?v=' + Date.now());
+        const response = await fetch(versioned('precisiontrak_data.json'));
         if (!response.ok) throw new Error('Failed to fetch PrecisionTrak data');
         const data = await response.json();
         if (data.stations) {
@@ -5942,7 +5954,7 @@ document.addEventListener("click", async (e) => {
     }
 
     async function fetchRadioDataFromNetwork() {
-      const response = await fetch(getCurrentBookUrl(), { cache: 'no-store' });
+      const response = await fetch(versioned(getCurrentBookUrl()));
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       return await response.json();
     }
@@ -6085,7 +6097,7 @@ document.addEventListener("click", async (e) => {
 
       try {
         // Reload the base dataset from the new book
-        const res = await fetch(bookFile, { cache: 'no-store' });
+        const res = await fetch(versioned(bookFile));
         const data = await res.json();
 
         // Update BASE_DS with the new data

@@ -904,6 +904,35 @@
   });
 
   // ============================================================================
+  // CACHE-BUSTING VERSION STAMP (Node only -- needs the filesystem)
+  // ============================================================================
+
+  if (typeof module === 'object' && module.exports) {
+    const fs = require('fs');
+    const path = require('path');
+    const { ROOT, computeVersion, readStamps, versionedAssets } = require('./asset-version.js');
+
+    test('APP_VERSION stamp in index.html matches the assets on disk', () => {
+      const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+      const expected = computeVersion();
+      const stamps = readStamps(html);
+
+      stamps.forEach(s => {
+        assertTrue(s.value !== null,
+          `index.html is missing its ${s.label} -- cache busting is broken`);
+      });
+
+      const stale = stamps.filter(s => s.value !== expected);
+      assertTrue(stale.length === 0,
+        'index.html cache-busting stamp is stale. Expected v=' + expected + ' but found ' +
+        stale.map(s => `${s.label}=${s.value}`).join(', ') +
+        '. A versioned asset (' + versionedAssets().join(', ') + ') changed without ' +
+        're-stamping index.html, so browsers will keep serving the old file. ' +
+        'Fix: npm run stamp');
+    });
+  }
+
+  // ============================================================================
   // RUN ALL TESTS
   // ============================================================================
 
