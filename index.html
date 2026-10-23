@@ -8414,12 +8414,16 @@ document.addEventListener("click", async (e) => {
         });
       }
 
-      // Barter costs 1.4x cash to deliver the same value, so the UNPAID remainder has
-      // to be grossed up: a $1,500/mo deal with $1,000 cash leaves $500 of value, which
-      // takes $500 x 1.4 = $700 of inventory to cover. Applied to Content Automation
-      // only -- TopicPulse, TopLine and the rate-card products keep today's arithmetic.
+      // Barter costs getBarterMultiplier() (1.5279x) cash to deliver the same value, so
+      // the UNPAID remainder has to be grossed up: a $1,500/mo deal with $1,000 cash
+      // leaves $500 of value, which takes $500 x 1.5279 = $763.94 of inventory to cover.
+      // Applies to every special product with its own calculator -- SpotOn and FAAI were
+      // sizing barter at the plain cash rate on mixed deals. Keyed off isSpecialProduct
+      // rather than a product id so a new calculated product is covered on arrival.
+      // TopLine and the rate-card products are untouched: neither accumulates
+      // productCashTotal on a mixed deal, so needsGrossUp stays false for them.
       const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
-      const needsGrossUp = (p.id === 'content_automation'
+      const needsGrossUp = (p.isSpecialProduct
         && window.productState.pricingType === 'mixed'
         && productCashTotal > 0);
       const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
@@ -8834,8 +8838,21 @@ function computeBarterAllocationPerProduct() {
       let productListPriceTotal = 0;
 
       if (p.isSpecialProduct) {
-        // Special products: calculated value is the total (no per-station cash)
         productListPriceTotal = unitPrice;
+        // Special products never had their cash summed here, so this path sized barter
+        // against the FULL list price and the gross-up below could never fire: the
+        // on-screen breakdown netted the rep's cash while the proposal built from this
+        // map did not, and the two disagreed on the same mixed deal. Sum cash from the
+        // same location keys renderCashValues() wrote, matching calculateBarterMinutes().
+        // TopLine stays excluded so it keeps sizing against full list price as it does today.
+        if (window.productState.pricingType === 'mixed' && p.id !== 'topline') {
+          const locationKeys = isMarketLevelProduct(p.id)
+            ? Array.from(getProductAssignments(p.id))
+            : assignedStations.map(st => st.key);
+          locationKeys.forEach(locationKey => {
+            productCashTotal += window.productState.productCashValues.get(getCashKey(p.id, locationKey)) || 0;
+          });
+        }
       } else {
         // Standard products: sum per-station values
         assignedStations.forEach(st => {
@@ -8846,12 +8863,16 @@ function computeBarterAllocationPerProduct() {
         });
       }
 
-      // Barter costs 1.4x cash to deliver the same value, so the UNPAID remainder has
-      // to be grossed up: a $1,500/mo deal with $1,000 cash leaves $500 of value, which
-      // takes $500 x 1.4 = $700 of inventory to cover. Applied to Content Automation
-      // only -- TopicPulse, TopLine and the rate-card products keep today's arithmetic.
+      // Barter costs getBarterMultiplier() (1.5279x) cash to deliver the same value, so
+      // the UNPAID remainder has to be grossed up: a $1,500/mo deal with $1,000 cash
+      // leaves $500 of value, which takes $500 x 1.5279 = $763.94 of inventory to cover.
+      // Applies to every special product with its own calculator -- SpotOn and FAAI were
+      // sizing barter at the plain cash rate on mixed deals. Keyed off isSpecialProduct
+      // rather than a product id so a new calculated product is covered on arrival.
+      // TopLine and the rate-card products are untouched: neither accumulates
+      // productCashTotal on a mixed deal, so needsGrossUp stays false for them.
       const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
-      const needsGrossUp = (p.id === 'content_automation'
+      const needsGrossUp = (p.isSpecialProduct
         && window.productState.pricingType === 'mixed'
         && productCashTotal > 0);
       const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
