@@ -768,13 +768,13 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="tools/deal-tools.js?v=4dd6319004"></script>
-  <script src="tools/grid-entry.js?v=4dd6319004"></script>
+  <script src="tools/deal-tools.js?v=e1f589ab6a"></script>
+  <script src="tools/grid-entry.js?v=e1f589ab6a"></script>
   <script>
     // Cache-busting stamp. Content hash of the assets this page loads by URL,
     // written by tools/stamp-version.js and enforced by tools/deal-tools.test.js.
     // Do not edit by hand -- run `npm run stamp`.
-    const APP_VERSION = '4dd6319004';
+    const APP_VERSION = 'e1f589ab6a';
     // Appends the stamp to a same-origin asset URL so browsers refetch it on deploy.
     function versioned(url) {
       return url + (url.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
@@ -11491,57 +11491,64 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   // Combine all rows
   const allRows = [...allocationRows, ...specialProducts];
   console.log('[FinancialAllocation] Total rows:', allRows.length, 'allocation:', allocationRows.length, 'special:', specialProducts.length);
-  console.log('[FinancialAllocation] All rows:', allRows);
 
-  // Build HTML table with all columns
-  // Include Revenue Allocated column for barter/mixed deals to show proportional allocation
-  const showRevenueCol = (isBarter || isMixed);
-  const tableHtml = `
-    <table style="width:100%;border-collapse:collapse;font-size:11px;">
-      <thead>
-        <tr style="background:#4a90d9;color:white;">
-          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Station</th>
-          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Market</th>
-          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Product</th>
-          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Prime AQH</th>
-          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">ROS AQH</th>
-          ${!isBarter ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Yr</th>` : ''}
-          ${showRevenueCol ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Revenue Alloc/Yr</th>` : ''}
-          ${(isBarter || isMixed) ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Barter Val/Yr</th>` : ''}
-          ${(isBarter || isMixed) ? `<th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Mins (P/R)</th>` : ''}
-          <th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Type</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${allRows.map((row, idx) => `
-          <tr style="background:${row.stationType === 'Summary' ? 'rgba(74,144,217,0.1)' : (idx % 2 === 0 ? 'rgba(74,144,217,0.03)' : 'transparent')};${row.stationType === 'Summary' ? 'font-weight:600;' : ''}">
-            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(row.station)}</td>
-            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(row.market)}</td>
-            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(row.product)}</td>
-            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${row.primeAQH > 0 ? 'inherit' : 'var(--text-muted)'};">${row.primeAQH > 0 ? row.primeAQH.toLocaleString() : '—'}</td>
-            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${row.rosAQH > 0 ? 'inherit' : 'var(--text-muted)'};">${row.rosAQH > 0 ? row.rosAQH.toLocaleString() : '—'}</td>
-            ${!isBarter ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${money(row.cashAnnual)}</td>` : ''}
-            ${showRevenueCol ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:#1976d2;">${(row.revenueAllocated || 0) > 0 ? money(row.revenueAllocated) : '—'}</td>` : ''}
-            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${row.barterValue > 0 ? 'var(--brand)' : 'var(--text-muted)'};">${money(row.barterValue)}</td>` : ''}
-            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">${row.primeMinutes > 0 || row.rosMinutes > 0 ? `${row.primeMinutes}/${row.rosMinutes}` : '—'}</td>` : ''}
-            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">
-              <span style="padding:2px 5px;border-radius:4px;font-size:9px;font-weight:600;
-                background:${row.stationType === 'Summary' ? '#e3f2fd' : row.stationType === 'Inventory' ? '#e3f2fd' : row.stationType === 'Barter' ? 'rgba(103,36,119,0.1)' : row.stationType === 'Mixed' ? '#fff3e0' : '#e8f5e9'};
-                color:${row.stationType === 'Summary' ? '#1976d2' : row.stationType === 'Inventory' ? '#1976d2' : row.stationType === 'Barter' ? 'var(--brand)' : row.stationType === 'Mixed' ? '#e65100' : '#2e7d32'};">
-                ${row.stationType}
-              </span>
-            </td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>
-  `;
+  // ==========================================================================
+  // REGROUP: one row per STATION, products underneath
+  // ==========================================================================
+  //
+  // Barter minutes belong to the station, not the product. Every product that
+  // allocated barter emitted its own row per station carrying that station's FULL
+  // minutes and barter value, and the totals summed those rows -- so a two-product
+  // deal counted the same airtime twice and reported 193% coverage on a deal that
+  // was 97% covered. Regrouping here rather than in each product's own builder
+  // keeps one place that decides what a station's airtime is worth.
+  const grouped = DealTools.groupAllocationRowsByStation(allocationRows);
 
-  el('financialAllocationTable').innerHTML = tableHtml;
+  // Products that never landed on a station (account-level lines) still carry value,
+  // so they are listed separately and counted in the totals -- but never in barter.
+  const groupedStationNames = new Set(grouped.stations.map(g => g.station));
+  const accountLevelRows = specialProducts.filter(r =>
+    !groupedStationNames.has(r.station) && (r.revenueAllocated || 0) > 0 &&
+    !(r.products || []).length && r.stationType !== 'Summary'
+  );
 
-  // Build summary section
-  // For barter deals: show Total Revenue (deal value) vs Total Barter Value (from minutes)
-  // Coverage = Barter Value / Deal Value
+  const groupedStations = grouped.stations;
+
+  // Totals, with each station's barter counted exactly once.
+  const groupedBarterTotal = grouped.totals.barterValue;
+  const groupedRevenueTotal = grouped.totals.revenueAllocated
+    + accountLevelRows.reduce((a, r) => a + (r.revenueAllocated || 0), 0);
+  const groupedCashTotal = grouped.totals.cashAnnual
+    + accountLevelRows.reduce((a, r) => a + (r.cashAnnual || 0), 0);
+
+  // These were never incremented for calculated products, so the panel reported 0
+  // product stations on a deal with three of them.
+  productStationCount = grouped.totals.productStations;
+  inventoryStationCount = grouped.totals.inventoryStations;
+
+  // Rebuild the market breakdown off the deduplicated stations for the same reason.
+  marketBreakdown.clear();
+  groupedStations.forEach(g => {
+    if (!marketBreakdown.has(g.market)) {
+      marketBreakdown.set(g.market, { cash: 0, barter: 0, revenue: 0 });
+    }
+    const m = marketBreakdown.get(g.market);
+    m.barter += g.barterValue;
+    m.revenue += g.revenueAllocated;
+    m.cash += g.cashAnnual;
+  });
+
+  // Totals now come from the deduplicated stations.
+  totalBarterValue = groupedBarterTotal;
+  if (isBarter || isMixed) totalCashAnnual = groupedCashTotal;
+
+  const coverageFor = (g) => {
+    const covered = isMixed
+      ? g.cashAnnual + (getBarterMultiplier() > 0 ? g.barterValue / getBarterMultiplier() : 0)
+      : g.barterValue;
+    return g.revenueAllocated > 0 ? (covered / g.revenueAllocated * 100) : 0;
+  };
+
   const totalAllocated = totalCashAnnual + totalBarterValue;
   const gap = totalListPrice - totalAllocated;
   const gapPercent = totalListPrice > 0 ? Math.abs(gap / totalListPrice * 100).toFixed(1) : 0;
@@ -11574,6 +11581,108 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       const shortfall = Math.max(0, totalListPrice - dealValueCovered);
       coverageMessage = `<span style="color:#d32f2f;">⚠ Shortfall: ${money(shortfall)}/yr (${coveragePercent}% covered)</span>`;
     }
+
+  // Build HTML table with all columns
+  // Include Revenue Allocated column for barter/mixed deals to show proportional allocation
+  const showRevenueCol = (isBarter || isMixed);
+  const tableHtml = `
+    <table style="width:100%;border-collapse:collapse;font-size:11px;">
+      <thead>
+        <tr style="background:#4a90d9;color:white;">
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Station</th>
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Market</th>
+          <th style="padding:6px;text-align:left;border:1px solid rgba(255,255,255,0.2);">Product</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Prime AQH</th>
+          <th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">ROS AQH</th>
+          ${!isBarter ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Cash/Yr</th>` : ''}
+          ${showRevenueCol ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Revenue Alloc/Yr</th>` : ''}
+          ${(isBarter || isMixed) ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Barter Val/Yr</th>` : ''}
+          ${(isBarter || isMixed) ? `<th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Mins (P/R)</th>` : ''}
+          ${(isBarter || isMixed) ? `<th style="padding:6px;text-align:right;border:1px solid rgba(255,255,255,0.2);">Coverage</th>` : ''}
+          <th style="padding:6px;text-align:center;border:1px solid rgba(255,255,255,0.2);">Type</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${groupedStations.map((g, idx) => {
+          const cov = coverageFor(g);
+          const bg = idx % 2 === 0 ? 'rgba(74,144,217,0.03)' : 'transparent';
+          const type = g.isInventory ? 'Inventory'
+            : (g.cashAnnual > 0 && g.barterValue > 0 ? 'Mixed'
+              : (g.cashAnnual > 0 ? 'Cash' : 'Barter'));
+          const stationRow = `
+          <tr style="background:${bg};font-weight:600;">
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(g.station)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(g.market)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);color:var(--text-muted);">${g.isInventory ? 'Inventory only' : `${g.products.length} product${g.products.length === 1 ? '' : 's'}`}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${g.primeAQH > 0 ? g.primeAQH.toLocaleString() : '—'}</td>
+            <td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${g.rosAQH > 0 ? g.rosAQH.toLocaleString() : '—'}</td>
+            ${!isBarter ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${money(g.cashAnnual)}</td>` : ''}
+            ${showRevenueCol ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:#1976d2;">${g.revenueAllocated > 0 ? money(g.revenueAllocated) : '—'}</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${g.barterValue > 0 ? 'var(--brand)' : 'var(--text-muted)'};">${money(g.barterValue)}</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">${g.primeMinutes > 0 || g.rosMinutes > 0 ? `${g.primeMinutes}/${g.rosMinutes}` : '—'}</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:${cov >= 95 ? '#2e7d32' : '#d32f2f'};">${g.revenueAllocated > 0 ? cov.toFixed(0) + '%' : '—'}</td>` : ''}
+            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">
+              <span style="padding:2px 5px;border-radius:4px;font-size:9px;font-weight:600;
+                background:${type === 'Inventory' ? '#e3f2fd' : type === 'Barter' ? 'rgba(103,36,119,0.1)' : type === 'Mixed' ? '#fff3e0' : '#e8f5e9'};
+                color:${type === 'Inventory' ? '#1976d2' : type === 'Barter' ? 'var(--brand)' : type === 'Mixed' ? '#e65100' : '#2e7d32'};">
+                ${type}
+              </span>
+            </td>
+          </tr>`;
+          // Product sub-rows: revenue (and cash) only. Minutes and barter belong to the
+          // station above and are deliberately not repeated here.
+          const subRows = g.products.map(pr => `
+          <tr style="background:${bg};">
+            <td style="padding:4px 6px 4px 20px;border:1px solid var(--input-edge);color:var(--text-muted);">↳</td>
+            <td style="padding:4px 6px;border:1px solid var(--input-edge);"></td>
+            <td style="padding:4px 6px;border:1px solid var(--input-edge);">${escapeHtml(pr.product)}</td>
+            <td style="padding:4px 6px;border:1px solid var(--input-edge);"></td>
+            <td style="padding:4px 6px;border:1px solid var(--input-edge);"></td>
+            ${!isBarter ? `<td style="padding:4px 6px;text-align:right;border:1px solid var(--input-edge);">${money(pr.cashAnnual)}</td>` : ''}
+            ${showRevenueCol ? `<td style="padding:4px 6px;text-align:right;border:1px solid var(--input-edge);color:#1976d2;">${pr.revenueAllocated > 0 ? money(pr.revenueAllocated) : '—'}</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:4px 6px;text-align:right;border:1px solid var(--input-edge);color:var(--text-muted);">—</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:4px 6px;text-align:center;border:1px solid var(--input-edge);color:var(--text-muted);">—</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:4px 6px;text-align:right;border:1px solid var(--input-edge);color:var(--text-muted);">—</td>` : ''}
+            <td style="padding:4px 6px;border:1px solid var(--input-edge);"></td>
+          </tr>`).join('');
+          return stationRow + subRows;
+        }).join('')}
+        ${accountLevelRows.map(r => `
+          <tr style="background:rgba(74,144,217,0.03);">
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(r.station)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(r.market)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">${escapeHtml(r.product)}</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">—</td>
+            <td style="padding:5px 6px;border:1px solid var(--input-edge);">—</td>
+            ${!isBarter ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);">${money(r.cashAnnual || 0)}</td>` : ''}
+            ${showRevenueCol ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:#1976d2;">${money(r.revenueAllocated || 0)}</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:var(--text-muted);">—</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);color:var(--text-muted);">—</td>` : ''}
+            ${(isBarter || isMixed) ? `<td style="padding:5px 6px;text-align:right;border:1px solid var(--input-edge);color:var(--text-muted);">—</td>` : ''}
+            <td style="padding:5px 6px;text-align:center;border:1px solid var(--input-edge);">Account</td>
+          </tr>`).join('')}
+        <tr style="background:rgba(74,144,217,0.12);font-weight:700;">
+          <td style="padding:6px;border:1px solid var(--input-edge);">— Total —</td>
+          <td style="padding:6px;border:1px solid var(--input-edge);">${groupedStations.length} station(s)</td>
+          <td style="padding:6px;border:1px solid var(--input-edge);"></td>
+          <td style="padding:6px;border:1px solid var(--input-edge);"></td>
+          <td style="padding:6px;border:1px solid var(--input-edge);"></td>
+          ${!isBarter ? `<td style="padding:6px;text-align:right;border:1px solid var(--input-edge);">${money(groupedCashTotal)}</td>` : ''}
+          ${showRevenueCol ? `<td style="padding:6px;text-align:right;border:1px solid var(--input-edge);color:#1976d2;">${money(groupedRevenueTotal)}</td>` : ''}
+          ${(isBarter || isMixed) ? `<td style="padding:6px;text-align:right;border:1px solid var(--input-edge);color:var(--brand);">${money(groupedBarterTotal)}</td>` : ''}
+          ${(isBarter || isMixed) ? `<td style="padding:6px;border:1px solid var(--input-edge);"></td>` : ''}
+          ${(isBarter || isMixed) ? `<td style="padding:6px;text-align:right;border:1px solid var(--input-edge);">${coveragePercent}%</td>` : ''}
+          <td style="padding:6px;border:1px solid var(--input-edge);"></td>
+        </tr>
+      </tbody>
+    </table>
+  `;
+
+  el('financialAllocationTable').innerHTML = tableHtml;
+
+  // Build summary section
+  // For barter deals: show Total Revenue (deal value) vs Total Barter Value (from minutes)
+  // Coverage = Barter Value / Deal Value
   }
 
   const marketRows = Array.from(marketBreakdown.entries())
@@ -11640,8 +11749,55 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   el('financialAllocationSummary').innerHTML = summaryHtml;
 
   // Store allocation data for export
+  // Export rows mirror the table exactly: a station row carrying that station's
+  // minutes and barter counted once, then its products carrying revenue and cash only.
+  const exportRows = [];
+  groupedStations.forEach(g => {
+    exportRows.push({
+      level: 'Station',
+      station: g.station, market: g.market,
+      product: g.isInventory ? 'Inventory only' : `${g.products.length} product(s)`,
+      format: g.format, simulcast: g.simulcast, hd: g.hd,
+      primeAQH: g.primeAQH, rosAQH: g.rosAQH,
+      cashMonthly: g.cashAnnual / 12, cashAnnual: g.cashAnnual,
+      revenueAllocated: g.revenueAllocated,
+      barterValue: g.barterValue,
+      primeMinutes: g.primeMinutes, rosMinutes: g.rosMinutes,
+      coveragePercent: coverageFor(g),
+      stationType: g.isInventory ? 'Inventory'
+        : (g.cashAnnual > 0 && g.barterValue > 0 ? 'Mixed' : (g.cashAnnual > 0 ? 'Cash' : 'Barter'))
+    });
+    g.products.forEach(pr => exportRows.push({
+      level: 'Product',
+      station: g.station, market: g.market, product: pr.product,
+      format: '', simulcast: '', hd: '',
+      primeAQH: 0, rosAQH: 0,
+      cashMonthly: pr.cashAnnual / 12, cashAnnual: pr.cashAnnual,
+      revenueAllocated: pr.revenueAllocated,
+      // Blank, not zero: the station row above owns this station's airtime.
+      barterValue: null, primeMinutes: null, rosMinutes: null, coveragePercent: null,
+      stationType: ''
+    }));
+  });
+  accountLevelRows.forEach(r => exportRows.push({
+    level: 'Account', station: r.station, market: r.market, product: r.product,
+    format: '', simulcast: '', hd: '', primeAQH: 0, rosAQH: 0,
+    cashMonthly: (r.cashAnnual || 0) / 12, cashAnnual: r.cashAnnual || 0,
+    revenueAllocated: r.revenueAllocated || 0,
+    barterValue: null, primeMinutes: null, rosMinutes: null, coveragePercent: null,
+    stationType: 'Account'
+  }));
+  exportRows.push({
+    level: 'Total', station: '— Total —', market: `${groupedStations.length} station(s)`,
+    product: '', format: '', simulcast: '', hd: '', primeAQH: 0, rosAQH: 0,
+    cashMonthly: groupedCashTotal / 12, cashAnnual: groupedCashTotal,
+    revenueAllocated: groupedRevenueTotal,
+    barterValue: groupedBarterTotal, primeMinutes: null, rosMinutes: null,
+    coveragePercent: Number(coveragePercent), stationType: ''
+  });
+
   window.lastFinancialAllocation = {
-    rows: allRows,
+    rows: exportRows,
     summary: {
       totalListPrice,
       totalCashAnnual,
@@ -11668,6 +11824,7 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
 
   // Build CSV content with all columns including PrecisionTrak and AQH data
   const headers = [
+    'Level',
     'Station',
     'Market',
     'Product',
@@ -11678,15 +11835,20 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
     'ROS AQH',
     'Cash/Mo',
     'Cash/Yr',
+    'Revenue Alloc/Yr',
     'Barter Value/Yr',
     'Barter Mins (P)',
     'Barter Mins (R)',
+    'Coverage %',
     'Type'
   ];
   const csvRows = [headers.join(',')];
 
   rows.forEach(row => {
+    // Blank rather than 0 where a value belongs to the station row above.
+    const blankable = v => (v === null || v === undefined) ? '' : v;
     csvRows.push([
+      `"${row.level || ''}"`,
       `"${row.station}"`,
       `"${row.market}"`,
       `"${row.product}"`,
@@ -11695,11 +11857,13 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
       `"${row.hd || '—'}"`,
       row.primeAQH || 0,
       row.rosAQH || 0,
-      row.cashMonthly.toFixed(2),
-      row.cashAnnual.toFixed(2),
-      row.barterValue.toFixed(2),
-      row.primeMinutes,
-      row.rosMinutes,
+      (row.cashMonthly || 0).toFixed(2),
+      (row.cashAnnual || 0).toFixed(2),
+      (row.revenueAllocated || 0).toFixed(2),
+      row.barterValue === null || row.barterValue === undefined ? '' : row.barterValue.toFixed(2),
+      blankable(row.primeMinutes),
+      blankable(row.rosMinutes),
+      row.coveragePercent === null || row.coveragePercent === undefined ? '' : row.coveragePercent.toFixed(1),
       `"${row.stationType}"`
     ].join(','));
   });

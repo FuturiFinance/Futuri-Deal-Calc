@@ -1194,6 +1194,146 @@
   });
 
   // ============================================================================
+  // ALLOCATION GROUPING: BARTER IS COUNTED ONCE PER STATION
+  // ============================================================================
+  //
+  // Barter minutes belong to the station, not the product. Each product that
+  // allocates barter emits its own row per station carrying that station's FULL
+  // minutes and barter value, so summing the rows counted the same airtime once per
+  // product. The reported case: SpotOn + FAAI on 3 stations showed $27,082 of barter
+  // and "193% covered" against $13,541 of real airtime on a $14,003 deal.
+
+  (function allocationGrouping() {
+    // The three stations from the reported deal, with their actual barter values.
+    const STATIONS = [
+      { station: 'WAHR-F2', market: 'Huntsville-Decatur (Florence)', primeAQH: 1200, rosAQH: 1100, barterValue: 5023.20, primeMinutes: 2, rosMinutes: 2 },
+      { station: 'WAHR-FM', market: 'Huntsville-Decatur (Florence)', primeAQH: 1100, rosAQH: 900,  barterValue: 4368.00, primeMinutes: 2, rosMinutes: 2 },
+      { station: 'WRTT-FM', market: 'Huntsville-Decatur (Florence)', primeAQH: 2200, rosAQH: 1900, barterValue: 4149.60, primeMinutes: 0, rosMinutes: 2 }
+    ];
+    const REAL_AIRTIME = 5023.20 + 4368.00 + 4149.60;   // 13,540.80
+
+    // Build the rows the allocation emits: one per station PER PRODUCT, each carrying
+    // the station's full barter value.
+    function rowsFor(products, revenuePerStationPerProduct) {
+      const rows = [];
+      products.forEach(product => {
+        STATIONS.forEach(st => {
+          rows.push({
+            station: st.station, market: st.market, product,
+            primeAQH: st.primeAQH, rosAQH: st.rosAQH,
+            revenueAllocated: revenuePerStationPerProduct,
+            cashAnnual: 0,
+            barterValue: st.barterValue,
+            primeMinutes: st.primeMinutes, rosMinutes: st.rosMinutes,
+            stationType: 'Barter'
+          });
+        });
+      });
+      return rows;
+    }
+
+    [1, 2, 3].forEach(productCount => {
+      const products = ['SpotOn', 'FAAI', 'TopicPulse'].slice(0, productCount);
+      test(`allocation grouping: ${productCount} product(s) on shared stations count barter once`, () => {
+        const r = DealTools.groupAllocationRowsByStation(rowsFor(products, 1000));
+
+        assertEqual(r.stations.length, 3, 'Three stations should collapse to three rows');
+        assertClose(r.totals.barterValue, REAL_AIRTIME, 0.01,
+          `Barter must equal the stations counted once ($${REAL_AIRTIME.toFixed(2)}), ` +
+          `not multiplied by the ${productCount} product(s)`);
+        // Revenue IS per product and must still accumulate.
+        assertClose(r.totals.revenueAllocated, 1000 * 3 * productCount, 0.01,
+          'Revenue should sum across every product on every station');
+        r.stations.forEach(g => {
+          assertEqual(g.products.length, productCount,
+            `${g.station} should list all ${productCount} product(s) underneath`);
+        });
+        assertEqual(r.totals.productStations, 3, 'Three product stations');
+        assertEqual(r.totals.inventoryStations, 0, 'No inventory-only stations');
+      });
+    });
+
+    test('allocation grouping: barter total is independent of product count', () => {
+      const one = DealTools.groupAllocationRowsByStation(rowsFor(['SpotOn'], 1000));
+      const two = DealTools.groupAllocationRowsByStation(rowsFor(['SpotOn', 'FAAI'], 1000));
+      const three = DealTools.groupAllocationRowsByStation(rowsFor(['SpotOn', 'FAAI', 'TopicPulse'], 1000));
+      assertClose(one.totals.barterValue, two.totals.barterValue, 0.01,
+        'Adding a second product must not change the airtime');
+      assertClose(two.totals.barterValue, three.totals.barterValue, 0.01,
+        'Adding a third product must not change the airtime');
+    });
+
+    test('allocation grouping: reproduces the reported deal', () => {
+      // SpotOn $7,560 + FAAI $6,443 = $14,003, split equally across 3 stations.
+      const rows = [];
+      [['SpotOn', 7560], ['FAAI', 6443]].forEach(([product, annual]) => {
+        STATIONS.forEach(st => rows.push({
+          station: st.station, market: st.market, product,
+          primeAQH: st.primeAQH, rosAQH: st.rosAQH,
+          revenueAllocated: annual / 3, cashAnnual: 0,
+          barterValue: st.barterValue,
+          primeMinutes: st.primeMinutes, rosMinutes: st.rosMinutes,
+          stationType: 'Barter'
+        }));
+      });
+      const r = DealTools.groupAllocationRowsByStation(rows);
+      assertClose(r.totals.revenueAllocated, 14003, 1, 'Deal value $14,003');
+      assertClose(r.totals.barterValue, 13541, 1,
+        'Barter $13,541, not the $27,082 the double count reported');
+      const coverage = r.totals.barterValue / r.totals.revenueAllocated * 100;
+      assertClose(coverage, 96.7, 0.2, `Coverage ~96.7%, not 193%: got ${coverage.toFixed(1)}%`);
+      r.stations.forEach(g => assertClose(g.revenueAllocated, 4667.67, 1,
+        `${g.station} revenue should be the sum of both products`));
+    });
+
+    test('allocation grouping: inventory-only stations carry barter but no products', () => {
+      const rows = [
+        { station: 'WAHR-F2', market: 'M', product: 'SpotOn', revenueAllocated: 1000,
+          cashAnnual: 0, barterValue: 5000, primeMinutes: 2, rosMinutes: 2, stationType: 'Barter' },
+        { station: 'WINV-FM', market: 'M', product: 'Inventory Only', revenueAllocated: 0,
+          cashAnnual: 0, barterValue: 2000, primeMinutes: 1, rosMinutes: 1, stationType: 'Inventory' }
+      ];
+      const r = DealTools.groupAllocationRowsByStation(rows);
+      const inv = r.stations.find(g => g.station === 'WINV-FM');
+      assertTrue(inv.isInventory, 'Inventory station should be flagged');
+      assertEqual(inv.products.length, 0, 'Inventory station has no product sub-rows');
+      assertClose(inv.barterValue, 2000, 0.01, 'Inventory station still contributes barter');
+      assertEqual(r.totals.productStations, 1, 'One product station');
+      assertEqual(r.totals.inventoryStations, 1, 'One inventory station');
+      assertClose(r.totals.barterValue, 7000, 0.01, 'Both stations contribute barter once');
+    });
+
+    test('allocation grouping: a zero-minute product row cannot clobber the station', () => {
+      // An off-book or zero-barter product row must not pull the station's airtime to 0.
+      const rows = [
+        { station: 'WAHR-F2', market: 'M', product: 'SpotOn', revenueAllocated: 500,
+          cashAnnual: 0, barterValue: 5023.20, primeMinutes: 2, rosMinutes: 2, stationType: 'Barter' },
+        { station: 'WAHR-F2', market: 'M', product: 'CashOnlyProduct', revenueAllocated: 500,
+          cashAnnual: 0, barterValue: 0, primeMinutes: 0, rosMinutes: 0, stationType: 'Barter' }
+      ];
+      const r = DealTools.groupAllocationRowsByStation(rows);
+      assertClose(r.stations[0].barterValue, 5023.20, 0.01, 'Station keeps its real barter value');
+      assertEqual(r.stations[0].primeMinutes, 2, 'Station keeps its real prime minutes');
+      assertClose(r.stations[0].revenueAllocated, 1000, 0.01, 'Revenue still sums');
+    });
+
+    test('allocation grouping: mixed deals accumulate cash per product, barter once', () => {
+      const rows = [];
+      ['SpotOn', 'FAAI'].forEach(product => STATIONS.forEach(st => rows.push({
+        station: st.station, market: st.market, product,
+        revenueAllocated: 1000, cashAnnual: 600,
+        barterValue: st.barterValue,
+        primeMinutes: st.primeMinutes, rosMinutes: st.rosMinutes, stationType: 'Mixed'
+      })));
+      const r = DealTools.groupAllocationRowsByStation(rows);
+      assertClose(r.totals.cashAnnual, 600 * 3 * 2, 0.01,
+        'Cash is per product and accumulates');
+      assertClose(r.totals.barterValue, REAL_AIRTIME, 0.01,
+        'Barter is per station and is counted once');
+    });
+  })();
+
+  // ============================================================================
   // CACHE-BUSTING VERSION STAMP (Node only -- needs the filesystem)
   // ============================================================================
 

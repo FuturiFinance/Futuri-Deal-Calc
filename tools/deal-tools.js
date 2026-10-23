@@ -78,6 +78,75 @@
    * name, station-level under the station key. Reading the station key for a
    * market-level product silently yields 0.
    */
+  /**
+   * Collapse per-product allocation rows into one entry per station.
+   *
+   * Barter minutes belong to the STATION, not the product. Every product that
+   * allocates barter emits its own row per station carrying that station's full
+   * minutes and barter value; summing those rows counts the same airtime once per
+   * product, so a two-product deal reported double the barter it actually had.
+   *
+   * Revenue and cash are genuinely per product and accumulate. Minutes and barter
+   * value are taken once per station -- by max() rather than first-seen, so a
+   * zero-minute or off-book product row cannot clobber the real figure.
+   *
+   * @param {Array} rows allocation rows: {station, market, revenueAllocated,
+   *   cashAnnual, barterValue, primeMinutes, rosMinutes, stationType, ...}
+   * @returns {{stations: Array, totals: {barterValue, revenueAllocated, cashAnnual,
+   *   productStations, inventoryStations}}}
+   */
+  function groupAllocationRowsByStation(rows) {
+    const groups = new Map();
+    (rows || []).forEach(row => {
+      const key = `${row.station}|${row.market}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          station: row.station,
+          market: row.market,
+          format: row.format,
+          simulcast: row.simulcast,
+          hd: row.hd,
+          primeAQH: row.primeAQH || 0,
+          rosAQH: row.rosAQH || 0,
+          primeMinutes: 0,
+          rosMinutes: 0,
+          barterValue: 0,
+          revenueAllocated: 0,
+          cashAnnual: 0,
+          products: [],
+          isInventory: false
+        });
+      }
+      const g = groups.get(key);
+      g.revenueAllocated += row.revenueAllocated || 0;
+      g.cashAnnual += row.cashAnnual || 0;
+      g.primeMinutes = Math.max(g.primeMinutes, row.primeMinutes || 0);
+      g.rosMinutes = Math.max(g.rosMinutes, row.rosMinutes || 0);
+      g.barterValue = Math.max(g.barterValue, row.barterValue || 0);
+      if (row.stationType === 'Inventory') {
+        g.isInventory = true;   // inventory-only stations carry no product sub-rows
+      } else {
+        g.products.push({
+          product: row.product,
+          revenueAllocated: row.revenueAllocated || 0,
+          cashAnnual: row.cashAnnual || 0
+        });
+      }
+    });
+
+    const stations = Array.from(groups.values());
+    return {
+      stations,
+      totals: {
+        barterValue: stations.reduce((a, g) => a + g.barterValue, 0),
+        revenueAllocated: stations.reduce((a, g) => a + g.revenueAllocated, 0),
+        cashAnnual: stations.reduce((a, g) => a + g.cashAnnual, 0),
+        productStations: stations.filter(g => !g.isInventory).length,
+        inventoryStations: stations.filter(g => g.isInventory).length
+      }
+    };
+  }
+
   function cashKeyForStation(productId, station) {
     const location = isMarketLevelProduct(productId)
       ? (station && station.market)
@@ -2153,6 +2222,7 @@
     PRICING_RULES_VERSION,
     dealNeedsPricingRulesWarning,
     cashKeyForStation,
+    groupAllocationRowsByStation,
     calculateBarterMinutes,
     calculateFAAIPrice,
     buildDeal,
