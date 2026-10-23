@@ -914,20 +914,23 @@
   });
 
   // ============================================================================
-  // MIXED-DEAL BARTER TARGET: ENGINE MUST MATCH THE UI
+  // BARTER PRICING: ENGINE MUST MATCH THE UI
   // ============================================================================
   //
+  // One rule for every product: list at the cash rate, subtract the cash the rep
+  // entered against that product, gross the remainder up by the deal's multiplier.
   // Expected values were measured in the live UI (2 stations: KAAR-FM 100/100 AQH,
-  // KACL-FM 400/400, CPM 1.5) and are the monthly barter target the Financial
-  // Allocation and the proposal show. If the engine drifts from these, the chat agent
-  // quotes a different barter target than the proposal for the same deal.
+  // KACL-FM 400/400, CPM 1.5). If the engine drifts, the chat agent quotes a different
+  // barter target than the proposal for the same deal.
 
-  (function mixedBarterTargetParity() {
+  (function barterPricingParity() {
     const S = ['Townsquare Media|Butte-Bozeman, MT|KAAR-FM',
                'Townsquare Media|Bismarck-Mnt-Dcknsn (Wlstn)|KACL-FM'];
     const M = ['Butte-Bozeman, MT', 'Bismarck-Mnt-Dcknsn (Wlstn)'];
+    const MULT = DealTools.BARTER_MULTIPLIER;          // 1.5278838808250574
+    const LEGACY = DealTools.LEGACY_BARTER_MULTIPLIER; // 1.4
 
-    function engineTargetMonthly(productId, config, cashByLocation, marketLevel) {
+    function mixedTargetMonthly(productId, config, cashByLocation, marketLevel, rate) {
       const productCashValues = {};
       Object.entries(cashByLocation).forEach(([loc, val]) => {
         productCashValues[`${productId}:${loc}`] = val;
@@ -937,45 +940,107 @@
         pricingType: 'mixed', cpm: 1.5,
         productAssignments: { [productId]: marketLevel ? M : S },
         productCashValues,
-        productConfigs: { [productId]: config }
+        productConfigs: { [productId]: config },
+        barterMultiplier: rate
       };
       const r = DealTools.calculateMixedBarterTargets(
-        c, { stations: S, markets: M }, c.productConfigs, DealTools.BARTER_MULTIPLIER);
+        c, { stations: S, markets: M }, c.productConfigs, rate || MULT);
       return r.perProduct[productId].targetAnnual / 12;
     }
 
-    const cases = [
-      { name: 'SpotOn (1,000 credits, $600/mo cash) grosses the remainder up',
+    function unitPrice(productId, pricingType, rate) {
+      return DealTools.calculateProductPrice(
+        productId,
+        { stations: [S[0]], markets: [M[0]] },
+        { pricingType, dealType: 'broadcast', barterMultiplier: rate }
+      ).monthly;
+    }
+
+    // ---- Rate-card barter price is cash x the deal's multiplier ----
+
+    test('rate card: TopicPulse barter is cash x multiplier, not the barter column', () => {
+      // Rate card still says 1050 (a hardcoded 1.4x). Pricing must ignore it.
+      assertClose(unitPrice('topicpulse', 'barter'), 750 * MULT, 0.01,
+        'TopicPulse barter should be 750 x 1.5279 = $1,145.91, not the 1050 column');
+      assertClose(unitPrice('topicpulse', 'cash'), 750, 0.01,
+        'TopicPulse cash is unchanged at $750');
+    });
+
+    test('rate card: a legacy deal still prices barter at 1.4x', () => {
+      assertClose(unitPrice('topicpulse', 'barter', LEGACY), 1050, 0.01,
+        'A deal saved at 1.4x should still quote TopicPulse barter at $1,050');
+    });
+
+    test('rate card: every product follows cash x multiplier on barter', () => {
+      [['post', 1000], ['streaming', 300], ['mobile', 500], ['ldr', 500],
+       ['prep_plus', 500], ['topicpulse_iv', 1250], ['instant_video', 500],
+       ['topicpulse_community_radar_nextdoor', 150]].forEach(([id, cash]) => {
+        assertClose(unitPrice(id, 'barter'), cash * MULT, 0.01,
+          `${id} barter should be ${cash} x multiplier`);
+        assertClose(unitPrice(id, 'barter', LEGACY), cash * LEGACY, 0.01,
+          `${id} on a legacy deal should still be ${cash} x 1.4`);
+      });
+    });
+
+    test('rate card: inventory_only keeps its sentinel, it is not multiplied', () => {
+      // cash is 0 and barter 1 is a visibility sentinel, not a price.
+      assertClose(unitPrice('inventory_only', 'barter'), 1, 0.01,
+        'inventory_only should stay at its sentinel value, not collapse to 0');
+    });
+
+    // ---- Mixed barter target, per product ----
+
+    const mixedCases = [
+      { name: 'SpotOn (1,000 credits, $600/mo cash)',
         id: 'spoton', config: { creditsPerMonth: 1000 },
-        cash: { [M[0]]: 300, [M[1]]: 300 }, marketLevel: true, expected: 611.15 },
+        cash: { [M[0]]: 300, [M[1]]: 300 }, marketLevel: true,
+        expected: (1000 - 600) * MULT },                      // 611.15
 
-      { name: 'FAAI (2 shows x 5 min, $300/mo cash) grosses the remainder up',
+      { name: 'FAAI (2 shows x 5 min, $300/mo cash)',
         id: 'faai', config: { numberOfShows: 2, minutesPerDay: 5, margin: 90 },
-        cash: { [S[0]]: 150, [S[1]]: 150 }, marketLevel: false, expected: 401.07 },
+        cash: { [S[0]]: 150, [S[1]]: 150 }, marketLevel: false,
+        expected: (562.5 - 300) * MULT },                     // 401.07
 
-      { name: 'Content Automation (tier1, $1,000/mo cash) grosses the remainder up',
+      { name: 'Content Automation (tier1, $1,000/mo cash)',
         id: 'content_automation', config: { enabled: true, tier: 'tier1' },
-        cash: { [S[0]]: 500, [S[1]]: 500 }, marketLevel: false, expected: 2291.83 },
+        cash: { [S[0]]: 500, [S[1]]: 500 }, marketLevel: false,
+        expected: (2500 - 1000) * MULT },                     // 2291.83
 
-      // TopLine's list is already grossed up by its own calculator and its per-product
-      // cash is deliberately not netted, so the target is the full list price.
-      { name: 'TopLine (both tier, 1 market) sizes barter against full list, cash ignored',
+      // $72,000/yr list with $30,000/yr cash = $64,171/yr barter. TopLine used to be
+      // grossed up on its full list with the cash never netted: $110,008 on top of the
+      // $30,000, against a $72,000 deal.
+      { name: 'TopLine (both tier, 1 market, $30,000/yr cash)',
         id: 'topline', config: { tier: 'both', numberOfMarkets: 1 },
-        cash: { [M[0]]: 2500 }, marketLevel: true, expected: 9167.30 },
+        cash: { [M[0]]: 2500 }, marketLevel: true,
+        expected: (6000 - 2500) * MULT },                     // 5347.59/mo = 64171/yr
 
-      // Rate-card product: priced off the rate card's barter column (1050 x 2 stations),
-      // cash netted off with no further gross-up.
-      { name: 'TopicPulse (rate card, $500/mo cash) nets cash with no gross-up',
+      // 750 x 2 stations at the CASH rate, less $500 cash, grossed up once.
+      { name: 'TopicPulse (rate card, 2 stations, $500/mo cash)',
         id: 'topicpulse', config: {},
-        cash: { [S[0]]: 250, [S[1]]: 250 }, marketLevel: false, expected: 1600.00 }
+        cash: { [S[0]]: 250, [S[1]]: 250 }, marketLevel: false,
+        expected: (1500 - 500) * MULT }                       // 1527.88
     ];
 
-    cases.forEach(tc => {
+    mixedCases.forEach(tc => {
       test(`mixed barter target matches UI: ${tc.name}`, () => {
-        const got = engineTargetMonthly(tc.id, tc.config, tc.cash, tc.marketLevel);
-        assertClose(got, tc.expected, 0.75,
-          `${tc.id}: engine says $${got.toFixed(2)}/mo, UI shows $${tc.expected.toFixed(2)}/mo`);
+        const got = mixedTargetMonthly(tc.id, tc.config, tc.cash, tc.marketLevel);
+        assertClose(got, tc.expected, 0.01,
+          `${tc.id}: engine $${got.toFixed(2)}/mo vs UI $${tc.expected.toFixed(2)}/mo`);
       });
+    });
+
+    test('TopLine mixed: $72,000 list with $30,000 cash asks for $64,171 of barter', () => {
+      const annual = mixedTargetMonthly(
+        'topline', { tier: 'both', numberOfMarkets: 1 }, { [M[0]]: 2500 }, true) * 12;
+      assertClose(annual, (72000 - 30000) * MULT, 1,
+        `Expected $64,171/yr, got $${Math.round(annual)}/yr`);
+    });
+
+    test('mixed barter target: a legacy deal uses its stored 1.4x', () => {
+      const got = mixedTargetMonthly(
+        'topicpulse', {}, { [S[0]]: 250, [S[1]]: 250 }, false, LEGACY);
+      assertClose(got, (1500 - 500) * LEGACY, 0.01,
+        'A legacy mixed deal should gross the remainder up at 1.4x');
     });
 
     test('mixed barter target: total is the sum of the per-product targets', () => {
@@ -990,11 +1055,45 @@
         productConfigs: { spoton: { creditsPerMonth: 1000 }, topicpulse: {} }
       };
       const r = DealTools.calculateMixedBarterTargets(
-        c, { stations: S, markets: M }, c.productConfigs, DealTools.BARTER_MULTIPLIER);
+        c, { stations: S, markets: M }, c.productConfigs, MULT);
       const sum = Object.values(r.perProduct).reduce((a, p) => a + p.targetAnnual, 0);
       assertClose(r.totalAnnual, sum, 0.01, 'Total should equal the sum of per-product targets');
-      assertClose(r.totalAnnual / 12, 611.15 + 1600.00, 1.0,
-        'Two-product mixed deal should total both products\' UI targets');
+      assertClose(r.totalAnnual / 12, (1000 - 600) * MULT + (1500 - 500) * MULT, 0.01,
+        'Two-product mixed deal should total both products\' targets');
+    });
+
+    // ---- Cash and all-barter deals ----
+
+    test('cash deal: no product is multiplied', () => {
+      assertClose(unitPrice('topicpulse', 'cash'), 750, 0.01, 'TopicPulse cash stays $750');
+      const d = DealTools.buildDeal({
+        products: ['topicpulse'], stations: S, markets: M,
+        dealType: 'broadcast', pricingType: 'cash', cpm: 1.5
+      });
+      assertClose(d.totalAnnual, 750 * 2 * 12, 1, 'Cash deal is 2 stations x $750 x 12');
+      assertEqual(d.barterTargetAnnual, 0, 'Cash deal has no barter target');
+      assertEqual(d.mixedBarterTargets, null, 'Cash deal has no per-product mixed breakdown');
+    });
+
+    test('all-barter deal: target is the full list at cash x multiplier', () => {
+      const d = DealTools.buildDeal({
+        products: ['topicpulse'], stations: S, markets: M,
+        dealType: 'broadcast', pricingType: 'barter', cpm: 1.5
+      });
+      assertClose(d.totalAnnual, 750 * MULT * 2 * 12, 1,
+        'Barter deal is 2 stations x (750 x 1.5279) x 12');
+      assertClose(d.barterTargetAnnual, d.totalAnnual, 1,
+        'All-barter deal targets its whole value');
+    });
+
+    test('all-barter legacy deal: target uses the stored 1.4x', () => {
+      const d = DealTools.buildDeal({
+        products: ['topicpulse'], stations: S, markets: M,
+        dealType: 'broadcast', pricingType: 'barter', cpm: 1.5,
+        barterMultiplier: LEGACY
+      });
+      assertClose(d.totalAnnual, 1050 * 2 * 12, 1,
+        'A legacy barter deal still prices TopicPulse at $1,050/station');
     });
   })();
 

@@ -1,4 +1,5 @@
 {
+  "_barterColumnUnused": "The per-product `barter` values below are NO LONGER USED FOR PRICING. Barter is cash x the deal's barter multiplier (see getRateCardBarterPrice in index.html and rateCardBarterPrice in tools/deal-tools.js). These values hardcoded a 1.4x that went stale when the multiplier became fee-derived (1.5279). They are kept only so deals saved before the change can still be read; the one exception still read at runtime is inventory_only, whose cash is 0 and whose barter 1 is a visibility sentinel, not a price.",
   "products": [
     { "id": "topline", "name": "TopLine", "cash": null, "barter": null, "industry": "Radio/TV" },
     { "id": "topline_cx_war_room", "name": "TopLine CX War Room", "cash": 1000, "barter": null, "industry": "Radio/TV", "cashOnly": true },

@@ -768,13 +768,13 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="tools/deal-tools.js?v=3f06f0565c"></script>
-  <script src="tools/grid-entry.js?v=3f06f0565c"></script>
+  <script src="tools/deal-tools.js?v=4c8e7673ec"></script>
+  <script src="tools/grid-entry.js?v=4c8e7673ec"></script>
   <script>
     // Cache-busting stamp. Content hash of the assets this page loads by URL,
     // written by tools/stamp-version.js and enforced by tools/deal-tools.test.js.
     // Do not edit by hand -- run `npm run stamp`.
-    const APP_VERSION = '3f06f0565c';
+    const APP_VERSION = '4c8e7673ec';
     // Appends the stamp to a same-origin asset URL so browsers refetch it on deploy.
     function versioned(url) {
       return url + (url.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
@@ -4775,6 +4775,20 @@ document.addEventListener("click", async (e) => {
     }
     window.getBarterMultiplier = getBarterMultiplier;
 
+    // Barter price for a rate-card product. The rate card's own `barter` column is no
+    // longer used for pricing: it hardcoded a 1.4x that went stale the moment the
+    // multiplier became fee-derived (1.5279). Barter is now always cash x the deal's
+    // rate, so a deal saved before this change still prices at 1.4x through the stored
+    // rate that getBarterMultiplier() returns.
+    //
+    // inventory_only is the exception: its cash is 0 and its barter 1 is a sentinel
+    // that keeps the line visible for a rep-entered value, not a price to multiply.
+    function getRateCardBarterPrice(product) {
+      if (!product || !product.cash) return (product && product.barter) || 0;
+      return product.cash * getBarterMultiplier();
+    }
+    window.getRateCardBarterPrice = getRateCardBarterPrice;
+
     // Show a banner whenever the open deal is priced at a rate that is no longer
     // current, so a rep is never silently looking at stale numbers -- or silently
     // looking at repriced ones.
@@ -4926,8 +4940,11 @@ document.addEventListener("click", async (e) => {
       //
       // Deal Value Logic:
       // - Price Override set: dealValue = override (NO multiplier applied)
-      // - No override + barter/mixed: dealValue = calculated × 1.4
-      // - No override + cash: dealValue = calculated (no multiplier)
+      // - No override + barter: dealValue = calculated × getBarterMultiplier()
+      // - No override + cash or mixed: dealValue = calculated (no multiplier)
+      //   Mixed quotes every product at its cash rate; the unpaid remainder is grossed
+      //   up once, where barter is sized. Grossing up here as well charged the
+      //   multiplier on the cash half too.
       const s = window.toplineState;
       const p = TOPLINE_PRICING;
       const pricingType = window.productState?.pricingType || 'cash';
@@ -4981,8 +4998,8 @@ document.addEventListener("click", async (e) => {
       if (isOverridden) {
         // Override IS the deal value - no multiplier applied
         dealValueAnnual = s.priceOverride;
-      } else if (pricingType === 'barter' || pricingType === 'mixed') {
-        // Barter/mixed without override: apply 1.4x multiplier
+      } else if (pricingType === 'barter') {
+        // Barter without override: apply the deal's multiplier
         dealValueAnnual = calculatedCashAnnual * getBarterMultiplier();
       } else {
         // Cash deal: no multiplier
@@ -6608,7 +6625,7 @@ document.addEventListener("click", async (e) => {
         priceContainer.style.alignItems = 'center';
         priceContainer.style.gap = '8px';
 
-        const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : product.barter;
+        const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : getRateCardBarterPrice(product);
         const currentValue = window.productState.customPrices.get(product.id) ?? rateCardValue;
 
         if (isCashOnlyDisabled) {
@@ -6861,7 +6878,7 @@ document.addEventListener("click", async (e) => {
 
       // Cash-only products always use cash rate
       const isCashOnly = product.cashOnly === true;
-      const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : product.barter;
+      const rateCardValue = (pricingType === 'cash' || isCashOnly) ? product.cash : getRateCardBarterPrice(product);
       if (rateCardValue === null || rateCardValue === undefined) return;
 
       const value = window.productState.customPrices.get(productId) ?? rateCardValue;
@@ -7593,7 +7610,7 @@ document.addEventListener("click", async (e) => {
     window.productState.selectedProducts.forEach(pid => {
       const p = window.PRODUCTS.find(pp => pp.id === pid);
       if (!p) return;
-      const rate = (pricingType === 'cash') ? p.cash : p.barter;
+      const rate = (pricingType === 'cash') ? p.cash : getRateCardBarterPrice(p);
       const val = (rate === null || rate === undefined) ? null : (window.productState.customPrices.get(pid) ?? rate);
       out.push({ ...p, rateCard: rate, value: val });
     });
@@ -7608,7 +7625,7 @@ document.addEventListener("click", async (e) => {
         window.productState.selectedProducts.forEach(pid => {
           const p = window.PRODUCTS.find(pp => pp.id === pid);
           if (!p) return;
-          const rate = (pricingType === 'cash') ? p.cash : p.barter;
+          const rate = (pricingType === 'cash') ? p.cash : getRateCardBarterPrice(p);
           if (rate === null || rate === undefined) return;
           total += (window.productState.customPrices.get(pid) ?? rate);
         });
@@ -7757,7 +7774,7 @@ document.addEventListener("click", async (e) => {
 
   // Rate-card / override value for a product that has no calculated price.
   function getRateCardMonthlyValue(p) {
-    return window.productState.customPrices.get(p.id) ?? p.barter ?? p.cash ?? 0;
+    return window.productState.customPrices.get(p.id) ?? getRateCardBarterPrice(p) ?? p.cash ?? 0;
   }
 
   // Get products eligible for per-product cash input (includes TopLine for cash override)
@@ -7826,9 +7843,16 @@ document.addEventListener("click", async (e) => {
     if (product.isSpecialProduct && product.calculatedValue) {
       return product.calculatedValue;
     }
-    const rateCardValue = product.barter || 0;
     const customPrice = window.productState.customPrices.get(product.id);
-    return customPrice ?? rateCardValue;
+    if (customPrice !== undefined && customPrice !== null) return customPrice;
+    // A mixed deal quotes every product at its cash rate and grosses up only the
+    // unpaid remainder, exactly as the calculated products do. Pricing rate-card
+    // products off their barter value here charged the multiplier on the cash half
+    // too, and that barter value carried a hardcoded 1.4x besides.
+    if (window.productState.pricingType === 'mixed') {
+      return product.cash ?? product.barter ?? 0;
+    }
+    return getRateCardBarterPrice(product);
   }
 
   // Get monthly list price for a product (barter rate card value × count)
@@ -8395,9 +8419,10 @@ document.addEventListener("click", async (e) => {
         // products, which net correctly. Sum cash from the same location keys
         // renderCashValues() wrote, per market or per station.
         //
-        // TopLine is deliberately excluded: its current behaviour is intended, so it
-        // keeps sizing barter against the full list price exactly as it does today.
-        if (window.productState.pricingType === 'mixed' && p.id !== 'topline') {
+        // TopLine is included: it used to be excluded here, which meant a $72,000 deal
+        // with $30,000 cash still asked for a full $110,008 of inventory on top of the
+        // cash. It now nets like every other product.
+        if (window.productState.pricingType === 'mixed') {
           const locationKeys = isMarketLevelProduct(p.id)
             ? Array.from(getProductAssignments(p.id))
             : assignedStations.map(st => st.key);
@@ -8417,14 +8442,11 @@ document.addEventListener("click", async (e) => {
       // Barter costs getBarterMultiplier() (1.5279x) cash to deliver the same value, so
       // the UNPAID remainder has to be grossed up: a $1,500/mo deal with $1,000 cash
       // leaves $500 of value, which takes $500 x 1.5279 = $763.94 of inventory to cover.
-      // Applies to every special product with its own calculator -- SpotOn and FAAI were
-      // sizing barter at the plain cash rate on mixed deals. Keyed off isSpecialProduct
-      // rather than a product id so a new calculated product is covered on arrival.
-      // TopLine and the rate-card products are untouched: neither accumulates
-      // productCashTotal on a mixed deal, so needsGrossUp stays false for them.
+      // Applies to EVERY product on a mixed deal, calculated or rate-card. Rate-card
+      // products used to be sized off their rate card barter value instead, which both
+      // charged the multiplier on the cash half and carried a hardcoded 1.4x.
       const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
-      const needsGrossUp = (p.isSpecialProduct
-        && window.productState.pricingType === 'mixed'
+      const needsGrossUp = (window.productState.pricingType === 'mixed'
         && productCashTotal > 0);
       const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
@@ -8771,7 +8793,7 @@ function getProposalProductValue(product, pricingType) {
   const isCashOnly = product.cashOnly === true;
   // For mixed, proposal should show CASH pricing (barter handled separately by remaining value)
   const baseRate =
-    (pricingType === 'cash' || pricingType === 'mixed' || isCashOnly) ? product.cash : product.barter;
+    (pricingType === 'cash' || pricingType === 'mixed' || isCashOnly) ? product.cash : getRateCardBarterPrice(product);
 
   if (baseRate === null || baseRate === undefined) return null;
 
@@ -8844,8 +8866,8 @@ function computeBarterAllocationPerProduct() {
         // on-screen breakdown netted the rep's cash while the proposal built from this
         // map did not, and the two disagreed on the same mixed deal. Sum cash from the
         // same location keys renderCashValues() wrote, matching calculateBarterMinutes().
-        // TopLine stays excluded so it keeps sizing against full list price as it does today.
-        if (window.productState.pricingType === 'mixed' && p.id !== 'topline') {
+        // TopLine is included here too, for the same reason.
+        if (window.productState.pricingType === 'mixed') {
           const locationKeys = isMarketLevelProduct(p.id)
             ? Array.from(getProductAssignments(p.id))
             : assignedStations.map(st => st.key);
@@ -8866,14 +8888,11 @@ function computeBarterAllocationPerProduct() {
       // Barter costs getBarterMultiplier() (1.5279x) cash to deliver the same value, so
       // the UNPAID remainder has to be grossed up: a $1,500/mo deal with $1,000 cash
       // leaves $500 of value, which takes $500 x 1.5279 = $763.94 of inventory to cover.
-      // Applies to every special product with its own calculator -- SpotOn and FAAI were
-      // sizing barter at the plain cash rate on mixed deals. Keyed off isSpecialProduct
-      // rather than a product id so a new calculated product is covered on arrival.
-      // TopLine and the rate-card products are untouched: neither accumulates
-      // productCashTotal on a mixed deal, so needsGrossUp stays false for them.
+      // Applies to EVERY product on a mixed deal, calculated or rate-card. Rate-card
+      // products used to be sized off their rate card barter value instead, which both
+      // charged the multiplier on the cash half and carried a hardcoded 1.4x.
       const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
-      const needsGrossUp = (p.isSpecialProduct
-        && window.productState.pricingType === 'mixed'
+      const needsGrossUp = (window.productState.pricingType === 'mixed'
         && productCashTotal > 0);
       const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
@@ -10230,7 +10249,7 @@ window.generateProposalLegacy = function generateProposalLegacy() {
         // Calculate total barter value for this station to distribute proportionally
         let totalBarterValue = 0;
         assignedProducts.forEach(p => {
-          const rateCardValue = p.barter || 0;
+          const rateCardValue = getRateCardBarterPrice(p);
           const productValue = window.productState.customPrices.get(p.id) ?? rateCardValue;
           totalBarterValue += productValue || 0;
         });
@@ -10252,7 +10271,7 @@ window.generateProposalLegacy = function generateProposalLegacy() {
             const costs = calculateFaaiCosts();
             listPrice = (costs.monthlyCost || 0) / Math.max(1, stations.length);
           } else {
-            const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
+            const rateCardValue = (pricingType === 'cash') ? p.cash : getRateCardBarterPrice(p);
             listPrice = window.productState.customPrices.get(p.id) ?? rateCardValue;
           }
 
@@ -10372,7 +10391,7 @@ window.generateProposalLegacy = function generateProposalLegacy() {
           : assignedStations.map(s => s.station).join(', ');
       }
 
-      const rateCardValue = (pricingType === 'cash') ? p.cash : p.barter;
+      const rateCardValue = (pricingType === 'cash') ? p.cash : getRateCardBarterPrice(p);
       const listPricePerUnit = window.productState.customPrices.get(p.id) ?? rateCardValue;
 
       // Get all locations for this product
@@ -10906,7 +10925,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       let stationType = 'Product';
 
       const unitPrice = p.cash || 0;
-      const barterPrice = p.barter || 0;
+      const barterPrice = getRateCardBarterPrice(p);
       listPriceAnnual = (isBarter ? barterPrice : unitPrice) * 12;
 
       // Get cash quoted for this product-station (for mixed deals)

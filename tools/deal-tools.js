@@ -41,6 +41,19 @@
   // reprice it. Callers pass barterMultiplier through the config/extras; absent one,
   // the current rate applies. Keeps the agent and the UI on the same number for the
   // same deal.
+  // Barter price for a rate-card product. The rate card's own `barter` column is no
+  // longer used for pricing: it hardcoded a 1.4x that went stale the moment the
+  // multiplier became fee-derived (1.5279), so barter quotes silently kept the old
+  // rate. Barter is now always cash x the deal's rate, which also means a deal saved
+  // before the change still prices at 1.4x via its stored barterMultiplier.
+  //
+  // inventory_only is the exception: its cash is 0 and its barter 1 is a sentinel that
+  // keeps the line visible for a rep-entered custom value, not a price to multiply.
+  function rateCardBarterPrice(product, extras) {
+    if (!product.cash) return product.barter || 0;
+    return product.cash * resolveBarterMultiplier(extras);
+  }
+
   function resolveBarterMultiplier(source) {
     const v = Number(source && source.barterMultiplier);
     return Number.isFinite(v) && v > 0 ? v : BARTER_MULTIPLIER;
@@ -781,28 +794,14 @@
   // is NOT (totalAnnual - totalCashAnnual): barter buys less per dollar, so the unpaid
   // remainder on a calculated product has to be grossed up by the barter multiplier.
   //
-  // The UI arrives at the list price it sizes barter against three different ways
-  // depending on the product. That is not a design -- it is three historical decisions,
-  // and the engine has to reproduce them exactly or the chat agent quotes a different
-  // barter target than the proposal for the same deal:
+  // One rule, every product: list at the cash rate, subtract the cash the rep entered
+  // against that product, gross the remainder up by the deal's barter multiplier.
   //
-  //   rate-card products   the rate card's BARTER column, which already embeds a
-  //                        legacy 1.4x (TopicPulse 1050/750). Cash is netted off it
-  //                        with no further gross-up.
-  //   TopLine              cash x multiplier, and the rep's per-product cash is NOT
-  //                        netted off it at all.
-  //   every other          the plain cash rate, with the unpaid remainder grossed up.
-  //   calculated product   This is SpotOn, FAAI, Content Automation and FB Groups.
-  //
-  // The two exceptions are named here rather than inlined so there is one place to
-  // change when those rules are revisited.
-
-  // TopLine's own calculator applies the multiplier on mixed as well as barter, so its
-  // barter list is already grossed up before any remainder is taken.
-  const MIXED_USES_BARTER_LIST = ['topline'];
-  // TopLine sizes barter against its full list price; per-product cash entered against
-  // it is deliberately not netted off.
-  const MIXED_IGNORES_PRODUCT_CASH = ['topline'];
+  // This used to be three different rules. Rate-card products were priced off the rate
+  // card's BARTER column, which hardcoded a 1.4x that went stale when the multiplier
+  // became fee-derived; TopLine was grossed up on its full list price and its cash was
+  // never netted off, so a $72,000 deal with $30,000 cash asked for $110,008 of
+  // inventory on top of the cash instead of $64,171. Both were bugs, not design.
 
   /**
    * Per-product barter target for a mixed deal, matching the UI.
@@ -815,7 +814,6 @@
     (c.products || []).forEach(productId => {
       if (BARTER_EXCLUDED_PRODUCTS.includes(productId)) return;
 
-      const special = isSpecialProduct(productId);
       const baseExtras = {
         ...(mergedProductConfigs[productId] || {}),
         dealType: c.dealType,
@@ -823,27 +821,25 @@
         customPrice: (c.customPrices || {})[productId]
       };
 
-      // Which list price the UI sizes barter against for this product.
-      const usesBarterList = !special || MIXED_USES_BARTER_LIST.includes(productId);
+      // Every product is quoted at its cash rate on a mixed deal; the unpaid remainder
+      // is what gets grossed up below.
       const listPrice = calculateProductPrice(productId, assignments, {
         ...baseExtras,
-        pricingType: usesBarterList ? 'barter' : 'mixed'
+        pricingType: 'mixed'
       });
       const listMonthly = listPrice.monthly || 0;
 
       // Cash the rep entered against this product, summed over the same location keys
       // the UI writes: market names for market-level products, station keys otherwise.
       let cashMonthly = 0;
-      if (!MIXED_IGNORES_PRODUCT_CASH.includes(productId)) {
-        const locationKeys = (c.productAssignments || {})[productId]
-          || (isMarketLevelProduct(productId) ? (c.markets || []) : (c.stations || []));
-        locationKeys.forEach(locationKey => {
-          cashMonthly += ((c.productCashValues || {})[`${productId}:${locationKey}`]) || 0;
-        });
-      }
+      const locationKeys = (c.productAssignments || {})[productId]
+        || (isMarketLevelProduct(productId) ? (c.markets || []) : (c.stations || []));
+      locationKeys.forEach(locationKey => {
+        cashMonthly += ((c.productCashValues || {})[`${productId}:${locationKey}`]) || 0;
+      });
 
       const remainderMonthly = Math.max(0, listMonthly - cashMonthly);
-      const grossedUp = special && cashMonthly > 0;
+      const grossedUp = cashMonthly > 0;
       const targetAnnual = (grossedUp ? remainderMonthly * barterRate : remainderMonthly) * 12;
 
       perProduct[productId] = {
@@ -1190,7 +1186,7 @@
       // Use rate card value based on pricing type. Was `multiplier === BARTER_MULTIPLIER`,
       // which stopped detecting barter once the rate became per-deal.
       unitPrice = (extras.pricingType === 'barter')
-        ? (product.barter || (product.cash * resolveBarterMultiplier(extras)))
+        ? rateCardBarterPrice(product, extras)
         : product.cash;
     }
 

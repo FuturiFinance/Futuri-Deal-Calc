@@ -383,19 +383,21 @@ $165,000/yr; on a 36-month deal the term total is $495,000, on a 24-month deal
 $330,000.
 
 ### Per-Station Products
+Barter is ALWAYS cash x 1.5279 (the barter multiplier), never a separate rate card
+column. The barter figures below are that calculation, shown for convenience.
 | Product | Cash/mo | Barter/mo |
 |---------|---------|-----------|
-| TopicPulse | $750 | $1,050 |
-| TopicPulse IV | $1,250 | $1,750 |
-| POST | $1,000 | $1,400 |
-| Prep+ | $500 | $700 |
-| Streaming | $300 | $420 |
-| Mobile | $500 | $700 |
-| LDR | $500 | $700 |
+| TopicPulse | $750 | $1,146 |
+| TopicPulse IV | $1,250 | $1,910 |
+| POST | $1,000 | $1,528 |
+| Prep+ | $500 | $764 |
+| Streaming | $300 | $458 |
+| Mobile | $500 | $764 |
+| LDR | $500 | $764 |
 
 ### Other
 - Community Radar (FB): $50/group
-- Community Radar (Nextdoor): $150 cash, $210 barter
+- Community Radar (Nextdoor): $150 cash, $229 barter
 
 ### FAAI — Futuri AI Voice Product
 FAAI is priced dynamically based on usage. When user asks for FAAI, ask for number of shows and minutes per day.
@@ -420,8 +422,14 @@ PAYMENT & BARTER
 ═══════════════════════════════════════════════════════════════════════════════
 
 - Cash: Standard pricing
-- Barter: 1.4× multiplier, paid in ad minutes
-- Mixed: Cash + barter combination
+- Barter: 1.5279× multiplier, paid in ad minutes. The multiplier is derived from the
+  fees barter inventory carries: 1 / ((1 - 0.15 agency) × (1 - 0.23 network)).
+  Deals quoted before this rate landed keep the 1.4× they were sold at.
+- Mixed: Cash + barter combination. Every product is quoted at its CASH rate, then the
+  cash the rep is paying for that product is subtracted, and only the remainder is
+  multiplied by 1.5279. Example: a $1,500/mo product with $1,000/mo cash leaves $500,
+  which takes $500 × 1.5279 = $763.94/mo of inventory. Never multiply the cash half,
+  and never size barter against the full list price when cash has been entered.
 - Barter formula: (AQH × Minutes/day × CPM × 728) / 1000
 - Default CPM: $1.50
 
