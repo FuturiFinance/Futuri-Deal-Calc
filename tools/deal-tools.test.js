@@ -399,16 +399,34 @@
     assertEqual(p.breakdown.audioSpots, 233, '700 audio credits / 3 = 233 spots, not 700');
   });
 
-  test('calculateProductPrice: SpotOn spec and broadcast video tiers', () => {
+  test('calculateProductPrice: SpotOn video counts, one product by length', () => {
     const p = DealTools.calculateProductPrice('spoton', {}, {
       creditsPerMonth: 1000, pricingType: 'cash'
     });
     assertEqual(p.breakdown.videoCredits, 300, '30% of 1,000 credits is video');
-    assertEqual(p.breakdown.video15Spec, 25, '300 / 12 = 25 :15 spec');
-    assertEqual(p.breakdown.video30Spec, 12, '300 / 24 = 12 :30 spec');
-    assertEqual(p.breakdown.video15Broadcast, 6, '300 / 45 = 6 :15 broadcast');
-    assertEqual(p.breakdown.video30Broadcast, 3, '300 / 90 = 3 :30 broadcast');
-    assertTrue(p.breakdown.video10s === undefined, ':10 tier is gone entirely');
+    assertEqual(p.breakdown.video15s, 9, '300 / 32 = 9 :15s');
+    assertEqual(p.breakdown.video30s, 4, '300 / 64 = 4 :30s');
+    // The spec/broadcast tiers are retired; nothing should still report them.
+    assertTrue(p.breakdown.video15Spec === undefined, 'spec tier gone');
+    assertTrue(p.breakdown.video30Broadcast === undefined, 'broadcast tier gone');
+  });
+
+  test('calculateProductPrice: SpotOn dollars are unchanged by the video reprice', () => {
+    // Only the number of spots a pool buys changes -- never the price of the pool.
+    [50, 750, 1000].forEach(credits => {
+      const p = DealTools.calculateProductPrice('spoton', {}, { creditsPerMonth: credits, pricingType: 'cash' });
+      assertEqual(p.monthly, credits, `${credits} credits = $${credits}/mo at $1/credit`);
+      assertEqual(p.annual, credits * 12, `${credits} credits = $${credits * 12}/yr`);
+    });
+  });
+
+  test('calculateProductPrice: SpotOn 750-credit deal', () => {
+    const p = DealTools.calculateProductPrice('spoton', {}, { creditsPerMonth: 750, pricingType: 'cash' });
+    assertEqual(p.breakdown.audioCredits, 525, '70% of 750 is audio');
+    assertEqual(p.breakdown.videoCredits, 225, '30% of 750 is video');
+    assertEqual(p.breakdown.audioSpots, 175, '525 / 3 = 175 audio spots');
+    assertEqual(p.breakdown.video15s, 7, '225 / 32 = 7 :15s');
+    assertEqual(p.breakdown.video30s, 3, '225 / 64 = 3 :30s');
   });
 
   test('SPOTON_PRICING: rates match the published card', () => {
@@ -416,11 +434,11 @@
     assertEqual(sp.pricePerCredit, 1, '$1 per credit');
     assertEqual(sp.creditIncrement, 50, 'bought in blocks of 50');
     assertEqual(sp.audioCredits, 3, 'Audio Spot (:30) = 3');
-    assertEqual(sp.video15SpecCredits, 12, ':15 spec = 12');
-    assertEqual(sp.video30SpecCredits, 24, ':30 spec = 24');
-    assertEqual(sp.video15BroadcastCredits, 45, ':15 broadcast = 45');
-    assertEqual(sp.video30BroadcastCredits, 90, ':30 broadcast = 90');
+    assertEqual(sp.video15Credits, 32, 'Video :15 = 32');
+    assertEqual(sp.video30Credits, 64, 'Video :30 = 64');
     assertTrue(sp.video10Credits === undefined, ':10 constant removed');
+    assertTrue(sp.video15SpecCredits === undefined, 'spec constants removed');
+    assertTrue(sp.video30BroadcastCredits === undefined, 'broadcast constants removed');
   });
 
   test('calculateProductPrice: SpotOn barter runs through the universal multiplier', () => {

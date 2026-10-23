@@ -186,10 +186,8 @@
 
   // SpotOn credit pricing. $1 per credit, bought in blocks of 50.
   //
-  // Video comes in two quality tiers of the SAME deliverable, not two products:
-  //   spec      = 540p draft pitch spot (same script, VO and music over draft video)
-  //   broadcast = delivered final: 1080p master, two takes per shot, full two-reviewer
-  //               fidelity review, broadcast conform, loudness and captions
+  // ONE video product, priced by length. The spec/broadcast quality tiers are retired:
+  // every spot is delivered to the same standard, so there is nothing to choose between.
   //
   // These are prices, not derived costs. Do not reintroduce a clips-x-3 model here —
   // the credit values no longer follow it.
@@ -201,10 +199,8 @@
     pricePerCredit: 1,
     creditIncrement: 50,
     audioCredits: 3,
-    video15SpecCredits: 12,
-    video30SpecCredits: 24,
-    video15BroadcastCredits: 45,
-    video30BroadcastCredits: 90
+    video15Credits: 32,
+    video30Credits: 64
   };
 
   const FB_GROUPS_PRICING = {
@@ -1016,10 +1012,8 @@
         videoCredits,
         // Spot count, not a credit count — divide by the audio credit cost.
         audioSpots: Math.floor(audioCredits / SPOTON_PRICING.audioCredits),
-        video15Spec: Math.floor(videoCredits / SPOTON_PRICING.video15SpecCredits),
-        video30Spec: Math.floor(videoCredits / SPOTON_PRICING.video30SpecCredits),
-        video15Broadcast: Math.floor(videoCredits / SPOTON_PRICING.video15BroadcastCredits),
-        video30Broadcast: Math.floor(videoCredits / SPOTON_PRICING.video30BroadcastCredits)
+        video15s: Math.floor(videoCredits / SPOTON_PRICING.video15Credits),
+        video30s: Math.floor(videoCredits / SPOTON_PRICING.video30Credits)
       }
     };
   }

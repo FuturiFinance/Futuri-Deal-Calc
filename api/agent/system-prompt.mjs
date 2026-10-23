@@ -274,30 +274,25 @@ PRODUCT CATALOG
 
 ### SpotOn — AI Credit-Based Audio/Video Creation
 - Pricing: $1 per credit, increments of 50 credits
-- Video comes in two quality tiers of the SAME deliverable, not two products:
-  * spec = 540p draft pitch spot (same script, VO and music over draft video)
-  * broadcast = delivered final: 1080p master, two takes per shot, full two-reviewer
-    fidelity review, broadcast conform, loudness and captions
+- ONE video product, priced by length. There are no spec/broadcast quality tiers —
+  every spot is delivered to the same standard. Never offer a choice between them.
 
 | Item | Credits | Price |
 |------|---------|-------|
 | Audio Spot (:30) | 3 | $3 |
-| Video :15 — spec | 12 | $12 |
-| Video :30 — spec | 24 | $24 |
-| Video :15 — broadcast | 45 | $45 |
-| Video :30 — broadcast | 90 | $90 |
+| Video :15 | 32 | $32 |
+| Video :30 | 64 | $64 |
 
 - Fixed allocation: 70% audio, 30% video. Reps cannot change it; do not offer to.
 - Direct math (don't ask questions). ALWAYS compute from the credit pool with these
-  four steps — do not copy numbers from an example:
+  three steps — do not copy numbers from an example:
   1. audioCredits = floor(totalCredits × 0.70); videoCredits = totalCredits − audioCredits
   2. audio spots  = floor(audioCredits ÷ 3)      ← never the raw credit count
-  3. spec         = floor(videoCredits ÷ 12) for :15, floor(videoCredits ÷ 24) for :30
-  4. broadcast    = floor(videoCredits ÷ 45) for :15, floor(videoCredits ÷ 90) for :30
-- The video tiers are alternatives, not a bundle: the same videoCredits buys EITHER
-  the spec count OR the broadcast count, not both.
+  3. video        = floor(videoCredits ÷ 32) for :15, floor(videoCredits ÷ 64) for :30
+- The two lengths are alternatives, not a bundle: the same videoCredits buys EITHER
+  the :15 count OR the :30 count, not both.
 - Worked example, $1000 → 1000 credits: 700 audio credits = 233 spots; 300 video
-  credits = 25 :15 spec, or 12 :30 spec, or 6 :15 broadcast, or 3 :30 broadcast.
+  credits = 9 :15s, or 4 :30s.
 
 ### TopLine — Broadcast Intelligence (per market)
 - Access: $42,000/year

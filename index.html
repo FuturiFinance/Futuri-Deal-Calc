@@ -1419,10 +1419,8 @@
               <div style="font-weight:600; margin-bottom:4px; color:var(--muted);">Credit Reference</div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:2px 12px; color:var(--muted);">
                 <span>Audio Spot (:30) = 3 credits ($3)</span>
-                <span>Video :15 — spec = 12 credits ($12)</span>
-                <span>Video :30 — spec = 24 credits ($24)</span>
-                <span>Video :15 — broadcast = 45 credits ($45)</span>
-                <span>Video :30 — broadcast = 90 credits ($90)</span>
+                <span>Video :15 = 32 credits ($32)</span>
+                <span>Video :30 = 64 credits ($64)</span>
               </div>
             </div>
             <div class="field" style="margin-bottom:8px;">
@@ -1593,10 +1591,8 @@
             </thead>
             <tbody>
               <tr><td style="padding:4px 8px;">Audio Spot (:30)</td><td style="padding:4px 8px; text-align:right;">3</td><td style="padding:4px 8px; text-align:right;">$3</td><td style="padding:4px 8px; color:var(--muted);">VO, music bed, mastered mix</td></tr>
-              <tr><td style="padding:4px 8px;">Video :15 — spec</td><td style="padding:4px 8px; text-align:right;">12</td><td style="padding:4px 8px; text-align:right;">$12</td><td style="padding:4px 8px; color:var(--muted);">540p draft</td></tr>
-              <tr><td style="padding:4px 8px;">Video :30 — spec</td><td style="padding:4px 8px; text-align:right;">24</td><td style="padding:4px 8px; text-align:right;">$24</td><td style="padding:4px 8px; color:var(--muted);">540p draft</td></tr>
-              <tr><td style="padding:4px 8px;">Video :15 — broadcast</td><td style="padding:4px 8px; text-align:right;">45</td><td style="padding:4px 8px; text-align:right;">$45</td><td style="padding:4px 8px; color:var(--muted);">1080p master, full review</td></tr>
-              <tr><td style="padding:4px 8px;">Video :30 — broadcast</td><td style="padding:4px 8px; text-align:right;">90</td><td style="padding:4px 8px; text-align:right;">$90</td><td style="padding:4px 8px; color:var(--muted);">1080p master, full review</td></tr>
+              <tr><td style="padding:4px 8px;">Video :15</td><td style="padding:4px 8px; text-align:right;">32</td><td style="padding:4px 8px; text-align:right;">$32</td><td style="padding:4px 8px; color:var(--muted);">Delivered spot</td></tr>
+              <tr><td style="padding:4px 8px;">Video :30</td><td style="padding:4px 8px; text-align:right;">64</td><td style="padding:4px 8px; text-align:right;">$64</td><td style="padding:4px 8px; color:var(--muted);">Delivered spot</td></tr>
             </tbody>
           </table>
         </div>
@@ -4981,12 +4977,10 @@ document.addEventListener("click", async (e) => {
         const audioCredits = Math.floor(costs.spotonCredits * 0.70);
         const videoCredits = costs.spotonCredits - audioCredits;
         const audioSpots = Math.floor(audioCredits / SPOTON_PRICING.audioCredits);
-        const v15Spec = Math.floor(videoCredits / SPOTON_PRICING.video15SpecCredits);
-        const v30Spec = Math.floor(videoCredits / SPOTON_PRICING.video30SpecCredits);
-        const v15Bcast = Math.floor(videoCredits / SPOTON_PRICING.video15BroadcastCredits);
-        const v30Bcast = Math.floor(videoCredits / SPOTON_PRICING.video30BroadcastCredits);
+        const v15s = Math.floor(videoCredits / SPOTON_PRICING.video15Credits);
+        const v30s = Math.floor(videoCredits / SPOTON_PRICING.video30Credits);
         html += `<div>SpotOn (${costs.spotonCredits} credits/mo): ${money(costs.spotonAnnual)}/yr</div>`;
-        html += `<div style="font-size:11px;color:var(--muted);margin-left:12px;">→ ${audioSpots} audio spots + ${v15Spec} :15s OR ${v30Spec} :30s spec · ${v15Bcast} :15s OR ${v30Bcast} :30s broadcast</div>`;
+        html += `<div style="font-size:11px;color:var(--muted);margin-left:12px;">→ ${audioSpots} audio spots + ${v15s} :15s OR ${v30s} :30s</div>`;
       }
       if (costs.chuySetup > 0 || costs.chuyLocationAnnual > 0) {
         html += `<div>CHUY Locations: ${money(costs.chuySetup)} setup + ${money(costs.chuyLocationAnnual)}/yr</div>`;
@@ -5030,13 +5024,11 @@ document.addEventListener("click", async (e) => {
         const audioCredits = Math.floor(credits * 0.70);
         const videoCredits = credits - audioCredits;
         const audioSpots = Math.floor(audioCredits / SPOTON_PRICING.audioCredits);
-        const v15Spec = Math.floor(videoCredits / SPOTON_PRICING.video15SpecCredits);
-        const v30Spec = Math.floor(videoCredits / SPOTON_PRICING.video30SpecCredits);
-        const v15Bcast = Math.floor(videoCredits / SPOTON_PRICING.video15BroadcastCredits);
-        const v30Bcast = Math.floor(videoCredits / SPOTON_PRICING.video30BroadcastCredits);
+        const v15s = Math.floor(videoCredits / SPOTON_PRICING.video15Credits);
+        const v30s = Math.floor(videoCredits / SPOTON_PRICING.video30Credits);
         allocDiv.innerHTML = `<div style="font-weight:600; margin-bottom:4px;">What does this get me?</div>
           <div><strong>Audio:</strong> ${audioCredits} credits = ${audioSpots} audio spots/mo</div>
-          <div><strong>Video:</strong> ${videoCredits} credits = ${v15Spec} :15s OR ${v30Spec} :30s spec · ${v15Bcast} :15s OR ${v30Bcast} :30s broadcast/mo</div>`;
+          <div><strong>Video:</strong> ${videoCredits} credits = ${v15s} :15s OR ${v30s} :30s/mo</div>`;
       };
 
       const syncState = () => {
@@ -5514,10 +5506,8 @@ document.addEventListener("click", async (e) => {
       // Calculate deliverables from allocation.
       // audioSpots is a SPOT count, not a credit count — divide by the audio credit cost.
       const audioSpots = Math.floor(audioCredits / p.audioCredits);
-      const video15Spec = Math.floor(videoCredits / p.video15SpecCredits);
-      const video30Spec = Math.floor(videoCredits / p.video30SpecCredits);
-      const video15Broadcast = Math.floor(videoCredits / p.video15BroadcastCredits);
-      const video30Broadcast = Math.floor(videoCredits / p.video30BroadcastCredits);
+      const video15s = Math.floor(videoCredits / p.video15Credits);
+      const video30s = Math.floor(videoCredits / p.video30Credits);
 
       // Calculate costs
       const monthlyCost = totalCredits * p.pricePerCredit * multiplier;
@@ -5527,10 +5517,8 @@ document.addEventListener("click", async (e) => {
         audioCredits,
         videoCredits,
         audioSpots,
-        video15Spec,
-        video30Spec,
-        video15Broadcast,
-        video30Broadcast,
+        video15s,
+        video30s,
         monthlyCost,
         annualCost: monthlyCost * 12
       };
@@ -5543,14 +5531,11 @@ document.addEventListener("click", async (e) => {
       const audioCredits = Math.floor(credits * 0.70);
       const videoCredits = credits - audioCredits;
       const audioSpots = Math.floor(audioCredits / p.audioCredits);
-      const v15Spec = Math.floor(videoCredits / p.video15SpecCredits);
-      const v30Spec = Math.floor(videoCredits / p.video30SpecCredits);
-      const v15Bcast = Math.floor(videoCredits / p.video15BroadcastCredits);
-      const v30Bcast = Math.floor(videoCredits / p.video30BroadcastCredits);
+      const v15s = Math.floor(videoCredits / p.video15Credits);
+      const v30s = Math.floor(videoCredits / p.video30Credits);
       return `<div style="font-weight:600; margin-bottom:6px;">What does this get me?</div>
         <div><strong>Audio:</strong> ${audioCredits} credits = ${audioSpots} audio spots/mo</div>
-        <div><strong>Video (spec):</strong> ${videoCredits} credits = ${v15Spec} :15s OR ${v30Spec} :30s/mo</div>
-        <div><strong>Video (broadcast):</strong> ${videoCredits} credits = ${v15Bcast} :15s OR ${v30Bcast} :30s/mo</div>`;
+        <div><strong>Video:</strong> ${videoCredits} credits = ${v15s} :15s OR ${v30s} :30s/mo</div>`;
     }
 
     function updateSpotOnSummary() {
@@ -9202,10 +9187,8 @@ window.buildConfigFromState = function buildConfigFromState() {
         audioCredits: sc.audioCredits || 0,
         videoCredits: sc.videoCredits || 0,
         audioSpots: sc.audioSpots || 0,
-        video15Spec: sc.video15Spec || 0,
-        video30Spec: sc.video30Spec || 0,
-        video15Broadcast: sc.video15Broadcast || 0,
-        video30Broadcast: sc.video30Broadcast || 0
+        video15s: sc.video15s || 0,
+        video30s: sc.video30s || 0
       };
     })() : undefined,
 
@@ -10419,8 +10402,7 @@ window.generateProposalLegacy = function generateProposalLegacy() {
       const tsAudioSpots = Math.floor(tsAudioCredits / SPOTON_PRICING.audioCredits);
       if (tsAudioSpots > 0) spotonDesc.push(`${tsAudioSpots} audio`);
       if (tsVideoCredits > 0) {
-        spotonDesc.push(`${Math.floor(tsVideoCredits / SPOTON_PRICING.video15SpecCredits)} :15s OR ${Math.floor(tsVideoCredits / SPOTON_PRICING.video30SpecCredits)} :30s spec`);
-        spotonDesc.push(`${Math.floor(tsVideoCredits / SPOTON_PRICING.video15BroadcastCredits)} :15s OR ${Math.floor(tsVideoCredits / SPOTON_PRICING.video30BroadcastCredits)} :30s broadcast`);
+        spotonDesc.push(`${Math.floor(tsVideoCredits / SPOTON_PRICING.video15Credits)} :15s OR ${Math.floor(tsVideoCredits / SPOTON_PRICING.video30Credits)} :30s`);
       }
       lines.push(`<tr>
         <td style="padding:8px; border-bottom:1px solid rgba(34,50,68,.35);">SpotOn <em style="font-size:11px; color:var(--muted);">${tl.spotonTotalCredits} credits/mo (${spotonDesc.join(', ') || '—'})</em></td>
@@ -10551,10 +10533,8 @@ window.generateProposalLegacy = function generateProposalLegacy() {
     lines.push(`<div style="font-weight:600; margin-bottom:8px; font-size:12px;">Credit Reference ($1/credit)</div>`);
     lines.push(`<table style="width:100%; border-collapse:collapse; font-size:11px; color:var(--muted);">`);
     lines.push(`<tr><td style="padding:2px 0;">Audio Spot (:30)</td><td style="text-align:right; padding:2px 8px;">3 credits ($3)</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Video :15 — spec</td><td style="text-align:right; padding:2px 8px;">12 credits ($12)</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Video :30 — spec</td><td style="text-align:right; padding:2px 8px;">24 credits ($24)</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Video :15 — broadcast</td><td style="text-align:right; padding:2px 8px;">45 credits ($45)</td></tr>`);
-    lines.push(`<tr><td style="padding:2px 0;">Video :30 — broadcast</td><td style="text-align:right; padding:2px 8px;">90 credits ($90)</td></tr>`);
+    lines.push(`<tr><td style="padding:2px 0;">Video :15</td><td style="text-align:right; padding:2px 8px;">32 credits ($32)</td></tr>`);
+    lines.push(`<tr><td style="padding:2px 0;">Video :30</td><td style="text-align:right; padding:2px 8px;">64 credits ($64)</td></tr>`);
     lines.push(`</table>`);
     lines.push(`</div>`);
 
@@ -10577,7 +10557,7 @@ window.generateProposalLegacy = function generateProposalLegacy() {
     lines.push(`<tr>
       <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25);">Video</td>
       <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.videoCredits}</td>
-      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video15Spec} :15s OR ${sc.video30Spec} :30s spec<br>${sc.video15Broadcast} :15s OR ${sc.video30Broadcast} :30s broadcast</td>
+      <td style="padding:6px 8px; border-bottom:1px solid rgba(34,50,68,.25); text-align:right;">${sc.video15s} :15s OR ${sc.video30s} :30s</td>
     </tr>`);
 
     // Total row
