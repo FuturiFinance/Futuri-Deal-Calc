@@ -11542,6 +11542,20 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   totalBarterValue = groupedBarterTotal;
   if (isBarter || isMixed) totalCashAnnual = groupedCashTotal;
 
+  // Revenue per product, across every station it touched plus any account-level line.
+  // Revenue only: a product's share of the airtime is not separable, because the
+  // minutes are the station's and are already counted once above.
+  const revenueByProduct = new Map();
+  groupedStations.forEach(g => g.products.forEach(pr => {
+    revenueByProduct.set(pr.product, (revenueByProduct.get(pr.product) || 0) + pr.revenueAllocated);
+  }));
+  accountLevelRows.forEach(r => {
+    revenueByProduct.set(r.product, (revenueByProduct.get(r.product) || 0) + (r.revenueAllocated || 0));
+  });
+  const revenueByProductRows = Array.from(revenueByProduct.entries())
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+
   const coverageFor = (g) => {
     const covered = isMixed
       ? g.cashAnnual + (getBarterMultiplier() > 0 ? g.barterValue / getBarterMultiplier() : 0)
@@ -11676,6 +11690,21 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         </tr>
       </tbody>
     </table>
+    ${(showRevenueCol && revenueByProductRows.length) ? `
+    <div style="margin-top:14px;border:1px solid var(--input-edge);border-radius:8px;padding:10px 12px;">
+      <div style="font-weight:600;color:#4a90d9;font-size:12px;margin-bottom:8px;">Revenue by Product</div>
+      ${revenueByProductRows.map(([name, value]) => `
+        <div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;">
+          <span>${escapeHtml(name)}</span>
+          <span style="color:#1976d2;">${money(value)}/yr</span>
+        </div>
+      `).join('')}
+      <div style="display:flex;justify-content:space-between;font-size:11px;padding:6px 0 0;margin-top:4px;border-top:1px solid var(--input-edge);font-weight:700;">
+        <span>Total</span>
+        <span style="color:#1976d2;">${money(groupedRevenueTotal)}/yr</span>
+      </div>
+    </div>
+    ` : ''}
   `;
 
   el('financialAllocationTable').innerHTML = tableHtml;
@@ -11798,6 +11827,7 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
   window.lastFinancialAllocation = {
     rows: exportRows,
+    revenueByProduct: revenueByProductRows.map(([product, revenueAnnual]) => ({ product, revenueAnnual })),
     summary: {
       totalListPrice,
       totalCashAnnual,
@@ -11867,6 +11897,16 @@ window.exportFinancialAllocationToExcel = function exportFinancialAllocationToEx
       `"${row.stationType}"`
     ].join(','));
   });
+
+  // Revenue by product (revenue only -- barter belongs to the stations above)
+  const revByProduct = window.lastFinancialAllocation.revenueByProduct || [];
+  if (revByProduct.length) {
+    csvRows.push('');
+    csvRows.push('REVENUE BY PRODUCT');
+    csvRows.push('Product,Revenue Alloc/Yr');
+    revByProduct.forEach(r => csvRows.push(`"${r.product}",${r.revenueAnnual.toFixed(2)}`));
+    csvRows.push(`"Total",${revByProduct.reduce((a, r) => a + r.revenueAnnual, 0).toFixed(2)}`);
+  }
 
   // Add summary rows
   csvRows.push('');
