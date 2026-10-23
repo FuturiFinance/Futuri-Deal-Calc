@@ -4763,9 +4763,6 @@ document.addEventListener("click", async (e) => {
     }
     window.getBarterMultiplier = getBarterMultiplier;
 
-    // The date the fee-derived multiplier replaced the flat 1.4, for the banner copy.
-    const BARTER_RATE_CHANGE_DATE = 'Oct 23, 2026';
-
     // Show a banner whenever the open deal is priced at a rate that is no longer
     // current, so a rep is never silently looking at stale numbers -- or silently
     // looking at repriced ones.
@@ -4779,7 +4776,10 @@ document.addEventListener("click", async (e) => {
       if (stale) {
         const txt = el('barterRateBannerText');
         if (txt) {
-          txt.textContent = `Priced at ${dealRate.toFixed(2)}x barter (saved before ${BARTER_RATE_CHANGE_DATE}).`;
+          // Driven by the rates themselves, not a date -- so this keeps working the
+          // next time the multiplier moves, with no copy to update.
+          txt.textContent = `Priced at ${dealRate.toFixed(2)}x barter (earlier rate). `
+            + `Current rate is ${BARTER_MULTIPLIER.toFixed(2)}x.`;
         }
       }
     }
@@ -9201,6 +9201,8 @@ window.buildConfigFromState = function buildConfigFromState() {
     products: selectedProducts,
     pricingType: window.productState.pricingType || 'cash',
     cpm: window.productState.cpm || 1.5,
+    // The rate this deal is priced at, so DealTools prices it the same way the UI does.
+    barterMultiplier: getBarterMultiplier(),
     customPrices: customPrices,
     productCashValues: productCashValues,
     productAssignments: productAssignments,

@@ -37,6 +37,15 @@
   // The rate barter was priced at before the fee-derived multiplier landed.
   const LEGACY_BARTER_MULTIPLIER = 1.4;
 
+  // A deal carries the rate it was quoted at, so reopening an old quote does not
+  // reprice it. Callers pass barterMultiplier through the config/extras; absent one,
+  // the current rate applies. Keeps the agent and the UI on the same number for the
+  // same deal.
+  function resolveBarterMultiplier(source) {
+    const v = Number(source && source.barterMultiplier);
+    return Number.isFinite(v) && v > 0 ? v : BARTER_MULTIPLIER;
+  }
+
   const BARTER_FORMULA = {
     DAYPARTS: 2,
     DAYS_PER_WEEK: 7,
@@ -776,7 +785,8 @@
   function calculateProductPrice(productId, assignments, extras) {
     extras = extras || {};
     const pricingType = extras.pricingType || 'cash';
-    const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+    const barterRate = resolveBarterMultiplier(extras);
+    const multiplier = (pricingType === 'barter') ? barterRate : 1;
 
     // Handle special products
     if (productId === 'topline') {
@@ -1053,9 +1063,11 @@
     const totalAiCost = elevenLabsCost + llmCost;
 
     const monthlyCash = margin < 100 ? totalAiCost / (1 - margin / 100) : totalAiCost;
-    const monthlyBarter = monthlyCash * BARTER_MULTIPLIER;
+    const monthlyBarter = monthlyCash * resolveBarterMultiplier(extras);
 
-    const monthlyCost = (multiplier === BARTER_MULTIPLIER) ? monthlyBarter : monthlyCash;
+    // Was `multiplier === BARTER_MULTIPLIER`, which silently stopped detecting barter
+    // once the rate became per-deal. Read the pricing type directly instead.
+    const monthlyCost = (extras.pricingType === 'barter') ? monthlyBarter : monthlyCash;
 
     return {
       monthly: monthlyCost,
@@ -1088,9 +1100,10 @@
     if (extras.customPrice !== undefined && extras.customPrice !== null) {
       unitPrice = extras.customPrice;
     } else {
-      // Use rate card value based on pricing type
-      unitPrice = (multiplier === BARTER_MULTIPLIER)
-        ? (product.barter || (product.cash * BARTER_MULTIPLIER))
+      // Use rate card value based on pricing type. Was `multiplier === BARTER_MULTIPLIER`,
+      // which stopped detecting barter once the rate became per-deal.
+      unitPrice = (extras.pricingType === 'barter')
+        ? (product.barter || (product.cash * resolveBarterMultiplier(extras)))
         : product.cash;
     }
 
@@ -1463,7 +1476,7 @@
    * @param {number} [margin=0.90] - Profit margin (default 90%)
    * @returns {object} Pricing breakdown
    */
-  function calculateFAAIPrice(shows, minutesPerDay, margin) {
+  function calculateFAAIPrice(shows, minutesPerDay, margin, barterMultiplier) {
     // Validate inputs
     shows = Number(shows) || 0;
     minutesPerDay = Number(minutesPerDay) || 0;
@@ -1498,7 +1511,7 @@
 
     // Calculate rates
     const cashRate = totalCost / (1 - margin);
-    const barterRate = cashRate * BARTER_MULTIPLIER;
+    const barterRate = cashRate * resolveBarterMultiplier({ barterMultiplier });
 
     return {
       shows,
@@ -1683,6 +1696,9 @@
         ...productConfig,
         pricingType,
         dealType,
+        // The rate this deal was quoted at, so the engine and the UI agree on an
+        // old quote instead of the engine silently applying the current rate.
+        barterMultiplier: c.barterMultiplier,
         customPrice: (c.customPrices || {})[productId]
       };
 
@@ -2018,6 +2034,7 @@
     BARTER_FORMULA,
     BARTER_MULTIPLIER,
     LEGACY_BARTER_MULTIPLIER,
+    resolveBarterMultiplier,
     AGENCY_FEE,
     NETWORK_FEE,
     TOPLINE_PRICING,
