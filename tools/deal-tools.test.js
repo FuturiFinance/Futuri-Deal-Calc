@@ -386,7 +386,8 @@
       costPerCredit: 1.50,
       pricingType: 'barter'
     });
-    assertEqual(barter.monthly, 2100, 'Barter applies 1.4x exactly once');
+    assertClose(barter.monthly, 1500 * DealTools.BARTER_MULTIPLIER, 0.01,
+      'Barter multiplier applies exactly once');
   });
 
   test('calculateProductPrice: SpotOn audio spots divide by the audio credit cost', () => {
@@ -441,6 +442,37 @@
     assertTrue(sp.video30BroadcastCredits === undefined, 'broadcast constants removed');
   });
 
+  test('barter minutes formula is unaffected by the multiplier change', () => {
+    assertEqual(DealTools.BARTER_FORMULA.ANNUAL_MULTIPLIER, 728, '2 x 7 x 52 = 728');
+    // 2 min/day at 1,000 AQH and $1.50 CPM
+    assertEqual(DealTools.calculateValueFromMinutes(2, 1000, 1.5), 2184, 'value from minutes');
+    assertEqual(DealTools.calculateMinutesFromValue(2184, 1000, 1.5), 2, 'round-trips back');
+  });
+
+  test('BARTER_MULTIPLIER is derived from the agency and network fees', () => {
+    assertEqual(DealTools.AGENCY_FEE, 0.15, 'agency fee 15%');
+    assertEqual(DealTools.NETWORK_FEE, 0.23, 'network fee 23%');
+    const expected = 1 / ((1 - 0.15) * (1 - 0.23));
+    assertClose(DealTools.BARTER_MULTIPLIER, expected, 1e-12, 'multiplier = 1 / ((1-a)(1-n))');
+    assertClose(DealTools.BARTER_MULTIPLIER, 1.5279, 0.0001, 'about 1.5279');
+    assertEqual(DealTools.LEGACY_BARTER_MULTIPLIER, 1.4, 'legacy rate preserved for saved deals');
+    // Barter nets the same as cash once both fees come off the top.
+    const gross = 100 * DealTools.BARTER_MULTIPLIER;
+    assertClose(gross * (1 - 0.15) * (1 - 0.23), 100, 0.0001, 'nets back to the cash value');
+  });
+
+  test('published barter targets at the fee-derived multiplier', () => {
+    const topline = DealTools.calculateProductPrice('topline', { markets: ['New York'] }, {
+      tier: 'both', numberOfMarkets: 1, pricingType: 'barter'
+    });
+    assertClose(topline.annual, 110008, 1, 'TopLine Both barter = $110,008/yr');
+
+    const spoton = DealTools.calculateProductPrice('spoton', {}, {
+      creditsPerMonth: 1000, pricingType: 'barter'
+    });
+    assertClose(spoton.annual, 18335, 1, 'SpotOn 1,000 credits barter = $18,335/yr');
+  });
+
   test('calculateProductPrice: SpotOn barter runs through the universal multiplier', () => {
     const cash = DealTools.calculateProductPrice('spoton', {}, {
       creditsPerMonth: 1000, pricingType: 'cash'
@@ -449,7 +481,8 @@
       creditsPerMonth: 1000, pricingType: 'barter'
     });
     assertEqual(cash.monthly, 1000, '1,000 credits at $1 = $1,000/mo cash');
-    assertClose(barter.monthly, 1400, 0.01, 'barter is cash x 1.4, no SpotOn-specific path');
+    assertClose(barter.monthly, 1000 * DealTools.BARTER_MULTIPLIER, 0.01,
+      'barter is cash x the universal multiplier, no SpotOn-specific path');
     // Deliverable counts are credit-derived and must NOT scale with the barter multiplier
     assertEqual(barter.breakdown.audioSpots, cash.breakdown.audioSpots, 'counts unchanged by barter');
   });

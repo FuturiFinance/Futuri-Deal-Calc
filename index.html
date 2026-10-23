@@ -854,6 +854,12 @@
       <button class="back-btn" data-action="back-to-landing">← Back to Landing</button>
       </div>
 
+      <!-- Shown when a loaded deal was quoted at a barter rate that is no longer current -->
+      <div id="barterRateBanner" class="hidden" style="margin-bottom:12px; padding:10px 14px; border-radius:10px; background:rgba(255,165,0,.12); border:1px solid rgba(255,165,0,.35); display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span id="barterRateBannerText" style="font-size:13px;"></span>
+        <button class="btn" id="btnRepriceBarter" type="button" style="font-size:12px;">Reprice at current rates</button>
+      </div>
+
       <section class="card">
         <div class="title">My Deal Calcs</div>
         <div class="muted" style="font-size:12px;margin-bottom:10px;">
@@ -2714,6 +2720,10 @@ function buildDealPayload(){
     ),
     cpm: window.productState?.cpm ?? 1.5,
 
+    // The barter rate this deal was quoted at. Stored so reopening a deal shows the
+    // numbers it was sold at, not whatever the current rate happens to be.
+    barterMultiplier: getBarterMultiplier(),
+
     // TopLine configuration
     toplineConfig: { ...window.toplineState },
 
@@ -3021,6 +3031,12 @@ function loadDeal(payload){
   if (typeof window.renderStations === "function") window.renderStations();
   if (typeof window.renderProducts === "function") window.renderProducts();
   if (typeof window.updatePreview === "function") window.updatePreview();
+  // A deal saved before barterMultiplier existed was quoted at the legacy 1.4 rate.
+  // Honour it so existing quotes -- and the proposalHTML snapshot restored below --
+  // stay exactly as they were sold.
+  window.__dealBarterMultiplier = Number(payload.barterMultiplier) || LEGACY_BARTER_MULTIPLIER;
+  updateBarterRateBanner();
+
   if (typeof window.updateProductSummary === "function") window.updateProductSummary();
 
   if (payload.proposalHTML){
@@ -4273,6 +4289,10 @@ document.addEventListener("click", async (e) => {
     }
 
     if (action === "open-radio") {
+      // Opening the calculator fresh starts a new deal, which is priced at the
+      // current rate -- not whatever a previously loaded deal was quoted at.
+      window.__dealBarterMultiplier = null;
+      if (typeof updateBarterRateBanner === 'function') updateBarterRateBanner();
       showView("radioView");
       return;
     }
@@ -4721,11 +4741,64 @@ document.addEventListener("click", async (e) => {
     // exactly once in the browser bundle.
     const SPOTON_PRICING = DealTools.SPOTON_PRICING;
 
-    // Global barter multiplier (barter = cash × this value)
-    const BARTER_MULTIPLIER = 1.4;
-    // Same 1.4 under a name that cannot be shadowed by the local BARTER_MULTIPLIER = 728
-    // (the annual minutes formula) inside calculateBarterMinutes().
-    const CASH_TO_BARTER_RATE = 1.4;
+    // Barter multiplier, derived from the fees barter inventory carries rather than
+    // hardcoded: an agency commission and a network fee both come off the top, so
+    // grossing up by this factor makes barter net the same as cash.
+    //   1 / ((1 - 0.15) * (1 - 0.23)) ≈ 1.5279
+    const AGENCY_FEE = 0.15;
+    const NETWORK_FEE = 0.23;
+    const BARTER_MULTIPLIER = 1 / ((1 - AGENCY_FEE) * (1 - NETWORK_FEE));
+
+    // The rate barter was priced at before the fee-derived multiplier landed. Deals
+    // saved without a stored rate are quoted at this and must stay that way.
+    const LEGACY_BARTER_MULTIPLIER = 1.4;
+
+    // The rate THIS deal is priced at. Set from a loaded deal's stored value, or the
+    // current constant for a new deal. Every barter calculation reads it through
+    // getBarterMultiplier() so a reopened quote cannot silently reprice.
+    window.__dealBarterMultiplier = null;
+    function getBarterMultiplier() {
+      const v = Number(window.__dealBarterMultiplier);
+      return Number.isFinite(v) && v > 0 ? v : BARTER_MULTIPLIER;
+    }
+    window.getBarterMultiplier = getBarterMultiplier;
+
+    // The date the fee-derived multiplier replaced the flat 1.4, for the banner copy.
+    const BARTER_RATE_CHANGE_DATE = 'Oct 23, 2026';
+
+    // Show a banner whenever the open deal is priced at a rate that is no longer
+    // current, so a rep is never silently looking at stale numbers -- or silently
+    // looking at repriced ones.
+    function updateBarterRateBanner() {
+      const banner = el('barterRateBanner');
+      if (!banner) return;
+      const dealRate = Number(window.__dealBarterMultiplier);
+      const stale = Number.isFinite(dealRate) && dealRate > 0
+        && Math.abs(dealRate - BARTER_MULTIPLIER) > 0.0001;
+      banner.classList.toggle('hidden', !stale);
+      if (stale) {
+        const txt = el('barterRateBannerText');
+        if (txt) {
+          txt.textContent = `Priced at ${dealRate.toFixed(2)}x barter (saved before ${BARTER_RATE_CHANGE_DATE}).`;
+        }
+      }
+    }
+    window.updateBarterRateBanner = updateBarterRateBanner;
+
+    // Move the open deal onto the current rate and let everything recompute. The
+    // stored proposal snapshot is cleared so it regenerates at the new numbers
+    // instead of contradicting the rest of the screen.
+    function repriceDealAtCurrentRates() {
+      window.__dealBarterMultiplier = BARTER_MULTIPLIER;
+      const proposalTable = el('proposalTable');
+      if (proposalTable) proposalTable.innerHTML = '';
+      const proposalOutput = el('proposalOutput');
+      if (proposalOutput) proposalOutput.classList.add('hidden');
+      updateBarterRateBanner();
+      if (typeof window.updateProductSummary === 'function') window.updateProductSummary();
+    }
+    window.repriceDealAtCurrentRates = repriceDealAtCurrentRates;
+
 
     /**********************
      * FB Groups Configuration State
@@ -4898,7 +4971,7 @@ document.addEventListener("click", async (e) => {
         dealValueAnnual = s.priceOverride;
       } else if (pricingType === 'barter' || pricingType === 'mixed') {
         // Barter/mixed without override: apply 1.4x multiplier
-        dealValueAnnual = calculatedCashAnnual * BARTER_MULTIPLIER;
+        dealValueAnnual = calculatedCashAnnual * getBarterMultiplier();
       } else {
         // Cash deal: no multiplier
         dealValueAnnual = calculatedCashAnnual;
@@ -5157,7 +5230,7 @@ document.addEventListener("click", async (e) => {
     // pricing lives in exactly one place.
     function calculateCaptureCosts() {
       const s = window.contentAutomationState;
-      const multiplier = (window.productState.pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+      const multiplier = (window.productState.pricingType === 'barter') ? getBarterMultiplier() : 1;
       return DealTools.calculateLiveStreamCapture({
         enabled: s.captureEnabled,
         streamCount: s.captureStreams,
@@ -5205,7 +5278,7 @@ document.addEventListener("click", async (e) => {
       const s = window.contentAutomationState;
       const pricing = CONTENT_AUTOMATION_PRICING;
       const pricingType = window.productState.pricingType;
-      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+      const multiplier = (pricingType === 'barter') ? getBarterMultiplier() : 1;
 
       // monthlyBase is the pre-barter-multiplier price. monthlyCost carries the
       // multiplier. Consumers that hand the price to deal-tools (which applies the
@@ -5493,7 +5566,7 @@ document.addEventListener("click", async (e) => {
       const s = window.spotonState;
       const p = SPOTON_PRICING;
       const pricingType = window.productState.pricingType;
-      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+      const multiplier = (pricingType === 'barter') ? getBarterMultiplier() : 1;
 
       // Total credits from single input
       const totalCredits = s.creditsPerMonth || 0;
@@ -5620,7 +5693,7 @@ document.addEventListener("click", async (e) => {
       const s = window.fbGroupsState;
       const p = FB_GROUPS_PRICING;
       const pricingType = window.productState.pricingType;
-      const multiplier = (pricingType === 'barter') ? BARTER_MULTIPLIER : 1;
+      const multiplier = (pricingType === 'barter') ? getBarterMultiplier() : 1;
 
       const monthlyCost = s.groupCount * p.pricePerGroup * multiplier;
       const annualCost = monthlyCost * 12;
@@ -5695,7 +5768,7 @@ document.addEventListener("click", async (e) => {
       // cashRate = totalAiCost / (1 - margin%)
       const marginDecimal = (s.margin || 90) / 100;
       const monthlyCash = marginDecimal < 1 ? totalAiCost / (1 - marginDecimal) : totalAiCost;
-      const monthlyBarter = monthlyCash * BARTER_MULTIPLIER;
+      const monthlyBarter = monthlyCash * getBarterMultiplier();
 
       // Use appropriate rate based on pricing type
       const monthlyCost = (pricingType === 'barter') ? monthlyBarter : monthlyCash;
@@ -7245,6 +7318,9 @@ document.addEventListener("click", async (e) => {
     };
 
     // Financial Allocation button handler
+    const btnReprice = el('btnRepriceBarter');
+    if (btnReprice) btnReprice.onclick = () => repriceDealAtCurrentRates();
+
     el('btnGenerateFinancialAllocation').onclick = () => {
       console.log('Generate Financial Allocation clicked');
       generateFinancialAllocation();
@@ -8287,7 +8363,6 @@ document.addEventListener("click", async (e) => {
     // =========================================================================
     // PASS 1: Calculate all allocations into a data structure (before rendering)
     // =========================================================================
-    const BARTER_MULTIPLIER = 728; // Annual multiplier for barter formula
     const allocationData = []; // Array of { productId, productName, stationKey, station, market, primeAQH, rosAQH, primeMinutes, rosMinutes, manualKey, hasManualPrime, hasManualRos }
     let grandTotalTargetValue = 0;
 
@@ -8335,7 +8410,7 @@ document.addEventListener("click", async (e) => {
       const needsGrossUp = (p.id === 'content_automation'
         && window.productState.pricingType === 'mixed'
         && productCashTotal > 0);
-      const productBarterMonthly = needsGrossUp ? barterRemainder * CASH_TO_BARTER_RATE : barterRemainder;
+      const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
 
       if (productBarterMonthly <= 0) return;
@@ -8767,7 +8842,7 @@ function computeBarterAllocationPerProduct() {
       const needsGrossUp = (p.id === 'content_automation'
         && window.productState.pricingType === 'mixed'
         && productCashTotal > 0);
-      const productBarterMonthly = needsGrossUp ? barterRemainder * CASH_TO_BARTER_RATE : barterRemainder;
+      const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
 
       if (productBarterMonthly <= 0) {

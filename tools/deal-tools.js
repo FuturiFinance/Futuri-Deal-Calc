@@ -26,7 +26,16 @@
   // CONSTANTS
   // ============================================================================
 
-  const BARTER_MULTIPLIER = 1.4;
+  // Barter multiplier, derived from the fees barter inventory carries rather than
+  // hardcoded: an agency commission and a network fee both come off the top, so
+  // grossing up by this factor makes barter net the same as cash.
+  //   1 / ((1 - 0.15) * (1 - 0.23)) ≈ 1.5279
+  const AGENCY_FEE = 0.15;
+  const NETWORK_FEE = 0.23;
+  const BARTER_MULTIPLIER = 1 / ((1 - AGENCY_FEE) * (1 - NETWORK_FEE));
+
+  // The rate barter was priced at before the fee-derived multiplier landed.
+  const LEGACY_BARTER_MULTIPLIER = 1.4;
 
   const BARTER_FORMULA = {
     DAYPARTS: 2,
@@ -1476,7 +1485,8 @@
     const DAYS_PER_MONTH = 30;
     const ELEVENLABS_COST_PER_1K_CHARS = 0.20;
     const LLM_COST_MULTIPLIER = 0.25;
-    const BARTER_MULTIPLIER = 1.4;
+    // (barter rate comes from the module-level BARTER_MULTIPLIER; this function used
+    // to redeclare its own 1.4, which silently ignored any change to the real one)
 
     // Calculate monthly characters
     const monthlyChars = shows * minutesPerDay * WORDS_PER_MINUTE * CHARS_PER_WORD * DAYS_PER_MONTH;
@@ -2007,6 +2017,9 @@
     // Constants (exposed for reference)
     BARTER_FORMULA,
     BARTER_MULTIPLIER,
+    LEGACY_BARTER_MULTIPLIER,
+    AGENCY_FEE,
+    NETWORK_FEE,
     TOPLINE_PRICING,
     CONTENT_AUTOMATION_PRICING,
     LIVE_STREAM_CAPTURE,
