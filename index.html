@@ -10876,6 +10876,93 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   // For barter/mixed deals with TopLine: show per-station barter contributions
   const specialProducts = [];
 
+  // ---------------------------------------------------------------------------
+  // Universal barter allocation.
+  //
+  // On a barter or mixed deal a product's value is spread EQUALLY across the
+  // stations carrying it -- revenue per station is dealValue / stationCount,
+  // independent of AQH -- while each station's barter value comes from the minutes
+  // actually allocated to it. Products that skipped this (SpotOn, Content
+  // Automation) rendered as cash on a 100%-barter deal and inflated the cash total.
+  //
+  // Extracted verbatim from the FAAI block so FAAI's output is unchanged; every
+  // caller now shares one path instead of hardcoding stationType 'Cash'.
+  // Returns the product's total barter value and mutates the shared accumulators.
+  function allocateBarterAcrossStations({ productId, rowProduct, summaryStation, summaryProduct, dealValueAnnual }) {
+    let productTotalBarterValue = 0;
+    const stationCount = stations.length;
+    const perStationRevenue = stationCount > 0 ? dealValueAnnual / stationCount : 0;
+
+    stations.forEach(st => {
+      const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
+      const primeAQH = Number(st.primeAQH) || 0;
+      const rosAQH = Number(st.rosAQH) || 0;
+      const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
+
+      // Revenue allocation: EQUAL split per station (not AQH-proportional).
+      const revenueAllocated = perStationRevenue;
+
+      // Barter value from allocated minutes (varies by station based on AQH).
+      const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
+      const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
+      const stationBarterValue = primeValue + rosValue;
+      productTotalBarterValue += stationBarterValue;
+
+      if (!marketBreakdown.has(st.market)) {
+        marketBreakdown.set(st.market, { cash: 0, barter: 0, revenue: 0 });
+      }
+      const marketData = marketBreakdown.get(st.market);
+      marketData.barter += stationBarterValue;
+      marketData.revenue = (marketData.revenue || 0) + revenueAllocated;
+
+      allocationRows.push({
+        station: st.station,
+        market: st.market,
+        product: rowProduct,
+        productId,
+        format: ptData?.format || '—',
+        simulcast: ptData?.simulcast || '—',
+        hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
+        primeAQH,
+        rosAQH,
+        cashMonthly: 0,
+        cashAnnual: 0,
+        revenueAllocated,
+        barterValue: stationBarterValue,
+        primeMinutes: domBarter.primeMinutes,
+        rosMinutes: domBarter.rosMinutes,
+        // 'Barter' on mixed deals too -- this is exactly what FAAI has always
+        // emitted, and FAAI's output must not change.
+        stationType: 'Barter',
+        listPriceAnnual: 0  // Don't double-count - it's tracked via revenueAllocated
+      });
+    });
+
+    totalBarterValue += productTotalBarterValue;
+
+    specialProducts.push({
+      station: summaryStation,
+      market: `${stations.length} station(s)`,
+      product: summaryProduct,
+      productId,
+      format: '—',
+      simulcast: '—',
+      hd: '—',
+      primeAQH: 0,
+      rosAQH: 0,
+      cashMonthly: 0,
+      cashAnnual: 0,
+      revenueAllocated: dealValueAnnual,
+      barterValue: productTotalBarterValue,
+      primeMinutes: 0,
+      rosMinutes: 0,
+      stationType: 'Summary',
+      listPriceAnnual: dealValueAnnual
+    });
+
+    return productTotalBarterValue;
+  }
+
   if (window.productState.selectedProducts.has('topline')) {
     const tierName = window.toplineState?.tier === 'both' ? 'TopLine Access + Enterprise' :
                      window.toplineState?.tier === 'enterprise' ? 'TopLine Enterprise' : 'TopLine Access';
@@ -11017,27 +11104,37 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
 
       // Credit tier stays an account-level line, as it has always been.
       if (costs.hasCredits) {
-        totalCashAnnual += costs.creditAnnualCost;
         totalListPrice += costs.creditAnnualCost;
-        specialProducts.push({
-          station: '— Account Level —',
-          market: '—',
-          product: `Content Automation (${costs.tierName})`,
-          productId: 'content_automation',
-          format: '—',
-          simulcast: '—',
-          hd: '—',
-          primeAQH: 0,
-          rosAQH: 0,
-          cashMonthly: costs.creditMonthlyCost,
-          cashAnnual: costs.creditAnnualCost,
-          revenueAllocated: costs.creditAnnualCost,
-          barterValue: 0,
-          primeMinutes: 0,
-          rosMinutes: 0,
-          stationType: 'Cash',
-          listPriceAnnual: costs.creditAnnualCost
-        });
+        if (pricingType === 'barter' || pricingType === 'mixed') {
+          allocateBarterAcrossStations({
+            productId: 'content_automation',
+            rowProduct: 'Content Automation',
+            summaryStation: '— Content Automation Summary —',
+            summaryProduct: `Content Automation (${costs.tierName})`,
+            dealValueAnnual: costs.creditAnnualCost
+          });
+        } else {
+          totalCashAnnual += costs.creditAnnualCost;
+          specialProducts.push({
+            station: '— Account Level —',
+            market: '—',
+            product: `Content Automation (${costs.tierName})`,
+            productId: 'content_automation',
+            format: '—',
+            simulcast: '—',
+            hd: '—',
+            primeAQH: 0,
+            rosAQH: 0,
+            cashMonthly: costs.creditMonthlyCost,
+            cashAnnual: costs.creditAnnualCost,
+            revenueAllocated: costs.creditAnnualCost,
+            barterValue: 0,
+            primeMinutes: 0,
+            rosMinutes: 0,
+            stationType: 'Cash',
+            listPriceAnnual: costs.creditAnnualCost
+          });
+        }
       }
 
       // Live Stream Capture spreads across the STATIONS carrying Content Automation —
@@ -11048,8 +11145,19 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         const stationCount = caStations.length;
         // Cash/Yr is an annual column, so capture contributes its annual run rate here —
         // consistent with every other line. Full contract value is cap.termTotal.
-        totalCashAnnual += cap.annualTotal;
         totalListPrice += cap.annualTotal;
+
+        const captureBarterLabel = `Live Stream Capture (${cap.streamCount} × ${cap.resolution}, ${cap.months} mo term)`;
+        if (pricingType === 'barter' || pricingType === 'mixed') {
+          allocateBarterAcrossStations({
+            productId: 'content_automation_capture',
+            rowProduct: captureBarterLabel,
+            summaryStation: '— Live Stream Capture Summary —',
+            summaryProduct: captureBarterLabel,
+            dealValueAnnual: cap.annualTotal
+          });
+        } else {
+        totalCashAnnual += cap.annualTotal;
 
         const perStationRevenue = stationCount > 0 ? (cap.annualTotal / stationCount) : cap.annualTotal;
         const perStationMonthly = stationCount > 0 ? (cap.monthlyTotal / stationCount) : cap.monthlyTotal;
@@ -11099,33 +11207,46 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
             listPriceAnnual: cap.annualTotal
           });
         }
+        }
       }
     }
   }
 
   if (window.productState.selectedProducts.has('spoton')) {
     const costs = calculateSpotOnCosts();
-    totalCashAnnual += costs.annualCost;
+    // annualCost already carries the barter multiplier from calculateSpotOnCosts.
     totalListPrice += costs.annualCost;
-    specialProducts.push({
-      station: '— Account Level —',
-      market: '—',
-      product: `SpotOn (${costs.totalCredits} credits)`,
-      productId: 'spoton',
-      format: '—',
-      simulcast: '—',
-      hd: '—',
-      primeAQH: 0,
-      rosAQH: 0,
-      cashMonthly: costs.monthlyCost,
-      cashAnnual: costs.annualCost,
-      revenueAllocated: costs.annualCost,
-      barterValue: 0,
-      primeMinutes: 0,
-      rosMinutes: 0,
-      stationType: 'Cash',
-      listPriceAnnual: costs.annualCost
-    });
+
+    if (pricingType === 'barter' || pricingType === 'mixed') {
+      allocateBarterAcrossStations({
+        productId: 'spoton',
+        rowProduct: 'SpotOn',
+        summaryStation: '— SpotOn Summary —',
+        summaryProduct: `SpotOn (${costs.totalCredits} credits)`,
+        dealValueAnnual: costs.annualCost
+      });
+    } else {
+      totalCashAnnual += costs.annualCost;
+      specialProducts.push({
+        station: '— Account Level —',
+        market: '—',
+        product: `SpotOn (${costs.totalCredits} credits)`,
+        productId: 'spoton',
+        format: '—',
+        simulcast: '—',
+        hd: '—',
+        primeAQH: 0,
+        rosAQH: 0,
+        cashMonthly: costs.monthlyCost,
+        cashAnnual: costs.annualCost,
+        revenueAllocated: costs.annualCost,
+        barterValue: 0,
+        primeMinutes: 0,
+        rosMinutes: 0,
+        stationType: 'Cash',
+        listPriceAnnual: costs.annualCost
+      });
+    }
   }
 
   if (window.productState.selectedProducts.has('faai')) {
@@ -11140,78 +11261,12 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
     // Revenue allocation = Deal Value ÷ Station Count (regardless of AQH)
     // Barter value is calculated from allocated minutes (varies by station based on AQH)
     if (pricingType === 'barter' || pricingType === 'mixed') {
-      let faaiTotalBarterValue = 0;
-      const stationCount = stations.length;
-      const perStationRevenue = stationCount > 0 ? faaiDealValue / stationCount : 0;
-
-      stations.forEach(st => {
-        const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
-        const primeAQH = Number(st.primeAQH) || 0;
-        const rosAQH = Number(st.rosAQH) || 0;
-
-        // Get PrecisionTrak data
-        const ptData = window.getPrecisionTrakData ? window.getPrecisionTrakData(st.station) : null;
-
-        // Revenue allocation: EQUAL split per station (not AQH-proportional)
-        // Every station carrying this product gets the same revenue allocation
-        const revenueAllocated = perStationRevenue;
-
-        // Barter value from allocated minutes
-        const primeValue = calculateValueFromMinutes(domBarter.primeMinutes, primeAQH, cpm);
-        const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
-        const stationBarterValue = primeValue + rosValue;
-        faaiTotalBarterValue += stationBarterValue;
-
-        // Track by market
-        if (!marketBreakdown.has(st.market)) {
-          marketBreakdown.set(st.market, { cash: 0, barter: 0, revenue: 0 });
-        }
-        const marketData = marketBreakdown.get(st.market);
-        marketData.barter += stationBarterValue;
-        marketData.revenue = (marketData.revenue || 0) + revenueAllocated;
-
-        allocationRows.push({
-          station: st.station,
-          market: st.market,
-          product: 'FAAI',
-          productId: 'faai',
-          format: ptData?.format || '—',
-          simulcast: ptData?.simulcast || '—',
-          hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
-          primeAQH,
-          rosAQH,
-          cashMonthly: 0,
-          cashAnnual: 0,
-          revenueAllocated,
-          barterValue: stationBarterValue,
-          primeMinutes: domBarter.primeMinutes,
-          rosMinutes: domBarter.rosMinutes,
-          stationType: 'Barter',
-          listPriceAnnual: 0  // Don't double-count - it's tracked via revenueAllocated
-        });
-      });
-
-      totalBarterValue += faaiTotalBarterValue;
-
-      // Add summary row for FAAI
-      specialProducts.push({
-        station: '— FAAI Summary —',
-        market: `${stations.length} station(s)`,
-        product: `FAAI (${costs.numberOfShows || 1} show × ${costs.minutesPerDay || 0} min)`,
+      allocateBarterAcrossStations({
         productId: 'faai',
-        format: '—',
-        simulcast: '—',
-        hd: '—',
-        primeAQH: 0,
-        rosAQH: 0,
-        cashMonthly: 0,
-        cashAnnual: 0,
-        revenueAllocated: faaiDealValue,
-        barterValue: faaiTotalBarterValue,
-        primeMinutes: 0,
-        rosMinutes: 0,
-        stationType: 'Summary',
-        listPriceAnnual: faaiDealValue
+        rowProduct: 'FAAI',
+        summaryStation: '— FAAI Summary —',
+        summaryProduct: `FAAI (${costs.numberOfShows || 1} show × ${costs.minutesPerDay || 0} min)`,
+        dealValueAnnual: faaiDealValue
       });
     } else {
       // Cash deal - show single row
