@@ -569,14 +569,24 @@
       { callSign: 'WHTZ-FM', primeAQH: 27400, rosAQH: 26300 }
     ];
     const target = 200000;
-    const result = DealTools.calculateBarterMinutes(target, stations, 2.0);
+    const cpm = 2.0;
+    const result = DealTools.calculateBarterMinutes(target, stations, cpm);
 
-    // Due to rounding up (ceil), allocated value should be >= target
-    assertTrue(result.total.annualValue >= target, 'Allocated value should meet or exceed target');
-    // Rounding up can cause over-allocation, especially with high-AQH stations
-    // Allow up to 25% over-allocation (ceiling effect on minutes)
-    const overAllocation = (result.total.annualValue - target) / target;
-    assertTrue(overAllocation < 0.25, `Over-allocation should be < 25%: got ${(overAllocation * 100).toFixed(1)}%`);
+    // Minutes are whole numbers, so only discrete totals are reachable. On stations this
+    // large a single ROS minute on the smallest is worth ~$37k -- 19% of this target --
+    // so the allocator rounds to the NEAREST reachable total and can land under it.
+    // This test used to assert allocated >= target on the assumption that minutes are
+    // always rounded up. They are not, and the engine has been right the whole time:
+    // it allocated $196,414 against $200,000 and the suite reported a false failure.
+    // What the allocator does guarantee is that no better whole-minute allocation
+    // exists -- the miss is smaller than one minute on the cheapest station.
+    const smallestRosAQH = Math.min(...stations.map(s => s.rosAQH));
+    const oneMinuteValue = DealTools.calculateValueFromMinutes(1, smallestRosAQH, cpm);
+    const miss = Math.abs(result.total.annualValue - target);
+
+    assertTrue(miss < oneMinuteValue,
+      `Allocation should land within one minute-increment ($${Math.round(oneMinuteValue)}) ` +
+      `of target: missed by $${Math.round(miss)}`);
   });
 
   test('calculateBarterMinutes: value from minutes formula is consistent', () => {
@@ -904,6 +914,91 @@
   });
 
   // ============================================================================
+  // MIXED-DEAL BARTER TARGET: ENGINE MUST MATCH THE UI
+  // ============================================================================
+  //
+  // Expected values were measured in the live UI (2 stations: KAAR-FM 100/100 AQH,
+  // KACL-FM 400/400, CPM 1.5) and are the monthly barter target the Financial
+  // Allocation and the proposal show. If the engine drifts from these, the chat agent
+  // quotes a different barter target than the proposal for the same deal.
+
+  (function mixedBarterTargetParity() {
+    const S = ['Townsquare Media|Butte-Bozeman, MT|KAAR-FM',
+               'Townsquare Media|Bismarck-Mnt-Dcknsn (Wlstn)|KACL-FM'];
+    const M = ['Butte-Bozeman, MT', 'Bismarck-Mnt-Dcknsn (Wlstn)'];
+
+    function engineTargetMonthly(productId, config, cashByLocation, marketLevel) {
+      const productCashValues = {};
+      Object.entries(cashByLocation).forEach(([loc, val]) => {
+        productCashValues[`${productId}:${loc}`] = val;
+      });
+      const c = {
+        products: [productId], stations: S, markets: M, dealType: 'broadcast',
+        pricingType: 'mixed', cpm: 1.5,
+        productAssignments: { [productId]: marketLevel ? M : S },
+        productCashValues,
+        productConfigs: { [productId]: config }
+      };
+      const r = DealTools.calculateMixedBarterTargets(
+        c, { stations: S, markets: M }, c.productConfigs, DealTools.BARTER_MULTIPLIER);
+      return r.perProduct[productId].targetAnnual / 12;
+    }
+
+    const cases = [
+      { name: 'SpotOn (1,000 credits, $600/mo cash) grosses the remainder up',
+        id: 'spoton', config: { creditsPerMonth: 1000 },
+        cash: { [M[0]]: 300, [M[1]]: 300 }, marketLevel: true, expected: 611.15 },
+
+      { name: 'FAAI (2 shows x 5 min, $300/mo cash) grosses the remainder up',
+        id: 'faai', config: { numberOfShows: 2, minutesPerDay: 5, margin: 90 },
+        cash: { [S[0]]: 150, [S[1]]: 150 }, marketLevel: false, expected: 401.07 },
+
+      { name: 'Content Automation (tier1, $1,000/mo cash) grosses the remainder up',
+        id: 'content_automation', config: { enabled: true, tier: 'tier1' },
+        cash: { [S[0]]: 500, [S[1]]: 500 }, marketLevel: false, expected: 2291.83 },
+
+      // TopLine's list is already grossed up by its own calculator and its per-product
+      // cash is deliberately not netted, so the target is the full list price.
+      { name: 'TopLine (both tier, 1 market) sizes barter against full list, cash ignored',
+        id: 'topline', config: { tier: 'both', numberOfMarkets: 1 },
+        cash: { [M[0]]: 2500 }, marketLevel: true, expected: 9167.30 },
+
+      // Rate-card product: priced off the rate card's barter column (1050 x 2 stations),
+      // cash netted off with no further gross-up.
+      { name: 'TopicPulse (rate card, $500/mo cash) nets cash with no gross-up',
+        id: 'topicpulse', config: {},
+        cash: { [S[0]]: 250, [S[1]]: 250 }, marketLevel: false, expected: 1600.00 }
+    ];
+
+    cases.forEach(tc => {
+      test(`mixed barter target matches UI: ${tc.name}`, () => {
+        const got = engineTargetMonthly(tc.id, tc.config, tc.cash, tc.marketLevel);
+        assertClose(got, tc.expected, 0.75,
+          `${tc.id}: engine says $${got.toFixed(2)}/mo, UI shows $${tc.expected.toFixed(2)}/mo`);
+      });
+    });
+
+    test('mixed barter target: total is the sum of the per-product targets', () => {
+      const c = {
+        products: ['spoton', 'topicpulse'], stations: S, markets: M, dealType: 'broadcast',
+        pricingType: 'mixed', cpm: 1.5,
+        productAssignments: { spoton: M, topicpulse: S },
+        productCashValues: {
+          [`spoton:${M[0]}`]: 300, [`spoton:${M[1]}`]: 300,
+          [`topicpulse:${S[0]}`]: 250, [`topicpulse:${S[1]}`]: 250
+        },
+        productConfigs: { spoton: { creditsPerMonth: 1000 }, topicpulse: {} }
+      };
+      const r = DealTools.calculateMixedBarterTargets(
+        c, { stations: S, markets: M }, c.productConfigs, DealTools.BARTER_MULTIPLIER);
+      const sum = Object.values(r.perProduct).reduce((a, p) => a + p.targetAnnual, 0);
+      assertClose(r.totalAnnual, sum, 0.01, 'Total should equal the sum of per-product targets');
+      assertClose(r.totalAnnual / 12, 611.15 + 1600.00, 1.0,
+        'Two-product mixed deal should total both products\' UI targets');
+    });
+  })();
+
+  // ============================================================================
   // CACHE-BUSTING VERSION STAMP (Node only -- needs the filesystem)
   // ============================================================================
 
@@ -943,6 +1038,12 @@
   // Export results for TEST-RESULTS.md generation
   if (typeof module !== 'undefined' && module.exports) {
     module.exports = { results, passCount, failCount };
+    // Exit non-zero so a real failure actually fails `npm run test:tools`. Until the
+    // stale calculateBarterMinutes assertion above was corrected the suite always had
+    // one failure, so it could only ever exit 0 and regressions went unnoticed.
+    if (typeof process !== 'undefined' && process.exitCode === undefined && failCount > 0) {
+      process.exitCode = 1;
+    }
   } else if (typeof window !== 'undefined') {
     window._testResults = { results, passCount, failCount };
   }

@@ -772,6 +772,93 @@
   }
 
   // ============================================================================
+  // ==========================================================================
+  // MIXED-DEAL BARTER TARGET
+  // ==========================================================================
+  //
+  // On a mixed deal every product is quoted at its cash rate and the rep pays part of
+  // it in cash; whatever is left has to be covered in inventory. Sizing that inventory
+  // is NOT (totalAnnual - totalCashAnnual): barter buys less per dollar, so the unpaid
+  // remainder on a calculated product has to be grossed up by the barter multiplier.
+  //
+  // The UI arrives at the list price it sizes barter against three different ways
+  // depending on the product. That is not a design -- it is three historical decisions,
+  // and the engine has to reproduce them exactly or the chat agent quotes a different
+  // barter target than the proposal for the same deal:
+  //
+  //   rate-card products   the rate card's BARTER column, which already embeds a
+  //                        legacy 1.4x (TopicPulse 1050/750). Cash is netted off it
+  //                        with no further gross-up.
+  //   TopLine              cash x multiplier, and the rep's per-product cash is NOT
+  //                        netted off it at all.
+  //   every other          the plain cash rate, with the unpaid remainder grossed up.
+  //   calculated product   This is SpotOn, FAAI, Content Automation and FB Groups.
+  //
+  // The two exceptions are named here rather than inlined so there is one place to
+  // change when those rules are revisited.
+
+  // TopLine's own calculator applies the multiplier on mixed as well as barter, so its
+  // barter list is already grossed up before any remainder is taken.
+  const MIXED_USES_BARTER_LIST = ['topline'];
+  // TopLine sizes barter against its full list price; per-product cash entered against
+  // it is deliberately not netted off.
+  const MIXED_IGNORES_PRODUCT_CASH = ['topline'];
+
+  /**
+   * Per-product barter target for a mixed deal, matching the UI.
+   * @returns {{perProduct: Object<string, {listMonthly, cashMonthly, remainderMonthly, grossedUp, targetAnnual}>, totalAnnual: number}}
+   */
+  function calculateMixedBarterTargets(c, assignments, mergedProductConfigs, barterRate) {
+    const perProduct = {};
+    let totalAnnual = 0;
+
+    (c.products || []).forEach(productId => {
+      if (BARTER_EXCLUDED_PRODUCTS.includes(productId)) return;
+
+      const special = isSpecialProduct(productId);
+      const baseExtras = {
+        ...(mergedProductConfigs[productId] || {}),
+        dealType: c.dealType,
+        barterMultiplier: c.barterMultiplier,
+        customPrice: (c.customPrices || {})[productId]
+      };
+
+      // Which list price the UI sizes barter against for this product.
+      const usesBarterList = !special || MIXED_USES_BARTER_LIST.includes(productId);
+      const listPrice = calculateProductPrice(productId, assignments, {
+        ...baseExtras,
+        pricingType: usesBarterList ? 'barter' : 'mixed'
+      });
+      const listMonthly = listPrice.monthly || 0;
+
+      // Cash the rep entered against this product, summed over the same location keys
+      // the UI writes: market names for market-level products, station keys otherwise.
+      let cashMonthly = 0;
+      if (!MIXED_IGNORES_PRODUCT_CASH.includes(productId)) {
+        const locationKeys = (c.productAssignments || {})[productId]
+          || (isMarketLevelProduct(productId) ? (c.markets || []) : (c.stations || []));
+        locationKeys.forEach(locationKey => {
+          cashMonthly += ((c.productCashValues || {})[`${productId}:${locationKey}`]) || 0;
+        });
+      }
+
+      const remainderMonthly = Math.max(0, listMonthly - cashMonthly);
+      const grossedUp = special && cashMonthly > 0;
+      const targetAnnual = (grossedUp ? remainderMonthly * barterRate : remainderMonthly) * 12;
+
+      perProduct[productId] = {
+        listMonthly,
+        cashMonthly,
+        remainderMonthly,
+        grossedUp,
+        targetAnnual
+      };
+      totalAnnual += targetAnnual;
+    });
+
+    return { perProduct, totalAnnual };
+  }
+
   // TOOL 5: calculateProductPrice
   // ============================================================================
 
@@ -1715,13 +1802,24 @@
     // Calculate cash and barter components for mixed deals
     let totalCashAnnual = 0;
     let totalBarterTargetAnnual = 0;
+    let mixedBarterTargets = null;
 
     if (pricingType === 'mixed') {
       // Sum up per-product-per-location cash values
       Object.entries(c.productCashValues || {}).forEach(([key, value]) => {
         totalCashAnnual += (value || 0) * 12;  // Cash values are monthly
       });
-      totalBarterTargetAnnual = Math.max(0, totalAnnual - totalCashAnnual);
+      // The barter target is computed PER PRODUCT, the same way the UI does it, not as
+      // one flat (totalAnnual - totalCashAnnual). A flat remainder skips the gross-up
+      // that calculated products need, so the agent quoted a smaller barter target than
+      // the proposal showed for the same deal.
+      mixedBarterTargets = calculateMixedBarterTargets(
+        c,
+        { stations: c.stations || [], markets: c.markets || [] },
+        mergedProductConfigs,
+        resolveBarterMultiplier({ barterMultiplier: c.barterMultiplier })
+      );
+      totalBarterTargetAnnual = mixedBarterTargets.totalAnnual;
     } else if (pricingType === 'barter') {
       totalBarterTargetAnnual = totalAnnual;
     } else {
@@ -1831,6 +1929,9 @@
       cashAnnual: totalCashAnnual,
       cashMonthly: totalCashAnnual / 12,
       barterTargetAnnual: totalBarterTargetAnnual,
+      // Per-product breakdown of the mixed barter target (null on cash/barter deals),
+      // so a quote can show which product each slice of inventory is covering.
+      mixedBarterTargets: mixedBarterTargets ? mixedBarterTargets.perProduct : null,
       barterTargetMonthly: totalBarterTargetAnnual / 12,
       barterAllocation,
 
@@ -2016,6 +2117,7 @@
     lookupStationDetails,
     getProductCatalog,
     calculateProductPrice,
+    calculateMixedBarterTargets,
     calculateBarterMinutes,
     calculateFAAIPrice,
     buildDeal,
