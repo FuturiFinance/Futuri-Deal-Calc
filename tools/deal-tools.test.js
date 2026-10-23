@@ -1098,6 +1098,102 @@
   })();
 
   // ============================================================================
+  // PRICING RULES VERSION (stale-quote banner)
+  // ============================================================================
+
+  test('pricing rules: a deal saved before versioning is flagged', () => {
+    // No pricingRulesVersion at all -- every deal saved before today.
+    assertTrue(DealTools.dealNeedsPricingRulesWarning({ pricingType: 'mixed' }),
+      'A mixed deal with no version should be flagged');
+    assertTrue(DealTools.dealNeedsPricingRulesWarning({ pricingType: 'barter' }),
+      'A barter deal with no version should be flagged');
+  });
+
+  test('pricing rules: a deal at the CURRENT rate but old rules is still flagged', () => {
+    // The case a rate comparison missed entirely: saved at 1.5279, so its rate matches
+    // and the old banner stayed hidden, yet it reprices under the version 2 rules.
+    assertTrue(DealTools.dealNeedsPricingRulesWarning({
+      pricingType: 'mixed', barterMultiplier: DealTools.BARTER_MULTIPLIER
+    }), 'A mixed deal at the current rate with no version should still be flagged');
+  });
+
+  test('pricing rules: a legacy 1.4x mixed deal is flagged', () => {
+    assertTrue(DealTools.dealNeedsPricingRulesWarning({
+      pricingType: 'mixed', barterMultiplier: DealTools.LEGACY_BARTER_MULTIPLIER,
+      pricingRulesVersion: 1
+    }), 'A legacy 1.4x mixed deal should be flagged');
+  });
+
+  test('pricing rules: a deal saved under the current rules is not flagged', () => {
+    assertTrue(!DealTools.dealNeedsPricingRulesWarning({
+      pricingType: 'mixed', pricingRulesVersion: DealTools.PRICING_RULES_VERSION
+    }), 'A deal at the current rules version should not be flagged');
+    assertTrue(!DealTools.dealNeedsPricingRulesWarning({
+      pricingType: 'barter', pricingRulesVersion: DealTools.PRICING_RULES_VERSION
+    }), 'A current barter deal should not be flagged');
+  });
+
+  test('pricing rules: cash deals never show the banner', () => {
+    assertTrue(!DealTools.dealNeedsPricingRulesWarning({ pricingType: 'cash' }),
+      'A cash deal with no version should not be flagged');
+    assertTrue(!DealTools.dealNeedsPricingRulesWarning({
+      pricingType: 'cash', pricingRulesVersion: 1
+    }), 'A version 1 cash deal should not be flagged');
+    assertTrue(!DealTools.dealNeedsPricingRulesWarning({}),
+      'An empty deal defaults to cash and should not be flagged');
+  });
+
+  test('pricing rules: a future version is not flagged', () => {
+    assertTrue(!DealTools.dealNeedsPricingRulesWarning({
+      pricingType: 'mixed', pricingRulesVersion: DealTools.PRICING_RULES_VERSION + 1
+    }), 'A deal from a newer build should not be flagged by an older one');
+  });
+
+  test('pricing rules: index.html saves the version with every deal', () => {
+    if (typeof module !== 'object' || !module.exports) return;
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    assertTrue(/pricingRulesVersion: PRICING_RULES_VERSION/.test(html),
+      'buildDealPayload must store pricingRulesVersion, or saved deals cannot be flagged');
+    assertTrue(/Number\(payload\.pricingRulesVersion\) \|\| 1/.test(html),
+      'loadDeal must default a missing pricingRulesVersion to 1');
+  });
+
+  // ============================================================================
+  // CASH KEY: MARKET-LEVEL PRODUCTS STORE CASH UNDER THE MARKET
+  // ============================================================================
+
+  test('cash key: market-level products key off the market, station-level off the station', () => {
+    const station = {
+      market: 'Butte-Bozeman, MT',
+      key: 'Townsquare Media|Butte-Bozeman, MT|KAAR-FM'
+    };
+    // TopLine and SpotOn are priced per market.
+    assertEqual(DealTools.cashKeyForStation('topline', station),
+      'topline:Butte-Bozeman, MT', 'TopLine cash is keyed by market');
+    assertEqual(DealTools.cashKeyForStation('spoton', station),
+      'spoton:Butte-Bozeman, MT', 'SpotOn cash is keyed by market');
+    // Rate-card products are priced per station.
+    assertEqual(DealTools.cashKeyForStation('topicpulse', station),
+      'topicpulse:Townsquare Media|Butte-Bozeman, MT|KAAR-FM',
+      'TopicPulse cash is keyed by station');
+  });
+
+  test('cash key: the Financial Allocation reads cash through the shared rule', () => {
+    if (typeof module !== 'object' || !module.exports) return;
+    const fs = require('fs');
+    const path = require('path');
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
+    // The bug was generateFinancialAllocation reading getCashKey(p.id, st.key)
+    // unconditionally, so market-level products reported $0 cash.
+    assertTrue(/DealTools\.cashKeyForStation\(p\.id, st\)/.test(html),
+      'generateFinancialAllocation must use the shared cash-key rule');
+    assertTrue(!/getCashKey\(p\.id, st\.key\)/.test(html),
+      'No path should still read a market-level product cash off the station key');
+  });
+
+  // ============================================================================
   // CACHE-BUSTING VERSION STAMP (Node only -- needs the filesystem)
   // ============================================================================
 

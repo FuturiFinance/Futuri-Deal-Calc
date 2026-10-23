@@ -49,6 +49,42 @@
   //
   // inventory_only is the exception: its cash is 0 and its barter 1 is a sentinel that
   // keeps the line visible for a rep-entered custom value, not a price to multiply.
+  // Bumped whenever a PRICING RULE changes -- not when a rate changes. A deal's stored
+  // barterMultiplier pins the RATE it was sold at; it cannot pin how that rate is
+  // applied, and a rules change moves a saved quote just as surely. Comparing rates was
+  // not enough: a deal saved at the CURRENT multiplier still reprices under new rules
+  // and showed no warning at all, because its rate matched.
+  //   1  original rules
+  //   2  mixed deals net the rep's cash per product and gross up only the remainder,
+  //      for every product including TopLine; rate-card barter is cash x the deal's
+  //      multiplier instead of the rate card's own barter column.
+  const PRICING_RULES_VERSION = 2;
+
+  /**
+   * Was this deal quoted under pricing rules we have since changed?
+   * A deal with no pricingRulesVersion predates versioning and counts as version 1.
+   * Cash deals carry no barter or mixed value, so no rule here moves them.
+   */
+  function dealNeedsPricingRulesWarning(deal) {
+    const pricingType = (deal && deal.pricingType) || 'cash';
+    if (pricingType === 'cash') return false;
+    const version = Number(deal && deal.pricingRulesVersion);
+    return !Number.isFinite(version) || version < PRICING_RULES_VERSION;
+  }
+
+  /**
+   * The key a product's cash is stored under for a given station. Cash is written
+   * against whatever the product is priced at: market-level products under the market
+   * name, station-level under the station key. Reading the station key for a
+   * market-level product silently yields 0.
+   */
+  function cashKeyForStation(productId, station) {
+    const location = isMarketLevelProduct(productId)
+      ? (station && station.market)
+      : (station && station.key);
+    return `${productId}:${location}`;
+  }
+
   function rateCardBarterPrice(product, extras) {
     if (!product.cash) return product.barter || 0;
     return product.cash * resolveBarterMultiplier(extras);
@@ -2114,6 +2150,9 @@
     getProductCatalog,
     calculateProductPrice,
     calculateMixedBarterTargets,
+    PRICING_RULES_VERSION,
+    dealNeedsPricingRulesWarning,
+    cashKeyForStation,
     calculateBarterMinutes,
     calculateFAAIPrice,
     buildDeal,

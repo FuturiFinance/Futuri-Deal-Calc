@@ -768,13 +768,13 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="tools/deal-tools.js?v=4c8e7673ec"></script>
-  <script src="tools/grid-entry.js?v=4c8e7673ec"></script>
+  <script src="tools/deal-tools.js?v=4dd6319004"></script>
+  <script src="tools/grid-entry.js?v=4dd6319004"></script>
   <script>
     // Cache-busting stamp. Content hash of the assets this page loads by URL,
     // written by tools/stamp-version.js and enforced by tools/deal-tools.test.js.
     // Do not edit by hand -- run `npm run stamp`.
-    const APP_VERSION = '4c8e7673ec';
+    const APP_VERSION = '4dd6319004';
     // Appends the stamp to a same-origin asset URL so browsers refetch it on deploy.
     function versioned(url) {
       return url + (url.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
@@ -2736,6 +2736,10 @@ function buildDealPayload(){
     // numbers it was sold at, not whatever the current rate happens to be.
     barterMultiplier: getBarterMultiplier(),
 
+    // The pricing RULES this deal was quoted under. The multiplier above pins the rate;
+    // this pins how it was applied, so a later rule change is visible instead of silent.
+    pricingRulesVersion: PRICING_RULES_VERSION,
+
     // TopLine configuration
     toplineConfig: { ...window.toplineState },
 
@@ -3047,6 +3051,9 @@ function loadDeal(payload){
   // Honour it so existing quotes -- and the proposalHTML snapshot restored below --
   // stay exactly as they were sold.
   window.__dealBarterMultiplier = Number(payload.barterMultiplier) || LEGACY_BARTER_MULTIPLIER;
+  // A deal saved before versioning existed has no pricingRulesVersion; treat it as 1 so
+  // it is flagged, regardless of the rate it carries.
+  window.__dealPricingRulesVersion = Number(payload.pricingRulesVersion) || 1;
   updateBarterRateBanner();
 
   if (typeof window.updateProductSummary === "function") window.updateProductSummary();
@@ -4765,6 +4772,18 @@ document.addEventListener("click", async (e) => {
     // saved without a stored rate are quoted at this and must stay that way.
     const LEGACY_BARTER_MULTIPLIER = 1.4;
 
+    // Bumped whenever a PRICING RULE changes -- not when a rate changes. The stored
+    // barterMultiplier keeps a deal on the rate it was sold at, but it cannot protect
+    // a deal from a change in how that rate is applied, and those changes are the ones
+    // that silently move a saved quote. Deals saved below the current version are
+    // flagged, whatever rate they carry.
+    //   1  original rules
+    //   2  mixed deals net the rep's cash per product and gross up only the remainder,
+    //      for every product including TopLine; rate-card barter is cash x the deal's
+    //      multiplier instead of the rate card's own barter column.
+    const PRICING_RULES_VERSION = DealTools.PRICING_RULES_VERSION;
+    window.__dealPricingRulesVersion = PRICING_RULES_VERSION;
+
     // The rate THIS deal is priced at. Set from a loaded deal's stored value, or the
     // current constant for a new deal. Every barter calculation reads it through
     // getBarterMultiplier() so a reopened quote cannot silently reprice.
@@ -4795,17 +4814,20 @@ document.addEventListener("click", async (e) => {
     function updateBarterRateBanner() {
       const banner = el('barterRateBanner');
       if (!banner) return;
-      const dealRate = Number(window.__dealBarterMultiplier);
-      const stale = Number.isFinite(dealRate) && dealRate > 0
-        && Math.abs(dealRate - BARTER_MULTIPLIER) > 0.0001;
+      // Driven by the rules version, not by comparing rates. A rate comparison missed
+      // the deals that matter most: one saved at the CURRENT multiplier still reprices
+      // when the rules change, and showed no banner at all because its rate matched.
+      const stale = DealTools.dealNeedsPricingRulesWarning({
+        pricingRulesVersion: window.__dealPricingRulesVersion,
+        pricingType: window.productState?.pricingType || 'cash'
+      });
+
       banner.classList.toggle('hidden', !stale);
       if (stale) {
         const txt = el('barterRateBannerText');
         if (txt) {
-          // Driven by the rates themselves, not a date -- so this keeps working the
-          // next time the multiplier moves, with no copy to update.
-          txt.textContent = `Priced at ${dealRate.toFixed(2)}x barter (earlier rate). `
-            + `Current rate is ${BARTER_MULTIPLIER.toFixed(2)}x.`;
+          txt.textContent = 'This deal was saved under earlier pricing rules. '
+            + 'Barter and mixed values may differ from what was quoted.';
         }
       }
     }
@@ -4816,6 +4838,7 @@ document.addEventListener("click", async (e) => {
     // instead of contradicting the rest of the screen.
     function repriceDealAtCurrentRates() {
       window.__dealBarterMultiplier = BARTER_MULTIPLIER;
+      window.__dealPricingRulesVersion = PRICING_RULES_VERSION;
       const proposalTable = el('proposalTable');
       if (proposalTable) proposalTable.innerHTML = '';
       const proposalOutput = el('proposalOutput');
@@ -8205,7 +8228,7 @@ document.addEventListener("click", async (e) => {
       } else if (pricingType === 'mixed') {
         // Mixed: sum per-station cash
         assignedStations.forEach(st => {
-          const cashKey = getCashKey(p.id, st.key);
+          const cashKey = DealTools.cashKeyForStation(p.id, st);
           const cash = window.productState.productCashValues.get(cashKey) || 0;
           productCashTotal += cash;
           productListPriceTotal += unitPrice;
@@ -8432,7 +8455,7 @@ document.addEventListener("click", async (e) => {
         }
       } else {
         assignedStations.forEach(st => {
-          const cashKey = getCashKey(p.id, st.key);
+          const cashKey = DealTools.cashKeyForStation(p.id, st);
           const cash = window.productState.productCashValues.get(cashKey) || 0;
           productCashTotal += cash;
           productListPriceTotal += unitPrice;
@@ -8878,7 +8901,7 @@ function computeBarterAllocationPerProduct() {
       } else {
         // Standard products: sum per-station values
         assignedStations.forEach(st => {
-          const cashKey = getCashKey(p.id, st.key);
+          const cashKey = DealTools.cashKeyForStation(p.id, st);
           const cashAmount = window.productState.productCashValues.get(cashKey) || 0;
           productCashTotal += cashAmount;
           productListPriceTotal += unitPrice;
@@ -10928,9 +10951,21 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       const barterPrice = getRateCardBarterPrice(p);
       listPriceAnnual = (isBarter ? barterPrice : unitPrice) * 12;
 
-      // Get cash quoted for this product-station (for mixed deals)
-      const cashKey = getCashKey(p.id, st.key);
-      const quotedCash = window.productState.productCashValues?.get(cashKey) || 0;
+      // Get cash quoted for this product-station (for mixed deals).
+      // Cash is written against whatever the product is priced at: market-level
+      // products store it under the market name, station-level under the station key.
+      // This used to always read the station key, so TopLine and SpotOn reported $0
+      // cash here while the barter target correctly netted it -- the panel subtracted
+      // the cash once and never added it back, inventing a shortfall. Keyed off the
+      // product's pricing level so a new market-level product is covered on arrival.
+      const cashKey = DealTools.cashKeyForStation(p.id, st);
+      const quotedCashRaw = window.productState.productCashValues?.get(cashKey) || 0;
+      // A market-level product's cash covers every station in that market, so split it
+      // across them to keep the per-station column summing to the deal's cash total.
+      const stationsInScope = isMarketLevelProduct(p.id)
+        ? Math.max(1, getAssignedStationsForProduct(p.id).filter(x => x.market === st.market).length)
+        : 1;
+      const quotedCash = quotedCashRaw / stationsInScope;
 
       if (p.id === 'inventory_only') {
         stationType = 'Inventory';
@@ -11017,10 +11052,28 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   // Extracted verbatim from the FAAI block so FAAI's output is unchanged; every
   // caller now shares one path instead of hardcoding stationType 'Cash'.
   // Returns the product's total barter value and mutates the shared accumulators.
+  // Cash the rep entered against a product, as an annual figure for one station row.
+  // The calculated-product paths used to emit a hardcoded 0 here, so TopLine, SpotOn,
+  // FAAI and Content Automation all reported $0 cash on a mixed deal while the barter
+  // target correctly netted that same cash off -- the panel subtracted it once and
+  // never added it back, inventing a shortfall on a deal that was fully covered.
+  function productCashAnnualForStation(productId, st, stationPool) {
+    if (pricingType !== 'mixed') return 0;
+    const raw = window.productState.productCashValues?.get(
+      DealTools.cashKeyForStation(productId, st)) || 0;
+    // A market-level product's cash is stored once for the whole market, so split it
+    // across that market's stations to keep the column summing to the deal's cash.
+    const sharers = isMarketLevelProduct(productId)
+      ? Math.max(1, (stationPool || []).filter(x => x.market === st.market).length)
+      : 1;
+    return (raw * 12) / sharers;
+  }
+
   function allocateBarterAcrossStations({ productId, rowProduct, summaryStation, summaryProduct, dealValueAnnual }) {
     let productTotalBarterValue = 0;
     const stationCount = stations.length;
     const perStationRevenue = stationCount > 0 ? dealValueAnnual / stationCount : 0;
+
 
     stations.forEach(st => {
       const domBarter = barterFromDOM.get(st.station) || { primeMinutes: 0, rosMinutes: 0 };
@@ -11044,6 +11097,10 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
       marketData.barter += stationBarterValue;
       marketData.revenue = (marketData.revenue || 0) + revenueAllocated;
 
+      const stationCashAnnual = productCashAnnualForStation(productId, st, stations);
+      marketData.cash += stationCashAnnual;
+      totalCashAnnual += stationCashAnnual;
+
       allocationRows.push({
         station: st.station,
         market: st.market,
@@ -11054,15 +11111,18 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
         primeAQH,
         rosAQH,
-        cashMonthly: 0,
-        cashAnnual: 0,
+        cashMonthly: stationCashAnnual / 12,
+        cashAnnual: stationCashAnnual,
         revenueAllocated,
         barterValue: stationBarterValue,
         primeMinutes: domBarter.primeMinutes,
         rosMinutes: domBarter.rosMinutes,
-        // 'Barter' on mixed deals too -- this is exactly what FAAI has always
-        // emitted, and FAAI's output must not change.
-        stationType: 'Barter',
+        // Matches the rate-card path. On a barter deal there is no per-product cash, so
+        // this is 'Barter' exactly as FAAI has always emitted; only a mixed deal with
+        // cash actually entered against the product now reads 'Mixed'.
+        stationType: stationCashAnnual > 0 && stationBarterValue > 0
+          ? 'Mixed'
+          : (stationCashAnnual > 0 ? 'Cash' : 'Barter'),
         listPriceAnnual: 0  // Don't double-count - it's tracked via revenueAllocated
       });
     });
@@ -11179,6 +11239,10 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         marketData.barter += stationBarterValue;
         marketData.revenue = (marketData.revenue || 0) + toplinePerStationRevenue;
 
+        const toplineStationCash = productCashAnnualForStation('topline', st, toplineStations);
+        marketData.cash += toplineStationCash;
+        totalCashAnnual += toplineStationCash;
+
         allocationRows.push({
           station: st.station,
           market: st.market,
@@ -11189,13 +11253,15 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
           hd: ptData ? (ptData.hd ? `Yes${ptData.multicasts ? ` (${ptData.multicasts})` : ''}` : 'No') : '—',
           primeAQH,
           rosAQH,
-          cashMonthly: 0,
-          cashAnnual: 0,
+          cashMonthly: toplineStationCash / 12,
+          cashAnnual: toplineStationCash,
           revenueAllocated: toplinePerStationRevenue,  // Equal split across all stations
           barterValue: stationBarterValue,
           primeMinutes: domBarter.primeMinutes,
           rosMinutes: domBarter.rosMinutes,
-          stationType: 'Barter',
+          stationType: toplineStationCash > 0 && stationBarterValue > 0
+            ? 'Mixed'
+            : (toplineStationCash > 0 ? 'Cash' : 'Barter'),
           listPriceAnnual: 0  // Don't double-count list price
         });
       });
@@ -11477,18 +11543,35 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
   // For barter deals: show Total Revenue (deal value) vs Total Barter Value (from minutes)
   // Coverage = Barter Value / Deal Value
   const totalAllocated = totalCashAnnual + totalBarterValue;
-  const coveragePercent = totalListPrice > 0 ? (totalBarterValue / totalListPrice * 100).toFixed(0) : 0;
   const gap = totalListPrice - totalAllocated;
   const gapPercent = totalListPrice > 0 ? Math.abs(gap / totalListPrice * 100).toFixed(1) : 0;
   const tiesOut = Math.abs(gap) < 1;
-  const isFullyCovered = totalBarterValue >= totalListPrice * 0.95;  // 95% tolerance
+
+  // How much of the deal's value is actually covered.
+  //
+  // On an all-barter deal the list price is ALREADY the grossed-up barter figure, so it
+  // and the allocated barter value are both in inventory dollars and compare directly.
+  //
+  // On a mixed deal the list price is in CASH dollars while the allocated barter value
+  // is in inventory dollars, which buy less per dollar. Comparing them straight across
+  // -- and ignoring the cash entirely, as this did -- demanded that barter alone cover
+  // the whole deal including the half being paid in cash, so a fully covered deal
+  // reported a shortfall: $72,000 TopLine with $30,000 cash read "89% covered".
+  const barterRate = getBarterMultiplier();
+  const dealValueCovered = isMixed
+    ? totalCashAnnual + (barterRate > 0 ? totalBarterValue / barterRate : 0)
+    : totalBarterValue;
+  const coveragePercent = totalListPrice > 0
+    ? (dealValueCovered / totalListPrice * 100).toFixed(0) : 0;
+  const isFullyCovered = dealValueCovered >= totalListPrice * 0.95;  // 95% tolerance
 
   let coverageMessage = '';
   if (isBarter || isMixed) {
+    const label = isMixed ? 'Cash + barter' : 'Barter';
     if (isFullyCovered) {
-      coverageMessage = `<span style="color:#2e7d32;">✓ Barter fully covers revenue (${coveragePercent}%)</span>`;
+      coverageMessage = `<span style="color:#2e7d32;">✓ ${label} fully covers revenue (${coveragePercent}%)</span>`;
     } else {
-      const shortfall = totalListPrice - totalBarterValue;
+      const shortfall = Math.max(0, totalListPrice - dealValueCovered);
       coverageMessage = `<span style="color:#d32f2f;">⚠ Shortfall: ${money(shortfall)}/yr (${coveragePercent}% covered)</span>`;
     }
   }
