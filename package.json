@@ -5,12 +5,16 @@
   "scripts": {
     "stamp": "node tools/stamp-version.js",
     "test:stamp": "node tools/stamp-version.js --check",
-    "test:tools": "node tools/deal-tools.test.js && node tools/stamp-version.js --check"
+    "test:tools": "node tools/deal-tools.test.js && node tools/stamp-version.js --check",
+    "test:rules": "bash tools/run-rules-tests.sh"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.1.0"
+  },
   "engines": {
     "node": ">=20.0.0"
   }

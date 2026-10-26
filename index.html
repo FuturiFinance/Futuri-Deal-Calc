@@ -2191,15 +2191,19 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
         const snap = await getDoc(ref);
 
         const email = (user.email || "").toLowerCase().trim();
-        const isSuper = SUPERADMIN_EMAILS.has(email);
 
-        // First login: create doc
+        // First login: create doc.
+        // Always 'staff'. Firestore rules reject a self-assigned privileged role
+        // on create -- otherwise any signed-in account could mint itself an admin
+        // -- so promotion happens afterwards through the Permissions screen or
+        // the console. Existing superadmins are unaffected; their docs already
+        // carry the role.
         if (!snap.exists()){
           const payload = {
             uid: user.uid,
             email: user.email || "",
             name: user.displayName || "",
-            role: isSuper ? "superadmin" : "staff",
+            role: "staff",
             permOverrides: {},
             createdAt: serverTimestamp()
           };
@@ -2217,11 +2221,14 @@ const DEALS_READ_COLLECTIONS = ["uploads", "deals"];
         if (!data.permOverrides) patch.permOverrides = {};
         if (!data.createdAt) patch.createdAt = serverTimestamp(); // <- ensures ordering queries include older users
 
-        // migrate legacy role "view" -> "staff"
+        // migrate legacy role "view" -> "staff" (a de-escalation the rules allow)
         if (data.role === "view") patch.role = "staff";
 
-        // enforce Sabrina superadmin always
-        if (isSuper && data.role !== "superadmin") patch.role = "superadmin";
+        // Re-asserting superadmin from the client is NOT done any more: rules deny
+        // a user changing their own role, and because this patch is a single
+        // merge write, including role would have rejected the whole thing and
+        // taken the uid/email/name/createdAt backfill down with it. Roles are
+        // managed in the Permissions screen by someone with manage_roles.
 
         if (Object.keys(patch).length) await setDoc(ref, patch, { merge:true });
 

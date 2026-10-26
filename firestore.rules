@@ -1,0 +1,162 @@
+rules_version = '2';
+
+// Futuri Deal Calculator — Firestore security rules
+//
+// Replaces test-mode access. Everything is denied unless a rule below allows it.
+//
+// Shape of the data (see index.html):
+//   users/{uid}                     one profile doc per signed-in rep
+//   users/{uid}/uploads/{dealId}    saved deals  (DEALS_WRITE_COLLECTION)
+//   users/{uid}/deals/{dealId}      legacy deals, still read for back-compat
+//
+// Nothing else exists, and nothing server-side bypasses these rules: the Vercel
+// agent endpoint (api/agent/chat.mjs) talks only to Anthropic and never touches
+// Firestore, so there is no Admin SDK in play.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =====================================================================
+    // Who is allowed in at all
+    // =====================================================================
+
+    // Both domains are live in the app today (ALLOWED_EMAIL_DOMAINS in
+    // index.html). Adding or removing one is a one-line change here.
+    function allowedDomains() {
+      return ['futurimedia.com', 'anstandig.com'];
+    }
+
+    function signedIn() {
+      return request.auth != null
+        && request.auth.token.email is string
+        && request.auth.token.email.size() > 0;
+    }
+
+    // Google sign-in already verifies the address, so email_verified is not
+    // required here -- requiring it would lock out any account federated
+    // without that claim for no real gain.
+    function allowedUser() {
+      // split('@')[1] indexes out of bounds on an address with no '@', and an
+      // out-of-bounds index is an evaluation ERROR, not false. Errors deny, so
+      // the outcome was right, but the check must be total rather than throwing.
+      return signedIn()
+        && request.auth.token.email.lower().split('@').size() == 2
+        && request.auth.token.email.lower().split('@')[1] in allowedDomains();
+    }
+
+    function isSelf(uid) {
+      return allowedUser() && request.auth.uid == uid;
+    }
+
+    // =====================================================================
+    // Admin comes from the role on the requester's own user doc
+    // =====================================================================
+    //
+    // Deliberately NOT an email list: promoting someone is a role change made
+    // in the app, not a rules deploy. Mirrors PERMS_BASE in index.html:
+    //
+    //   view_all_deals  ->  admin + superadmin
+    //   manage_roles    ->  superadmin only
+    //
+    // get() inside a rule does not re-run these rules, so there is no
+    // recursion; the lookup is cached for the rest of the evaluation.
+
+    function myRole() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('role', '')
+        : '';
+    }
+
+    // Read every rep's profile and deals, and list the users collection.
+    function canViewAllDeals() {
+      return allowedUser() && myRole() in ['admin', 'superadmin'];
+    }
+
+    // Change another rep's role.
+    function canManageRoles() {
+      return allowedUser() && myRole() == 'superadmin';
+    }
+
+    // get(key, default) rather than .key: a missing field must read as absent,
+    // not throw. A rule that errors denies, so .role would have silently blocked
+    // the uid/email/createdAt backfill on any legacy profile saved without a role.
+    function roleUnchanged() {
+      // resource is null when Firestore evaluates the update branch of a write to
+      // a document that does not exist yet; reading .data off it would throw.
+      return resource != null
+        && request.resource.data.get('role', '') == resource.data.get('role', '');
+    }
+
+    // =====================================================================
+    // users/{uid} — one profile doc per rep
+    // =====================================================================
+
+    match /users/{uid} {
+
+      // Own doc; an admin may read anyone's.
+      allow get: if isSelf(uid) || canViewAllDeals();
+
+      // Listing the collection is the admin user list / all-deals view.
+      allow list: if canViewAllDeals();
+
+      // First login creates the doc. The client must not be able to hand
+      // itself a privileged role here, so a new doc always starts as 'staff'
+      // and is promoted afterwards by someone with manage_roles.
+      allow create: if isSelf(uid)
+        && request.resource.data.get('role', '') == 'staff'
+        && request.resource.data.get('uid', '') == uid
+        && request.resource.data.get('email', '').lower() == request.auth.token.email.lower();
+
+      allow update: if
+        // A rep maintains their own profile (name, permOverrides, the
+        // uid/email/createdAt backfill) but can never change their own role.
+        (isSelf(uid) && roleUnchanged())
+
+        // One exception, a de-escalation: legacy 'view' accounts migrate
+        // themselves to 'staff' on next sign-in. It cannot gain anything.
+        || (isSelf(uid) && resource != null
+            && resource.data.get('role', '') == 'view'
+            && request.resource.data.get('role', '') == 'staff')
+
+        // Someone with manage_roles may change another rep's role, and only
+        // the role -- never their profile, and never their own role.
+        || (canManageRoles()
+            && request.auth.uid != uid
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['role'])
+            && request.resource.data.get('role', '') in ['staff', 'admin', 'superadmin']);
+
+      // Profiles are never deleted from the app.
+      allow delete: if false;
+    }
+
+    // =====================================================================
+    // Saved deals
+    // =====================================================================
+
+    // The live collection. The owner reads and writes their own; an admin may
+    // read anyone's but never write them.
+    match /users/{uid}/uploads/{dealId} {
+      allow read: if isSelf(uid) || canViewAllDeals();
+      allow create, update, delete: if isSelf(uid);
+    }
+
+    // Legacy collection. The app still READS it for back-compat
+    // (DEALS_READ_COLLECTIONS) but has not written to it since saving moved to
+    // 'uploads', so it is read-only for everyone.
+    match /users/{uid}/deals/{dealId} {
+      allow read: if isSelf(uid) || canViewAllDeals();
+      allow write: if false;
+    }
+
+    // =====================================================================
+    // Everything else
+    // =====================================================================
+    //
+    // Denied by default already; stated explicitly so the intent is on the
+    // page. A rule here cannot override the allows above -- access is granted
+    // when any matching rule allows it -- so this only documents the floor.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
