@@ -52,6 +52,11 @@
   }
 
   function assertClose(actual, expected, tolerance, message) {
+    // NaN and undefined must FAIL. Math.abs(NaN - x) > tol is false, so without this
+    // a test asserting on a misspelt or missing field passed silently.
+    if (!Number.isFinite(actual) || !Number.isFinite(expected)) {
+      throw new Error(`${message || 'Assertion failed'}: expected ~${expected}, got ${actual} (not a finite number)`);
+    }
     if (Math.abs(actual - expected) > tolerance) {
       throw new Error(`${message || 'Assertion failed'}: expected ~${expected}, got ${actual} (tolerance: ${tolerance})`);
     }
@@ -1330,6 +1335,145 @@
         'Cash is per product and accumulates');
       assertClose(r.totals.barterValue, REAL_AIRTIME, 0.01,
         'Barter is per station and is counted once');
+    });
+  })();
+
+  // ============================================================================
+  // MIXED-DEAL BARTER SIZING (Dan, Oct 26 2026)
+  // ============================================================================
+  //
+  //   product barter target = max(0, list - that product's own cash) x multiplier
+  //
+  // Every barter product is grossed up, cash entered or not. Cash above a product's
+  // list stays with that product. Cash-only products are 100% cash.
+
+  (function mixedBarterSizing() {
+    const OWNER = 'Southern Stone Comm., LLC';
+    const MKT = 'Huntsville-Decatur (Florence)';
+    const S = ['WAHR-F2', 'WAHR-FM', 'WRTT-FM'].map(st => `${OWNER}|${MKT}|${st}`);
+    const MULT = DealTools.BARTER_MULTIPLIER;
+
+    // Keys exactly as the UI writes them.
+    function cash(entries) {
+      const out = {};
+      entries.forEach(([productId, station, monthly]) => {
+        out[DealTools.cashKeyForStation(productId, { market: MKT, key: station })] = monthly;
+      });
+      return out;
+    }
+
+    function build(products, productConfigs, cashValues) {
+      return DealTools.buildDeal({
+        products, stations: S, markets: [MKT], dealType: 'broadcast',
+        pricingType: 'mixed', cpm: 1.5, termMonths: 12,
+        productAssignments: products.reduce((a, id) => {
+          a[id] = DealTools.isMarketLevelProduct(id) ? [MKT] : S;
+          return a;
+        }, {}),
+        productCashValues: cashValues || {},
+        productConfigs: productConfigs || {}
+      });
+    }
+
+    test('mixed case 1: SpotOn + FAAI, both with cash (unchanged)', () => {
+      const d = build(['spoton', 'faai'],
+        { spoton: { creditsPerMonth: 1000 },
+          faai: { numberOfShows: 2, minutesPerDay: 5, margin: 90 } },
+        cash([['spoton', S[0], 600], ['faai', S[0], 100], ['faai', S[1], 100], ['faai', S[2], 100]]));
+      // SpotOn (1000 - 600) x mult, FAAI (562.50 - 300) x mult
+      assertClose(d.barterTargetAnnual, ((1000 - 600) + (562.5 - 300)) * MULT * 12, 1,
+        `Expected $12,147/yr, got $${Math.round(d.barterTargetAnnual)}`);
+      assertClose(d.barterTargetAnnual, 12147, 1, 'Barter target $12,147/yr');
+      assertClose(d.cashAnnual, 10800, 1, 'Cash $10,800/yr');
+    });
+
+    test('mixed case 2: TopLine Both with cash + TopicPulse with NO cash', () => {
+      const d = build(['topline', 'topicpulse'],
+        { topline: { tier: 'both', numberOfMarkets: 1 } },
+        cash([['topline', S[0], 2500]]));
+      // TopLine (72,000 - 30,000) x mult = 64,171
+      // TopicPulse 27,000 x mult = 41,253 -- grossed up despite having NO cash.
+      // Before this rule it sat at its plain 27,000, so the total was 91,171.
+      assertClose(d.mixedBarterTargets.topline.targetAnnual, (72000 - 30000) * MULT, 1,
+        'TopLine barter $64,171/yr');
+      assertClose(d.mixedBarterTargets.topicpulse.targetAnnual, 27000 * MULT, 1,
+        'TopicPulse barter $41,253/yr -- grossed up with no cash entered');
+      assertTrue(d.mixedBarterTargets.topicpulse.grossedUp,
+        'A product with no cash must still be grossed up');
+      assertClose(d.barterTargetAnnual, 105424, 1,
+        `Expected $105,424/yr, got $${Math.round(d.barterTargetAnnual)}`);
+      assertClose(d.cashAnnual, 30000, 1, 'Cash $30,000/yr');
+    });
+
+    test('mixed case 3: cash above list stays with its own product', () => {
+      const d = build(['topline', 'topicpulse'],
+        { topline: { tier: 'access', numberOfMarkets: 1 } },
+        cash([['topline', S[0], 5000]]));
+      // TopLine list 42,000, cash 60,000 -> barter 0. The extra 18,000 must NOT
+      // reduce TopicPulse, which stays at its own 27,000 x mult.
+      assertClose(d.mixedBarterTargets.topline.targetAnnual, 0, 1,
+        'TopLine barter 0 -- cash covers its list');
+      assertClose(d.mixedBarterTargets.topicpulse.targetAnnual, 27000 * MULT, 1,
+        'TopicPulse barter $41,253/yr -- untouched by TopLine overpayment');
+      assertClose(d.barterTargetAnnual, 41253, 1,
+        `Expected $41,253/yr, got $${Math.round(d.barterTargetAnnual)}`);
+      assertClose(d.cashAnnual, 60000, 1, 'Cash $60,000/yr, the full amount entered');
+    });
+
+    test('mixed case 3: cash above list raises a warning', () => {
+      const d = build(['topline', 'topicpulse'],
+        { topline: { tier: 'access', numberOfMarkets: 1 } },
+        cash([['topline', S[0], 5000]]));
+      const issues = DealTools.validateDeal(d);
+      const warn = issues.find(i => i.severity === 'warning' && /is above its/.test(i.message));
+      assertTrue(!!warn, 'Should warn that cash is above list');
+      assertTrue(/\$60,000\/yr is above its \$42,000\/yr list/.test(warn.message),
+        `Warning should name both figures, got: ${warn && warn.message}`);
+      assertTrue(/the extra stays with/.test(warn.message),
+        'Warning should say the extra stays with that product');
+    });
+
+    test('mixed case 4: a cash-only product is 100% cash, never barter', () => {
+      const d = build(['topicpulse', 'topline_cx_war_room'], {},
+        cash([['topicpulse', S[0], 100]]));
+      // TopicPulse (27,000 - 1,200) x mult = 39,419
+      assertClose(d.mixedBarterTargets.topicpulse.targetAnnual, (27000 - 1200) * MULT, 1,
+        'TopicPulse barter $39,419/yr');
+      assertClose(d.barterTargetAnnual, 39419, 1,
+        `Expected $39,419/yr, got $${Math.round(d.barterTargetAnnual)}`);
+      // War Room: 3 stations x $1,000/mo = $36,000/yr, all cash. It used to be skipped
+      // outright, so it counted as neither cash nor barter and the cash read $1,200.
+      assertEqual(d.mixedBarterTargets.topline_cx_war_room.targetAnnual, 0,
+        'War Room carries no barter');
+      assertTrue(d.mixedBarterTargets.topline_cx_war_room.cashOnly,
+        'War Room should be flagged cash-only');
+      assertClose(d.cashAnnual, 37200, 1,
+        `Expected $37,200/yr cash, got $${Math.round(d.cashAnnual)}`);
+    });
+
+    test('cash-only detection is driven by rate card flags, not product ids', () => {
+      assertTrue(DealTools.isCashOnlyProduct('topline_cx_war_room', {}),
+        'War Room is cash-only via its cashOnly flag');
+      assertTrue(!DealTools.isCashOnlyProduct('topicpulse', {}),
+        'TopicPulse is not cash-only');
+      // A rate card marking a product barterAllowed:false is honoured too.
+      const custom = { rateCard: { products: [
+        { id: 'topicpulse', name: 'TopicPulse', cash: 750, barter: 1050, barterAllowed: false }
+      ] } };
+      assertTrue(DealTools.isCashOnlyProduct('topicpulse', custom),
+        'barterAllowed:false should make a product cash-only');
+    });
+
+    test('pricing rules version is 3 and version-2 deals are flagged', () => {
+      assertEqual(DealTools.PRICING_RULES_VERSION, 3, 'Rules version should be 3');
+      assertTrue(DealTools.dealNeedsPricingRulesWarning({ pricingType: 'mixed', pricingRulesVersion: 2 }),
+        'A version 2 mixed deal must show the banner, not silently reprice');
+      assertTrue(DealTools.dealNeedsPricingRulesWarning({ pricingType: 'barter', pricingRulesVersion: 2 }),
+        'A version 2 barter deal must show the banner');
+      assertTrue(!DealTools.dealNeedsPricingRulesWarning({ pricingType: 'mixed', pricingRulesVersion: 3 }),
+        'A version 3 deal is current');
+      assertTrue(!DealTools.dealNeedsPricingRulesWarning({ pricingType: 'cash', pricingRulesVersion: 2 }),
+        'Cash deals never show the banner');
     });
   })();
 

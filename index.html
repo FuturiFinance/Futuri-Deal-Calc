@@ -768,13 +768,13 @@
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="tools/deal-tools.js?v=e1f589ab6a"></script>
-  <script src="tools/grid-entry.js?v=e1f589ab6a"></script>
+  <script src="tools/deal-tools.js?v=7e56cdc92c"></script>
+  <script src="tools/grid-entry.js?v=7e56cdc92c"></script>
   <script>
     // Cache-busting stamp. Content hash of the assets this page loads by URL,
     // written by tools/stamp-version.js and enforced by tools/deal-tools.test.js.
     // Do not edit by hand -- run `npm run stamp`.
-    const APP_VERSION = 'e1f589ab6a';
+    const APP_VERSION = '7e56cdc92c';
     // Appends the stamp to a same-origin asset URL so browsers refetch it on deploy.
     function versioned(url) {
       return url + (url.includes('?') ? '&' : '?') + 'v=' + APP_VERSION;
@@ -4781,6 +4781,9 @@ document.addEventListener("click", async (e) => {
     //   2  mixed deals net the rep's cash per product and gross up only the remainder,
     //      for every product including TopLine; rate-card barter is cash x the deal's
     //      multiplier instead of the rate card's own barter column.
+    //   3  on a mixed deal EVERY barter product is grossed up, not just the ones the
+    //      rep entered cash against, and a cash-only product's full list counts as
+    //      cash rather than dropping out of the deal.
     const PRICING_RULES_VERSION = DealTools.PRICING_RULES_VERSION;
     window.__dealPricingRulesVersion = PRICING_RULES_VERSION;
 
@@ -8469,8 +8472,11 @@ document.addEventListener("click", async (e) => {
       // products used to be sized off their rate card barter value instead, which both
       // charged the multiplier on the cash half and carried a hardcoded 1.4x.
       const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
-      const needsGrossUp = (window.productState.pricingType === 'mixed'
-        && productCashTotal > 0);
+      // Every barter product on a mixed deal is grossed up, whether or not the rep
+      // entered cash against it. Gating this on productCashTotal > 0 left a product
+      // with no cash sized at its plain cash rate, asking for less inventory than the
+      // value actually required.
+      const needsGrossUp = (window.productState.pricingType === 'mixed');
       const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
 
@@ -8915,8 +8921,11 @@ function computeBarterAllocationPerProduct() {
       // products used to be sized off their rate card barter value instead, which both
       // charged the multiplier on the cash half and carried a hardcoded 1.4x.
       const barterRemainder = Math.max(0, productListPriceTotal - productCashTotal);
-      const needsGrossUp = (window.productState.pricingType === 'mixed'
-        && productCashTotal > 0);
+      // Every barter product on a mixed deal is grossed up, whether or not the rep
+      // entered cash against it. Gating this on productCashTotal > 0 left a product
+      // with no cash sized at its plain cash rate, asking for less inventory than the
+      // value actually required.
+      const needsGrossUp = (window.productState.pricingType === 'mixed');
       const productBarterMonthly = needsGrossUp ? barterRemainder * getBarterMultiplier() : barterRemainder;
       const productBarterAnnual = productBarterMonthly * 12;
 
@@ -10989,6 +10998,16 @@ window.generateFinancialAllocation = function generateFinancialAllocation() {
         const rosValue = calculateValueFromMinutes(domBarter.rosMinutes, rosAQH, cpm);
         barterValue = primeValue + rosValue;
         stationType = 'Barter';
+        productStationCount++;
+      } else if (DealTools.isCashOnlyProduct(p.id, {})) {
+        // A cash-only product is 100% cash on a mixed deal: its full list counts as
+        // cash and it never carries barter. It used to take the branch below and pick
+        // up only whatever cash the rep had typed against it -- normally none -- so a
+        // $36,000/yr War Room landed in neither the cash nor the barter column.
+        cashMonthly = unitPrice;
+        cashAnnual = unitPrice * 12;
+        barterValue = 0;
+        stationType = 'Cash';
         productStationCount++;
       } else {
         // Mixed deal

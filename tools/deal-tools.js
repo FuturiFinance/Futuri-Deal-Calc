@@ -58,7 +58,10 @@
   //   2  mixed deals net the rep's cash per product and gross up only the remainder,
   //      for every product including TopLine; rate-card barter is cash x the deal's
   //      multiplier instead of the rate card's own barter column.
-  const PRICING_RULES_VERSION = 2;
+  //   3  on a mixed deal EVERY barter product is grossed up, not just the ones the rep
+  //      entered cash against, and a cash-only product's full list counts as cash
+  //      rather than dropping out of the deal.
+  const PRICING_RULES_VERSION = 3;
 
   /**
    * Was this deal quoted under pricing rules we have since changed?
@@ -95,6 +98,22 @@
    * @returns {{stations: Array, totals: {barterValue, revenueAllocated, cashAnnual,
    *   productStations, inventoryStations}}}
    */
+  /**
+   * Is this product cash-only? A cash-only product never carries barter: on a mixed
+   * deal its full list price counts as cash. Driven by the rate card's own flags
+   * (cashOnly / barterAllowed) rather than a product id, so a new cash-only product
+   * is handled on arrival. BARTER_EXCLUDED_PRODUCTS remains a fallback for rate cards
+   * that predate the flags.
+   */
+  function isCashOnlyProduct(productId, extras) {
+    const rateCard = getRateCard(extras || {});
+    const products = (rateCard && rateCard.products) || DEFAULT_PRODUCTS;
+    const product = products.find(pp => pp.id === productId)
+      || DEFAULT_PRODUCTS.find(pp => pp.id === productId);
+    if (product && (product.cashOnly === true || product.barterAllowed === false)) return true;
+    return BARTER_EXCLUDED_PRODUCTS.includes(productId);
+  }
+
   function groupAllocationRowsByStation(rows) {
     const groups = new Map();
     (rows || []).forEach(row => {
@@ -916,9 +935,9 @@
     const perProduct = {};
     let totalAnnual = 0;
 
-    (c.products || []).forEach(productId => {
-      if (BARTER_EXCLUDED_PRODUCTS.includes(productId)) return;
+    let cashOnlyAnnual = 0;
 
+    (c.products || []).forEach(productId => {
       const baseExtras = {
         ...(mergedProductConfigs[productId] || {}),
         dealType: c.dealType,
@@ -934,6 +953,23 @@
       });
       const listMonthly = listPrice.monthly || 0;
 
+      // A cash-only product is 100% cash on a mixed deal: its full list counts as cash
+      // and it never carries barter. It used to be skipped outright, which dropped it
+      // from the deal entirely -- a $36,000/yr War Room showed as neither cash nor
+      // barter.
+      if (isCashOnlyProduct(productId, baseExtras)) {
+        perProduct[productId] = {
+          listMonthly,
+          cashMonthly: listMonthly,
+          remainderMonthly: 0,
+          grossedUp: false,
+          cashOnly: true,
+          targetAnnual: 0
+        };
+        cashOnlyAnnual += listMonthly * 12;
+        return;
+      }
+
       // Cash the rep entered against this product, summed over the same location keys
       // the UI writes: market names for market-level products, station keys otherwise.
       let cashMonthly = 0;
@@ -943,21 +979,28 @@
         cashMonthly += ((c.productCashValues || {})[`${productId}:${locationKey}`]) || 0;
       });
 
+      // max(0, ...) keeps cash above a product's list with THAT product: it never
+      // spills over to reduce another product's barter.
       const remainderMonthly = Math.max(0, listMonthly - cashMonthly);
-      const grossedUp = cashMonthly > 0;
-      const targetAnnual = (grossedUp ? remainderMonthly * barterRate : remainderMonthly) * 12;
+      // Every barter product on a mixed deal is grossed up, whether or not the rep
+      // entered cash against it. Gating this on cashMonthly > 0 left a product with no
+      // cash sized at its plain cash rate, so the rep was asked for less inventory than
+      // the value actually required.
+      const grossedUp = true;
+      const targetAnnual = remainderMonthly * barterRate * 12;
 
       perProduct[productId] = {
         listMonthly,
         cashMonthly,
         remainderMonthly,
         grossedUp,
+        cashOnly: false,
         targetAnnual
       };
       totalAnnual += targetAnnual;
     });
 
-    return { perProduct, totalAnnual };
+    return { perProduct, totalAnnual, cashOnlyAnnual };
   }
 
   // TOOL 5: calculateProductPrice
@@ -1914,6 +1957,7 @@
       // one flat (totalAnnual - totalCashAnnual). A flat remainder skips the gross-up
       // that calculated products need, so the agent quoted a smaller barter target than
       // the proposal showed for the same deal.
+      // (cash-only product lists are added to totalCashAnnual once the targets exist)
       mixedBarterTargets = calculateMixedBarterTargets(
         c,
         { stations: c.stations || [], markets: c.markets || [] },
@@ -1921,6 +1965,8 @@
         resolveBarterMultiplier({ barterMultiplier: c.barterMultiplier })
       );
       totalBarterTargetAnnual = mixedBarterTargets.totalAnnual;
+      // A cash-only product carries no barter, so its full list is cash.
+      totalCashAnnual += mixedBarterTargets.cashOnlyAnnual || 0;
     } else if (pricingType === 'barter') {
       totalBarterTargetAnnual = totalAnnual;
     } else {
@@ -2185,6 +2231,28 @@
       }
     }
 
+    // Cash above a product's list stays with that product -- it does not reduce any
+    // other product's barter -- so the rep should see where the extra landed.
+    if (deal.pricingType === 'mixed' && deal.mixedBarterTargets) {
+      const rateCard = getRateCard(deal);
+      const catalog = (rateCard && rateCard.products) || DEFAULT_PRODUCTS;
+      Object.entries(deal.mixedBarterTargets).forEach(([productId, t]) => {
+        if (t.cashOnly) return;
+        const cashAnnual = (t.cashMonthly || 0) * 12;
+        const listAnnual = (t.listMonthly || 0) * 12;
+        if (cashAnnual > listAnnual + 0.005) {
+          const product = catalog.find(pp => pp.id === productId)
+            || DEFAULT_PRODUCTS.find(pp => pp.id === productId);
+          const name = (product && product.name) || productId;
+          issues.push({
+            severity: 'warning',
+            message: `${name} cash $${Math.round(cashAnnual).toLocaleString()}/yr is above `
+              + `its $${Math.round(listAnnual).toLocaleString()}/yr list; the extra stays with ${name}.`
+          });
+        }
+      });
+    }
+
     // Check margin for FAAI
     if (deal.faaiConfig && deal.faaiConfig.margin < 50) {
       issues.push({
@@ -2222,6 +2290,8 @@
     PRICING_RULES_VERSION,
     dealNeedsPricingRulesWarning,
     cashKeyForStation,
+    isCashOnlyProduct,
+    isMarketLevelProduct,
     groupAllocationRowsByStation,
     calculateBarterMinutes,
     calculateFAAIPrice,
